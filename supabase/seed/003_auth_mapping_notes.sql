@@ -1,0 +1,89 @@
+-- MediFast Auth Mapping Notes
+--
+-- Purpose:
+-- This file documents how to connect existing Supabase Auth users to the
+-- seeded MediFast role records used by the dashboard, customer app, and driver app.
+--
+-- Important:
+-- 1. Do not insert into auth.users manually.
+-- 2. Create users first in the Supabase Dashboard:
+--    Authentication -> Users -> Add user
+-- 3. After the user exists, copy the Auth user UUID and update the seeded tables below.
+--
+-- Suggested test emails:
+--   admin@medifast.test
+--   vendor@medifast.test
+--   driver@medifast.test
+--   customer@medifast.test
+--
+-- Seeded profile IDs:
+--   Admin profile:    00000000-0000-0000-0000-000000000000
+--   Customer profile: 11111111-1111-1111-1111-111111111111
+--   Driver profile:   22222222-2222-2222-2222-222222222222
+--   Vendor profile:   33333333-3333-3333-3333-333333333333
+--
+-- Matching role tables:
+--   customer role -> public.customers.user_id references public.profiles.id
+--   driver role   -> public.drivers.user_id references public.profiles.id
+--   vendor role   -> public.vendors.user_id references public.profiles.id
+--   admin role    -> only public.profiles is required
+--
+-- Example workflow:
+-- 1. Create an Auth user with email admin@medifast.test in Supabase Auth.
+-- 2. Copy that Auth UUID.
+-- 3. Run an update like the examples below.
+
+-- Example: map an Auth admin user to the seeded admin profile
+-- replace ADMIN_AUTH_USER_UUID with the UUID from Supabase Auth
+--
+-- update public.profiles
+-- set auth_user_id = 'ADMIN_AUTH_USER_UUID'
+-- where id = '00000000-0000-0000-0000-000000000000';
+
+-- Example: map an Auth vendor user to the seeded vendor profile
+-- replace VENDOR_AUTH_USER_UUID with the UUID from Supabase Auth
+--
+-- update public.profiles
+-- set auth_user_id = 'VENDOR_AUTH_USER_UUID'
+-- where id = '33333333-3333-3333-3333-333333333333';
+
+-- Example: map an Auth driver user to the seeded driver profile
+-- replace DRIVER_AUTH_USER_UUID with the UUID from Supabase Auth
+--
+-- update public.profiles
+-- set auth_user_id = 'DRIVER_AUTH_USER_UUID'
+-- where id = '22222222-2222-2222-2222-222222222222';
+
+-- Example: map an Auth customer user to the seeded customer profile
+-- replace CUSTOMER_AUTH_USER_UUID with the UUID from Supabase Auth
+--
+-- update public.profiles
+-- set auth_user_id = 'CUSTOMER_AUTH_USER_UUID'
+-- where id = '11111111-1111-1111-1111-111111111111';
+
+-- Optional verification query:
+--
+-- select
+--   p.id as profile_id,
+--   p.full_name,
+--   p.role,
+--   p.auth_user_id
+-- from public.profiles p
+-- where p.id in (
+--   '00000000-0000-0000-0000-000000000000',
+--   '11111111-1111-1111-1111-111111111111',
+--   '22222222-2222-2222-2222-222222222222',
+--   '33333333-3333-3333-3333-333333333333'
+-- )
+-- order by p.role;
+
+-- Optional role-table verification:
+--
+-- select c.id, c.user_id from public.customers c
+-- where c.user_id = '11111111-1111-1111-1111-111111111111';
+--
+-- select d.id, d.user_id, d.approval_status from public.drivers d
+-- where d.user_id = '22222222-2222-2222-2222-222222222222';
+--
+-- select v.id, v.user_id, v.approval_status from public.vendors v
+-- where v.user_id = '33333333-3333-3333-3333-333333333333';

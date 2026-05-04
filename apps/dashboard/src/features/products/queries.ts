@@ -1,0 +1,157 @@
+import { createElement } from "react";
+import { Badge } from "../../components/ui/badge";
+import type { ProductCategoryOption, ProductRow, TableModel } from "../../types/dashboard";
+import { getSupabaseServerClient } from "../../lib/supabase/server";
+import { formatCurrency } from "../../lib/utils/format-currency";
+
+function mapProductRow(product: Record<string, unknown>): ProductRow {
+  return {
+    id: String(product.id),
+    vendor_id: String(product.vendor_id),
+    category_id: product.category_id ? String(product.category_id) : null,
+    name: String(product.name),
+    description: product.description ? String(product.description) : null,
+    price: Number(product.price ?? 0),
+    stock_quantity: Number(product.stock_quantity ?? 0),
+    barcode: product.barcode ? String(product.barcode) : null,
+    is_active: Boolean(product.is_active),
+    image_url: product.image_url ? String(product.image_url) : null,
+  };
+}
+
+export async function listProducts(): Promise<ProductRow[]> {
+  const supabase = getSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((product) => mapProductRow(product as Record<string, unknown>));
+}
+
+export async function listVendorProducts(): Promise<ProductRow[]> {
+  const supabase = getSupabaseServerClient();
+
+  const { data: vendorId, error: vendorError } = await supabase.rpc("get_vendor_id");
+
+  console.log("VENDOR DEBUG →", { vendorId, vendorError });
+
+  if (vendorError) throw vendorError;
+
+  if (!vendorId) {
+    console.error("Vendor not linked to auth user.");
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
+    .eq("vendor_id", vendorId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((product) => mapProductRow(product as Record<string, unknown>));
+}
+
+export function getAdminOverviewProductsTableModel(products: ProductRow[]): TableModel {
+  return {
+    title: "Product Snapshot",
+    headers: ["Product", "Category", "Price", "Stock"],
+    rows: products.map((product) => [
+      product.name,
+      product.category_id ?? "-",
+      formatCurrency(product.price),
+      `${product.stock_quantity}`,
+    ]),
+  };
+}
+
+export function getAdminProductsTableModel(products: ProductRow[]): TableModel {
+  return {
+    title: "Products",
+    headers: ["Name", "Vendor", "Price", "Stock"],
+    rows: products.map((product) => [
+      product.name,
+      product.vendor_id,
+      formatCurrency(product.price),
+      `${product.stock_quantity}`,
+    ]),
+  };
+}
+
+export function getVendorOverviewProductsTableModel(products: ProductRow[]): TableModel {
+  return {
+    title: "Catalog",
+    headers: ["Product", "Price", "Stock", "Image"],
+    rows: products.map((product) => [
+      product.name,
+      formatCurrency(product.price),
+      `${product.stock_quantity}`,
+      product.image_url ? "Supabase Storage" : "No image",
+    ]),
+  };
+}
+
+export function getVendorProductsTableModel(products: ProductRow[]): TableModel {
+  return {
+    title: "Products",
+    headers: ["Name", "Price", "Stock", "Status"],
+    rows: products.map((product) => [
+      product.name,
+      formatCurrency(product.price),
+      `${product.stock_quantity}`,
+      createElement(Badge, {
+        key: `${product.id}-product-status`,
+        children: product.is_active ? "active" : "inactive",
+      }),
+    ]),
+  };
+}
+
+export function getInventoryTableModel(products: ProductRow[]): TableModel {
+  return {
+    title: "Inventory",
+    headers: ["Product", "Stock", "Barcode", "Needs Restock"],
+    rows: products.map((product) => [
+      product.name,
+      `${product.stock_quantity}`,
+      product.barcode ?? "-",
+      product.stock_quantity < 25 ? "Yes" : "No",
+    ]),
+  };
+}
+
+export async function listProductCategories(): Promise<ProductCategoryOption[]> {
+  const supabase = getSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name")
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+
+  return (data ?? []).map((category) => ({
+    id: String(category.id),
+    name: String(category.name),
+  }));
+}
+
+export async function getProductById(productId: string): Promise<ProductRow | null> {
+  const supabase = getSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
+    .eq("id", productId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data ? mapProductRow(data as Record<string, unknown>) : null;
+}

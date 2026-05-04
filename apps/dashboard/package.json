@@ -1,0 +1,21 @@
+{
+  "name": "@medifast/dashboard",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "typecheck": "tsc --noEmit",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@medifast/i18n": "workspace:*",
+    "@medifast/supabase": "workspace:*",
+    "@medifast/types": "workspace:*",
+    "@medifast/ui": "workspace:*",
+    "@supabase/supabase-js": "^2.49.8",
+    "next": "^15.3.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  }
+}

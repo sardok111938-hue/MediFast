@@ -1,0 +1,20 @@
+{
+  "name": "medifast",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names dashboard,customer,driver \"pnpm dev:dashboard\" \"pnpm --filter @medifast/customer-app dev:ci\" \"pnpm --filter @medifast/driver-app dev:ci\"",
+    "dev:customer": "pnpm --filter @medifast/customer-app dev",
+    "dev:driver": "pnpm --filter @medifast/driver-app dev",
+    "dev:dashboard": "pnpm --filter @medifast/dashboard dev",
+    "build:dashboard": "pnpm --filter @medifast/dashboard build",
+    "typecheck": "pnpm --filter @medifast/dashboard exec tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.3"
+  }
+}

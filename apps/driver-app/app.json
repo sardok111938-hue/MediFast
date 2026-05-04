@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "MediFast Driver",
+    "slug": "medifast-driver",
+    "scheme": "medifast-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.medifast.driver"
+    },
+    "android": {
+      "package": "com.medifast.driver"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
