@@ -3,7 +3,17 @@ import { useRouter } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import { DriverBadge, DriverButton, DriverEmptyCard, DriverErrorCard, DriverListCard, DriverLoadingCard, DriverRow, DriverScreen } from "../../src/components/DriverUI";
 import { useDriverI18n } from "../../src/lib/i18n";
-import { formatCurrency, formatDate, getCurrentDriverProfile, getStatusLabel, listCurrentDriverOrders, normalizeError, statusTone, type DriverOrder } from "../../src/lib/driver-data";
+import {
+  formatCurrency,
+  formatDate,
+  getCurrentDriverProfile,
+  getPaymentStatusLabel,
+  getStatusLabel,
+  listCurrentDriverOrders,
+  normalizeError,
+  statusTone,
+  type DriverOrder,
+} from "../../src/lib/driver-data";
 import { signOutDriver, subscribeToAssignedOrders, supabase } from "../../src/lib/supabase";
 import { theme } from "@medifast/ui";
 
@@ -94,7 +104,7 @@ export default function DriverOrdersListScreen() {
               <DriverRow label="Customer" value={order.customerName} />
               <DriverRow label="Dropoff" value={order.dropoffAddress} />
               <DriverRow label="Total" value={formatCurrency(order.total)} />
-              <DriverRow label="Payment" value={getStatusLabel(order.paymentStatus)} valueTone="muted" />
+              <DriverRow label="Payment" value={getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} valueTone="muted" />
               <DriverRow label="Created" value={formatDate(order.createdAt)} valueTone="muted" />
 
               <DriverButton

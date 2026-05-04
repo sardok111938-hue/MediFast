@@ -15,6 +15,21 @@ export type PaymentMethod = "cash_on_delivery";
 export type PaymentStatus = "pending" | "collected";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
+export function formatPaymentStatusLabel(
+  status: PaymentStatus | string,
+  paymentMethod?: PaymentMethod | string | null
+) {
+  if (status === "pending") {
+    return paymentMethod === "cash_on_delivery" ? "Cash to be paid on delivery" : "Pending";
+  }
+
+  if (status === "collected") {
+    return paymentMethod === "cash_on_delivery" ? "Paid (Cash)" : "Collected";
+  }
+
+  return status.replaceAll("_", " ");
+}
+
 export interface Profile {
   id: string;
   full_name: string;

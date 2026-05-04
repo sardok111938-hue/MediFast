@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatPaymentStatusLabel } from "@medifast/types";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { LoadingState } from "../../../components/ui/loading-state";
@@ -25,6 +26,7 @@ type VendorOrder = {
   id: string;
   customerName: string;
   total: number;
+  paymentMethod: string;
   paymentStatus: string;
   orderStatus: string;
   createdAt: string;
@@ -92,6 +94,7 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
     .select(`
       id,
       total,
+      payment_method,
       payment_status,
       order_status,
       created_at,
@@ -122,6 +125,7 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
         id: String(order.id),
         customerName: readName((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "Customer"),
         total: Number(order.total ?? 0),
+        paymentMethod: String(order.payment_method ?? ""),
         paymentStatus: String(order.payment_status),
         orderStatus: String(order.order_status),
         createdAt: String(order.created_at ?? ""),
@@ -269,7 +273,7 @@ export function VendorOrdersClient() {
           order.id,
           order.customerName,
           formatCurrency(order.total, intlLocale),
-          order.paymentStatus,
+          formatPaymentStatusLabel(order.paymentStatus, order.paymentMethod),
           <OrderStatusBadge key={`${order.id}-status`} status={order.orderStatus} />,
           order.createdAt ? formatDate(order.createdAt, intlLocale) : "-",
         ])}
@@ -299,7 +303,7 @@ export function VendorOrdersClient() {
                 </div>
                 <div className="detail-block">
                   <strong>{t("Payment Status")}</strong>
-                  <span>{order.paymentStatus}</span>
+                  <span>{formatPaymentStatusLabel(order.paymentStatus, order.paymentMethod)}</span>
                 </div>
                 <div className="detail-block">
                   <strong>{t("Created")}</strong>

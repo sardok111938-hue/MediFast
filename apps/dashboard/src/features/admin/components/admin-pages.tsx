@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import { formatPaymentStatusLabel } from "@medifast/types";
 import { Input } from "../../../components/ui/input";
 import { Card } from "../../../components/ui/card";
 import { LoadingState } from "../../../components/ui/loading-state";
@@ -57,6 +58,7 @@ type AdminOrderManagerRow = {
   customerName: string;
   vendorName: string;
   total: number;
+  paymentMethod: string;
   paymentStatus: string;
   orderStatus: string;
   createdAt: string;
@@ -984,7 +986,7 @@ async function loadOrdersTable(): Promise<TableModel> {
     rows: (data ?? []).map((order) => [
       `${String(order.id)} • ${readCategoryName(order.vendor as { name?: string } | { name?: string }[] | null)}`,
       readName((readSingle(order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile), "Customer"),
-      `${String(order.payment_method)} • ${String(order.payment_status)} • ${formatCurrency(Number(order.total ?? 0))}`,
+      `${String(order.payment_method)} • ${formatPaymentStatusLabel(String(order.payment_status), String(order.payment_method))} • ${formatCurrency(Number(order.total ?? 0))}`,
       <OrderStatusBadge key={`order-${order.id}`} status={String(order.order_status)} />,
     ]),
   };
@@ -998,6 +1000,7 @@ async function loadAdminOrdersData(): Promise<AdminOrderManagerRow[]> {
       id,
       driver_id,
       total,
+      payment_method,
       payment_status,
       order_status,
       created_at,
@@ -1023,6 +1026,7 @@ async function loadAdminOrdersData(): Promise<AdminOrderManagerRow[]> {
     ),
     vendorName: readCategoryName(order.vendor as { name?: string } | { name?: string }[] | null),
     total: Number(order.total ?? 0),
+    paymentMethod: String(order.payment_method ?? ""),
     paymentStatus: String(order.payment_status),
     orderStatus: String(order.order_status),
     createdAt: String(order.created_at ?? ""),
@@ -2115,7 +2119,7 @@ try {
           order.customerName,
           order.vendorName,
           formatCurrency(order.total),
-          order.paymentStatus,
+          formatPaymentStatusLabel(order.paymentStatus, order.paymentMethod),
           <select
             key={`${order.id}-status`}
             className="input"

@@ -124,7 +124,7 @@ export const categories: Category[] = [
 
 export const vendors: Vendor[] = [
   {
-    id: "vendor-1",
+    id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
     name: "صيدلية جرين كير",
     address: "شارع الملك 14، المنطقة المركزية",
     rating: 4.8,
@@ -132,7 +132,7 @@ export const vendors: Vendor[] = [
     is_open: true,
   },
   {
-    id: "vendor-2",
+    id: "ddddcccc-cccc-cccc-cccc-cccccccccccc",
     name: "صيدلية ويل سبرينغ",
     address: "جادة سيدار 22، الجهة الغربية",
     rating: 4.6,
@@ -143,8 +143,8 @@ export const vendors: Vendor[] = [
 
 export const products: Product[] = [
   {
-    id: "prod-1",
-    vendor_id: "vendor-1",
+    id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    vendor_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
     category_id: "cat-1",
     name: "باراسيتامول 500 مجم",
     description: "تخفيف سريع للحمى والآلام الخفيفة.",
@@ -156,8 +156,8 @@ export const products: Product[] = [
     express: true,
   },
   {
-    id: "prod-2",
-    vendor_id: "vendor-1",
+    id: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    vendor_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
     category_id: "cat-2",
     name: "أقراص فيتامين سي",
     description: "دعم يومي للمناعة بنكهة البرتقال.",
@@ -168,8 +168,8 @@ export const products: Product[] = [
     is_active: true,
   },
   {
-    id: "prod-3",
-    vendor_id: "vendor-2",
+    id: "cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd",
+    vendor_id: "ddddcccc-cccc-cccc-cccc-cccccccccccc",
     category_id: "cat-5",
     name: "ميزان حرارة رقمي",
     description: "قراءات سريعة لدرجة الحرارة للاستخدام المنزلي.",

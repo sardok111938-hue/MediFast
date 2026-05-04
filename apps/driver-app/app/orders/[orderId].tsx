@@ -10,6 +10,7 @@ import {
   getCurrentDriverProfile,
   getDriverNextActions,
   getDriverOrderDetail,
+  getPaymentStatusLabel,
   getStatusLabel,
   normalizeError,
   statusTone,
@@ -120,7 +121,7 @@ export default function DriverOrderDetailScreen() {
               badge={<DriverBadge label={getStatusLabel(order.orderStatus)} tone={statusTone(order.orderStatus)} />}
             >
               <DriverRow label="Customer" value={order.customerName} />
-              <DriverRow label="Payment Status" value={getStatusLabel(order.paymentStatus)} />
+              <DriverRow label="Payment Status" value={getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} />
               <DriverRow label="Created" value={formatDate(order.createdAt)} valueTone="muted" />
               <DriverRow label="Pickup" value={order.pickupAddress} />
               <DriverRow label="Dropoff" value={order.dropoffAddress} />

@@ -1,10 +1,11 @@
 "use client";
 
-import { createAppSupabaseClient, resolveSupabaseConfig } from "@medifast/supabase";
+import { createAppSupabaseClient } from "@medifast/supabase";
 
-const { url, anonKey, isConfigured } = resolveSupabaseConfig("web");
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!isConfigured) {
+if (!url || !anonKey) {
   throw new Error("Missing Supabase env variables");
 }
 

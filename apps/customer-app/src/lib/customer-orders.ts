@@ -1,3 +1,4 @@
+import { formatPaymentStatusLabel, type PaymentMethod } from "@medifast/types";
 import { supabase } from "./supabase";
 
 export type CustomerOrderItem = {
@@ -13,6 +14,7 @@ export type CustomerOrder = {
   vendorName: string;
   deliveryAddress: string;
   total: number;
+  paymentMethod: string;
   paymentStatus: string;
   orderStatus: string;
   createdAt: string;
@@ -39,6 +41,7 @@ type SingleRecord<T extends Record<string, unknown>> = T | T[] | null | undefine
 type CustomerOrderQueryRow = {
   id: unknown;
   total?: unknown;
+  payment_method?: unknown;
   payment_status?: unknown;
   order_status?: unknown;
   created_at?: unknown;
@@ -93,6 +96,7 @@ function mapOrder(order: CustomerOrderQueryRow): CustomerOrder {
     vendorName: readVendorName(order.vendor, "المتجر"),
     deliveryAddress: formatAddress(order.address),
     total: Number(order.total ?? 0),
+    paymentMethod: String(order.payment_method ?? ""),
     paymentStatus: String(order.payment_status ?? ""),
     orderStatus: String(order.order_status ?? ""),
     createdAt: String(order.created_at ?? ""),
@@ -127,6 +131,10 @@ export function formatCustomerDate(value: string) {
 
 export function formatOrderStatusLabel(value: string) {
   return statusLabelMap[value] ?? value.replaceAll("_", " ");
+}
+
+export function formatCustomerPaymentStatusLabel(paymentStatus: string, paymentMethod: string) {
+  return formatPaymentStatusLabel(paymentStatus, paymentMethod as PaymentMethod | string);
 }
 
 export function orderStatusTone(status: string): "neutral" | "warning" | "success" | "danger" | "info" {
@@ -268,6 +276,7 @@ export async function listCustomerOrders(customerId: string): Promise<CustomerOr
     .select(`
       id,
       total,
+      payment_method,
       payment_status,
       order_status,
       created_at,
@@ -306,6 +315,7 @@ export async function getCustomerOrder(customerId: string, orderId: string): Pro
     .select(`
       id,
       total,
+      payment_method,
       payment_status,
       order_status,
       created_at,

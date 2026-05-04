@@ -1,3 +1,4 @@
+import { formatPaymentStatusLabel, type PaymentMethod } from "@medifast/types";
 import { getActiveSession, getAuthenticatedUser, supabase } from "./supabase";
 
 export type DriverProfile = {
@@ -22,6 +23,7 @@ export type DriverOrder = {
   pickupAddress: string;
   dropoffAddress: string;
   total: number;
+  paymentMethod: string;
   paymentStatus: string;
   orderStatus: string;
   createdAt: string;
@@ -31,6 +33,7 @@ export type DriverOrder = {
 type DriverOrderQueryRow = {
   id: unknown;
   total?: unknown;
+  payment_method?: unknown;
   payment_status?: unknown;
   order_status?: unknown;
   created_at?: unknown;
@@ -139,6 +142,10 @@ export function getStatusLabel(status: string) {
   return status.replaceAll("_", " ");
 }
 
+export function getPaymentStatusLabel(paymentStatus: string, paymentMethod: string) {
+  return formatPaymentStatusLabel(paymentStatus, paymentMethod as PaymentMethod | string);
+}
+
 export function getDriverNextActions(status: string) {
   if (status === "assigned" || status === "accepted") {
     return [{ label: "Mark Out for Delivery", nextStatus: "on_the_way" }];
@@ -208,6 +215,7 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
     pickupAddress: formatAddress(order.vendor as SingleRecord<{ address_line_1?: string; address_line_2?: string | null; city?: string; area?: string | null }>),
     dropoffAddress: formatAddress(order.address as SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>),
     total: Number(order.total ?? 0),
+    paymentMethod: String(order.payment_method ?? ""),
     paymentStatus: String(order.payment_status ?? ""),
     orderStatus: String(order.order_status ?? ""),
       createdAt: String(order.created_at ?? ""),
@@ -227,6 +235,7 @@ export async function listCurrentDriverOrders(driverId: string): Promise<DriverO
     .select(`
       id,
       total,
+      payment_method,
       payment_status,
       order_status,
       created_at,
@@ -270,6 +279,7 @@ export async function getDriverOrderDetail(driverId: string, orderId: string): P
     .select(`
       id,
       total,
+      payment_method,
       payment_status,
       order_status,
       created_at,

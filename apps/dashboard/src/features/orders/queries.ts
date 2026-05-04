@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { formatPaymentStatusLabel } from "@medifast/types";
 import { OrderStatusBadge } from "./components/order-status-badge";
 import type { AdminOrderDetailRow, AdminOrderRow, TableModel, VendorOrderDetailRow, VendorOrderRow } from "../../types/dashboard";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
@@ -292,7 +293,7 @@ export function getAdminOrdersTableModel(orders: AdminOrderRow[]): TableModel {
     rows: orders.map((order) => [
       order.id,
       order.payment_method,
-      order.payment_status,
+      formatPaymentStatusLabel(order.payment_status, order.payment_method),
       createElement(OrderStatusBadge, {
         key: `${order.id}-status`,
         status: order.order_status,
@@ -324,7 +325,7 @@ export function getVendorOrdersTableModel(orders: VendorOrderRow[]): TableModel 
     rows: orders.map((order) => [
       order.id,
       formatCurrency(order.total),
-      order.payment_status,
+      formatPaymentStatusLabel(order.payment_status, order.payment_method),
       createElement(OrderStatusBadge, {
         key: `${order.id}-vendor-status`,
         status: order.order_status,
