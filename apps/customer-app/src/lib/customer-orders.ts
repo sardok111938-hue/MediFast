@@ -46,7 +46,7 @@ type CustomerOrderQueryRow = {
   order_status?: unknown;
   created_at?: unknown;
   vendor?: SingleRecord<{ name?: string }>;
-  address?: SingleRecord<{ label?: string; line_1?: string; line_2?: string | null; city?: string; area?: string | null }>;
+  address?: SingleRecord<{ line_1?: string; lat?: number | null; lng?: number | null }>;
   driver?: SingleRecord<{ profile?: SingleRecord<{ full_name?: string }> }>;
   items?: Array<{
     id: unknown;
@@ -79,13 +79,13 @@ function readProductName(value: SingleRecord<{ name?: string }>, fallback: strin
   return readSingle(value)?.name ?? fallback;
 }
 
-function formatAddress(value: SingleRecord<{ label?: string; line_1?: string; line_2?: string | null; city?: string; area?: string | null }>) {
+function formatAddress(value: SingleRecord<{ line_1?: string; lat?: number | null; lng?: number | null }>) {
   const address = readSingle(value);
   if (!address) {
     return "العنوان غير متاح";
   }
 
-  return [address.label, address.line_1, address.line_2, address.area, address.city].filter(Boolean).join("، ") || "العنوان غير متاح";
+  return address.line_1 || "العنوان غير متاح";
 }
 
 function mapOrder(order: CustomerOrderQueryRow): CustomerOrder {
@@ -281,13 +281,11 @@ export async function listCustomerOrders(customerId: string): Promise<CustomerOr
       order_status,
       created_at,
       vendor:vendors(name),
-      address:addresses(
-        label,
-        line_1,
-        line_2,
-        city,
-        area
-      ),
+      address:addresses!orders_delivery_address_id_fkey(
+  line_1,
+  lat,
+  lng
+),
       driver:drivers(
         profile:profiles!drivers_user_id_fkey(full_name)
       ),
@@ -320,13 +318,11 @@ export async function getCustomerOrder(customerId: string, orderId: string): Pro
       order_status,
       created_at,
       vendor:vendors(name),
-      address:addresses(
-        label,
-        line_1,
-        line_2,
-        city,
-        area
-      ),
+      address:addresses!orders_delivery_address_id_fkey(
+  line_1,
+  lat,
+  lng
+),
       driver:drivers(
         profile:profiles!drivers_user_id_fkey(full_name)
       ),

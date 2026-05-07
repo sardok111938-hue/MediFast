@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { Card, EmptyCard, ErrorCard, HelperText, ListCard, LoadingCard, PrimaryButton, Screen, SectionTitle, StatusBadge } from "../src/components/CustomerUI";
@@ -35,6 +35,7 @@ export default function OrderHistoryScreen() {
 
     try {
       const result = await loadCurrentCustomerOrders();
+
       setCustomerId(result.customerId);
       setOrders(result.orders);
     } catch (nextError) {
@@ -46,9 +47,11 @@ export default function OrderHistoryScreen() {
     }
   }, []);
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     void loadOrders();
-  }, [loadOrders]);
+  }, [loadOrders])
+);
 
   useEffect(() => {
     if (!customerId) {

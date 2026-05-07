@@ -57,8 +57,9 @@ export async function placeCashOnDeliveryOrder(items: CartItem[]) {
   });
 
   if (error) {
-    throw new Error(normalizeCheckoutError(error));
-  }
+  console.log("CREATE_COD_ORDER_ERROR", JSON.stringify(error, null, 2));
+  throw new Error(error.message || normalizeCheckoutError(error));
+}
 
   if (!data) {
     throw new Error("لم يتم إنشاء الطلب.");

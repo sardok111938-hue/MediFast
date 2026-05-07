@@ -136,7 +136,7 @@ export function Screen({
   const { t, isRTL } = useCustomerI18n();
   const withTabs = showTabBar ?? shouldShowTabBar(pathname);
   const content = (
-    <View style={styles.content}>
+    <View style={[styles.content, !scroll ? styles.contentFullHeight : null]}>
       <View style={styles.header}>
         <View style={[styles.headerTopRow, isRTL ? styles.headerTopRowRtl : null]}>
           {backHref ? <BackButton label={backLabel} href={backHref} /> : <View style={styles.headerSpacer} />}
@@ -579,6 +579,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing[20],
     paddingTop: theme.spacing[12],
     gap: theme.spacing[16],
+  },
+  contentFullHeight: {
+    flex: 1,
   },
   header: {
     gap: theme.spacing[12],

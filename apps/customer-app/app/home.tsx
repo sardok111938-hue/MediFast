@@ -30,6 +30,7 @@ import {
   formatSavedAddressLine,
   getCategoryById,
   getFeaturedProducts,
+  hasSavedAddressCoordinates,
   getPrimaryAddress,
   getVendorById,
   useCustomerCatalogData,
@@ -84,6 +85,7 @@ export default function HomeScreen() {
           <Text style={styles.addressTitle} numberOfLines={1}>
             {primaryAddress ? formatSavedAddressLine(primaryAddress) : "اختر عنوان التوصيل"}
           </Text>
+          {primaryAddress && hasSavedAddressCoordinates(primaryAddress) ? <Text style={styles.addressMeta}>تم تحديد الموقع</Text> : null}
         </Pressable>
 
         <Pressable style={styles.cartCircle} onPress={() => router.push("/cart")}>
@@ -250,6 +252,12 @@ addressTitle: {
   color: theme.colors.text,
   fontSize: theme.typography.body.sm,
   fontWeight: "900",
+  textAlign: "right",
+},
+
+addressMeta: {
+  color: theme.colors.primaryDark,
+  fontSize: theme.typography.caption.md,
   textAlign: "right",
 },
 

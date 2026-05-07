@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { Card, DetailRow, ErrorCard, HelperText, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
-import { getSavedAddresses, useCustomerCatalogData } from "../src/lib/customer-catalog";
+import { formatSavedAddressLine, getPrimaryAddress, getSavedAddresses, hasSavedAddressCoordinates, useCustomerCatalogData } from "../src/lib/customer-catalog";
 import { signOutCustomer, supabase } from "../src/lib/supabase";
 
 export default function ProfileScreen() {
@@ -13,6 +13,7 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState("customer@example.com");
   const [loggingOut, setLoggingOut] = useState(false);
   const addresses = useMemo(() => getSavedAddresses(data.addresses), [data.addresses]);
+  const defaultAddress = useMemo(() => getPrimaryAddress(data.addresses, data.defaultAddressId), [data.addresses, data.defaultAddressId]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -65,6 +66,8 @@ export default function ProfileScreen() {
           }
         />
         <Text style={styles.addressCount}>{addresses.length} عناوين محفوظة</Text>
+        {defaultAddress ? <Text style={styles.defaultAddressLine}>{formatSavedAddressLine(defaultAddress)}</Text> : null}
+        {defaultAddress && hasSavedAddressCoordinates(defaultAddress) ? <HelperText tone="info">تم تحديد الموقع</HelperText> : null}
         <HelperText>حدّث عناوين التوصيل لديك باستمرار لتجربة دفع أسرع.</HelperText>
         <PrimaryButton
           label="فتح العناوين"
@@ -122,6 +125,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.body.lg,
+    textAlign: "right",
+  },
+  defaultAddressLine: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body.sm,
+    lineHeight: theme.typography.lineHeight.body,
     textAlign: "right",
   },
 });

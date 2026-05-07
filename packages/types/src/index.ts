@@ -83,13 +83,11 @@ export interface CartProductSnapshot {
 
 export interface Address {
   id: string;
+  customer_id?: string;
   line_1: string;
-  label?: string | null;
-  line_2?: string | null;
-  city?: string | null;
-  area?: string | null;
   lat?: number | null;
   lng?: number | null;
+  created_at?: string;
 }
 
 export interface CartItem {

@@ -222,20 +222,13 @@ export const cartItems: CartItem[] = [
 export const addresses: Address[] = [
   {
     id: "addr-1",
-    label: "Home",
     line_1: "48 Maple Residency",
-    line_2: "Flat 7C",
-    city: "Sedalia Heights",
-    area: "Central District",
     lat: 24.7136,
     lng: 46.6753,
   },
   {
     id: "addr-2",
-    label: "Office",
     line_1: "Axis Medical Tower",
-    city: "Sedalia Heights",
-    area: "Business Park",
     lat: 24.716,
     lng: 46.69,
   },

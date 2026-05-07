@@ -43,7 +43,11 @@ type QueryProduct = {
 
 type QueryAddress = {
   id: string;
+  customer_id?: string | null;
   line_1: string;
+  lat?: number | null;
+  lng?: number | null;
+  created_at?: string | null;
 };
 
 type QueryCustomerAddressState = {
@@ -102,7 +106,11 @@ function mapCategory(category: QueryCategory): Category {
 function mapAddress(address: QueryAddress): Address {
   return {
     id: address.id,
+    customer_id: address.customer_id ?? undefined,
     line_1: address.line_1,
+    lat: address.lat ?? null,
+    lng: address.lng ?? null,
+    created_at: address.created_at ?? undefined,
   };
 }
 
@@ -122,7 +130,7 @@ async function loadCustomerAddresses(): Promise<Pick<CustomerCatalogData, "addre
 
   const [customerResult, addressesResult] = await Promise.all([
     supabase.from("customers").select("default_address_id").eq("id", String(customerId)).maybeSingle(),
-    supabase.from("addresses").select("id, line_1").eq("customer_id", String(customerId)).order("created_at", { ascending: true }),
+    supabase.from("addresses").select("id, customer_id, line_1, lat, lng, created_at").eq("customer_id", String(customerId)).order("created_at", { ascending: true }),
   ]);
 
   if (customerResult.error) {
@@ -255,7 +263,11 @@ export function getSavedAddresses(addresses: Address[]) {
 }
 
 export function formatSavedAddressLine(address: Pick<Address, "line_1">) {
-  return address.line_1.trim() || "العنوان غير متاح";
+  return address.line_1;
+}
+
+export function hasSavedAddressCoordinates(address: Pick<Address, "lat" | "lng">) {
+  return typeof address.lat === "number" && typeof address.lng === "number";
 }
 
 export function getCategoryById(categories: Category[], categoryId?: string | null) {

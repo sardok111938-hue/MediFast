@@ -6,7 +6,7 @@ import { Card, DetailRow, ErrorCard, HelperText, LoadingCard, Pill, PrimaryButto
 import { getCartItemCount, useCustomerCart } from "../src/lib/cart-store";
 import { useCartFreshness } from "../src/lib/cart-freshness";
 import { buildCheckoutPreview, placeCashOnDeliveryOrder } from "../src/lib/cod-checkout";
-import { formatSavedAddressLine, getPrimaryAddress, useCustomerCatalogData } from "../src/lib/customer-catalog";
+import { formatSavedAddressLine, getPrimaryAddress, hasSavedAddressCoordinates, useCustomerCatalogData } from "../src/lib/customer-catalog";
 import { formatCustomerCurrency, formatCustomerPaymentStatusLabel } from "../src/lib/customer-orders";
 import { clearCustomerCart } from "../src/lib/cart-store";
 
@@ -94,6 +94,7 @@ export default function CheckoutScreen() {
         <Text style={styles.addressLine}>
           {address ? formatSavedAddressLine(address) : "اختر عنوان التوصيل قبل إرسال الطلب."}
         </Text>
+        {address && hasSavedAddressCoordinates(address) ? <HelperText tone="info">تم تحديد الموقع</HelperText> : null}
         {!address ? (
           <>
             <HelperText tone="danger">لا يمكن إكمال الدفع عند الاستلام بدون عنوان توصيل افتراضي.</HelperText>
