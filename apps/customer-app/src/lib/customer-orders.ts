@@ -1,4 +1,4 @@
-import { formatPaymentStatusLabel, type PaymentMethod } from "@medifast/types";
+import { formatOrderStatusLabel as formatSharedOrderStatusLabel, formatPaymentStatusLabel as formatSharedPaymentStatusLabel } from "@medifast/i18n";
 import { supabase } from "./supabase";
 
 export type CustomerOrderItem = {
@@ -130,11 +130,11 @@ export function formatCustomerDate(value: string) {
 }
 
 export function formatOrderStatusLabel(value: string) {
-  return statusLabelMap[value] ?? value.replaceAll("_", " ");
+  return statusLabelMap[value] ?? formatSharedOrderStatusLabel(value);
 }
 
 export function formatCustomerPaymentStatusLabel(paymentStatus: string, paymentMethod: string) {
-  return formatPaymentStatusLabel(paymentStatus, paymentMethod as PaymentMethod | string);
+  return formatSharedPaymentStatusLabel(paymentStatus, paymentMethod);
 }
 
 export function orderStatusTone(status: string): "neutral" | "warning" | "success" | "danger" | "info" {

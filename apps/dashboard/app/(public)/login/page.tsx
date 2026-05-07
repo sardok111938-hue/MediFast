@@ -1,53 +1,27 @@
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import { LoginForm } from "../../../src/components/auth/login-form";
-import { useLocale } from "../../../src/lib/i18n/locale-context";
-import { ROUTES } from "../../../src/lib/config/routes";
-import {
-  getCurrentProfileClient,
-  getCurrentSessionUserClient,
-} from "../../../src/features/auth/queries";
+import { getAuthenticatedDashboardRedirect } from "../../../src/features/auth/guards";
 
-const roleRoutes: Record<string, string> = {
-  admin: ROUTES.admin,
-  driver: ROUTES.driver,
-  vendor: ROUTES.vendor,
-};
+export default async function LoginPage() {
+  const authState = await getAuthenticatedDashboardRedirect();
 
-export default function LoginPage() {
-  const router = useRouter();
-  const { t } = useLocale();
+  if (authState?.route) {
+    redirect(authState.route);
+  }
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const user = await getCurrentSessionUserClient();
-
-      if (!user) {
-        return;
-      }
-
-      const profile = await getCurrentProfileClient(user.id);
-      const target = roleRoutes[profile?.role ?? ""];
-
-      router.replace((target ?? "/") as never);
-    };
-
-    void checkSession();
-  }, [router]);
+  const invalidRoleMessage = authState?.user
+    ? "This account is signed in but does not have dashboard access. Sign out and use an admin, vendor, or driver account."
+    : null;
 
   return (
     <div className="page" style={{ display: "grid", placeItems: "center" }}>
       <div className="hero" style={{ maxWidth: 520 }}>
-        <div className="pill">{t("MediFast Access")}</div>
-        <h1>{t("Admin, vendor, and driver login")}</h1>
+        <div className="pill">دخول ميدي فاست</div>
+        <h1>تسجيل دخول الإدارة والمتجر والسائق</h1>
         <p className="muted">
-          {t(
-            "This form signs in with Supabase Auth, reads the profiles.role, and routes to the correct dashboard."
-          )}
+          يستخدم هذا النموذج مصادقة Supabase ويقرأ دور الملف الشخصي ثم يوجّهك إلى لوحة التحكم المناسبة.
         </p>
-        <LoginForm />
+        <LoginForm initialMessage={invalidRoleMessage} />
       </div>
     </div>
   );

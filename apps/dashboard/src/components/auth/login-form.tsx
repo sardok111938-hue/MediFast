@@ -9,13 +9,13 @@ import { useLocale } from "../../lib/i18n/locale-context";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
-export function LoginForm() {
+export function LoginForm({ initialMessage = "" }: { initialMessage?: string | null }) {
   const router = useRouter();
   const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage ?? "");
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,13 +29,6 @@ export function LoginForm() {
     setMessage("");
     try {
       const { authResponse, role, profileError } = await signInDashboardUser(email.trim(), password);
-
-      console.log({
-  role,
-  profileError,
-  userId: authResponse.data.user?.id,
-  email: authResponse.data.user?.email,
-});
 
       if (authResponse.error) {
         setMessage(authResponse.error.message);
@@ -62,7 +55,7 @@ export function LoginForm() {
         return;
       }
 
-      setMessage("This account does not have vendor or admin dashboard access.");
+      setMessage("This account does not have admin, vendor, or driver dashboard access.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to sign in right now.");
     } finally {
@@ -72,11 +65,11 @@ export function LoginForm() {
 
   return (
     <form className="stack" onSubmit={handleLogin}>
-      <Input type="email" placeholder="Email address" value={email} onChange={(event) => setEmail(event.target.value)} />
-      <Input type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} />
-      {message ? <p className="danger">{t(message)}</p> : <p className="muted">{t("Use a Supabase user whose profile role is `vendor` or `admin`.")}</p>}
+      <Input type="email" placeholder="البريد الإلكتروني" value={email} onChange={(event) => setEmail(event.target.value)} />
+      <Input type="password" placeholder="كلمة المرور" value={password} onChange={(event) => setPassword(event.target.value)} />
+      {message ? <p className="danger">{t(message)}</p> : <p className="muted">{t("Use a Supabase user whose profile role is `admin`, `vendor`, or `driver`.")}</p>}
       <Button type="submit" disabled={loading}>
-        {loading ? "Signing in..." : "Sign in"}
+        {loading ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"}
       </Button>
     </form>
   );

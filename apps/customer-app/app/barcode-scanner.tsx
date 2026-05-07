@@ -4,12 +4,12 @@ import { theme } from "@medifast/ui";
 
 export default function BarcodeScannerScreen() {
   return (
-    <Screen title="Barcode Scanner" subtitle="Expo camera integration can be connected here later.">
+    <Screen title="ماسح الباركود" subtitle="يمكن ربط الكاميرا هنا لاحقًا لقراءة باركود الدواء مباشرة.">
       <Card>
         <Text style={{ color: theme.colors.text, lineHeight: theme.typography.lineHeight.body, textAlign: "right" }}>
           امسح باركود الدواء للانتقال مباشرة إلى صفحة تفاصيل المنتج.
         </Text>
-        <PrimaryButton label="Open scanner placeholder" />
+        <PrimaryButton label="فتح واجهة المسح التجريبية" />
       </Card>
     </Screen>
   );

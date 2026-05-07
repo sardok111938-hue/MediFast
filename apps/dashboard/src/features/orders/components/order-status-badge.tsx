@@ -1,4 +1,5 @@
 import { Badge } from "../../../components/ui/badge";
+import { formatOrderStatusLabel } from "@medifast/i18n";
 
 export function OrderStatusBadge({ status }: { status: string }) {
   const normalizedStatus = status === "driver_assigned" ? "assigned" : status;
@@ -25,5 +26,5 @@ export function OrderStatusBadge({ status }: { status: string }) {
                   ? "status-rejected"
                   : "";
 
-  return <Badge className={className}>{normalizedStatus.replaceAll("_", " ")}</Badge>;
+  return <Badge className={className}>{formatOrderStatusLabel(normalizedStatus)}</Badge>;
 }

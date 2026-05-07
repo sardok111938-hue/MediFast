@@ -9,8 +9,8 @@ export default async function AdminUsersPage() {
   const table = getUsersTableModel(users);
 
   return (
-    <DashboardShell title="Users" subtitle="Customer account monitoring and support view." nav={dashboardNavigation.admin}>
-      <PageHeader title="Users" description="Customer account monitoring and support view." />
+    <DashboardShell title="المستخدمون" subtitle="عرض متابعة حسابات العملاء والدعم." nav={dashboardNavigation.admin}>
+      <PageHeader title="المستخدمون" description="عرض متابعة حسابات العملاء والدعم." />
       <Table title={table.title} headers={table.headers} rows={table.rows} />
     </DashboardShell>
   );

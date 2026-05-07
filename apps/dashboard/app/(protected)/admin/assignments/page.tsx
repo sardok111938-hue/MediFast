@@ -6,12 +6,12 @@ import { EmptyState } from "../../../../src/components/ui/empty-state";
 import { Card } from "../../../../src/components/ui/card";
 import { OrderStatusBadge } from "../../../../src/features/orders/components/order-status-badge";
 import { dashboardNavigation } from "../../../../src/lib/config/navigation";
-import { assignDriver } from "../../../../src/features/orders/api";
 import { listAvailableApprovedDrivers } from "../../../../src/features/drivers/queries";
 import { listAdminOrderDetails } from "../../../../src/features/orders/queries";
 import { formatCurrency } from "../../../../src/lib/utils/format-currency";
 import { formatDate } from "../../../../src/lib/utils/format-date";
 import { AssignmentSubmitButton } from "../../../../src/features/admin/components/assignment-submit-button";
+import { assignDriverAction } from "../../../../src/features/orders/actions";
 
 const assignmentFilters = ["ready_for_pickup", "assigned", "on_the_way", "delivered"] as const;
 
@@ -58,10 +58,10 @@ export default async function AdminAssignmentsPage({
       redirect(`/admin/assignments?filter=${activeFilter}&error=${encodeURIComponent("Only ready-for-pickup orders can be assigned.")}`);
     }
 
-    const result = await assignDriver(orderId, driverId);
+    const result = await assignDriverAction({ orderId, driverId });
 
-    if (result.error) {
-      redirect(`/admin/assignments?filter=${activeFilter}&error=${encodeURIComponent(result.error.message)}`);
+    if (!result.success) {
+      redirect(`/admin/assignments?filter=${activeFilter}&error=${encodeURIComponent(result.error ?? "Driver assignment failed.")}`);
     }
 
     redirect(`/admin/assignments?filter=${activeFilter}&success=driver_assigned`);

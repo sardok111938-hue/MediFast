@@ -4,7 +4,9 @@ function resolveIntlLocale(locale?: string) {
   }
 
   if (typeof document !== "undefined") {
-    return document.documentElement.lang === "ar" ? "ar-EG" : "en-US";
+    return document.documentElement.lang === "ar"
+      ? "ar-LY-u-nu-latn"   // 🔥 هذا السطر المهم
+      : "en-US";
   }
 
   return "en-US";

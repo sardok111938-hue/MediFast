@@ -1,16 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { getSupabaseBrowserClient } from "../../../lib/supabase/browser";
-import { Card } from "../../../components/ui/card";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { formatCategoryLabel } from "@medifast/i18n";
+import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
-import { LoadingState } from "../../../components/ui/loading-state";
+import { Card } from "../../../components/ui/card";
 import { EmptyState } from "../../../components/ui/empty-state";
-import { Table } from "../../../components/ui/table";
+import { ErrorState } from "../../../components/ui/error-state";
 import { Input } from "../../../components/ui/input";
+import { LoadingState } from "../../../components/ui/loading-state";
+import { Table } from "../../../components/ui/table";
+import { useLocale } from "../../../lib/i18n/locale-context";
+import { getSupabaseBrowserClient } from "../../../lib/supabase/browser";
 import { formatCurrency } from "../../../lib/utils/format-currency";
 import type { ProductCategoryOption, ProductRow } from "../../../types/dashboard";
+import {
+  vendorCreateProductAction,
+  vendorActivateProductAction,
+  vendorDeactivateProductAction,
+  vendorUpdateProductAction,
+} from "../actions";
 
 type VendorProductsData = {
   vendorId: string;
@@ -49,7 +58,7 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
 }
 
 function normalizeError(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to complete the product request right now.";
+  return error instanceof Error ? error.message : "تعذر إكمال طلب المنتج الآن.";
 }
 
 function buildFormValues(product?: ProductRow | null): ProductFormValues {
@@ -74,15 +83,15 @@ function validateProductForm(values: ProductFormValues) {
   const categoryId = values.category_id.trim();
 
   if (!name || !description || !values.price || !categoryId) {
-    return { error: "Please complete all required fields." };
+    return { error: "يرجى إكمال جميع الحقول المطلوبة." };
   }
 
   if (Number.isNaN(price) || price <= 0) {
-    return { error: "Price must be greater than 0." };
+    return { error: "يجب أن يكون السعر أكبر من 0." };
   }
 
   if (Number.isNaN(stockQuantity) || stockQuantity < 0) {
-    return { error: "Stock quantity must be 0 or greater." };
+    return { error: "يجب أن تكون الكمية 0 أو أكثر." };
   }
 
   return {
@@ -117,13 +126,7 @@ async function uploadProductImage(file: File) {
 
 async function loadVendorCategories(): Promise<ProductCategoryOption[]> {
   const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase.from("categories").select("id, name").order("name", { ascending: true });
-
-  console.log("VendorProductsClient categories fetch", {
-    data,
-    error,
-    count: data?.length ?? 0,
-  });
+  const { data, error } = await supabase.from("categories").select("id, name, name_ar, icon").order("name", { ascending: true });
 
   if (error) {
     throw error;
@@ -132,6 +135,11 @@ async function loadVendorCategories(): Promise<ProductCategoryOption[]> {
   return (data ?? []).map((category) => ({
     id: String(category.id),
     name: String(category.name),
+    name_ar: category.name_ar ? String(category.name_ar) : null,
+    display_name: formatCategoryLabel({
+      name: String(category.name),
+      name_ar: category.name_ar ? String(category.name_ar) : null,
+    }),
   }));
 }
 
@@ -144,14 +152,13 @@ async function loadVendorProductsData(): Promise<VendorProductsData> {
   }
 
   if (!vendorId) {
-    throw new Error("Vendor account is not linked correctly.");
+    throw new Error("حساب المتجر غير مرتبط بشكل صحيح.");
   }
 
   const { data: productsData, error: productsError } = await supabase
     .from("products")
     .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
     .eq("vendor_id", vendorId)
-    .eq("is_active", true)
     .order("created_at", { ascending: false });
 
   if (productsError) {
@@ -176,15 +183,18 @@ function VendorProductForm({
   categories: ProductCategoryOption[];
   product?: ProductRow | null;
   loading: boolean;
-  onSubmit: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: FormData, imageFile: File | null) => Promise<void>;
   onCancel?: () => void;
 }) {
+  const { t } = useLocale();
   const [values, setValues] = useState<ProductFormValues>(buildFormValues(product));
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
     setValues(buildFormValues(product));
+    setImageFile(null);
     setMessage(null);
     setMessageType(null);
   }, [product, mode]);
@@ -211,12 +221,13 @@ function VendorProductForm({
     }
 
     try {
-      await onSubmit(formData);
-      setMessage(mode === "create" ? "Product created successfully." : "Product updated successfully.");
+      await onSubmit(formData, imageFile);
+      setMessage(mode === "create" ? "تم إنشاء المنتج بنجاح." : "تم تحديث المنتج بنجاح.");
       setMessageType("success");
 
       if (mode === "create") {
         setValues(emptyFormValues);
+        setImageFile(null);
         event.currentTarget.reset();
       }
     } catch (error) {
@@ -226,110 +237,105 @@ function VendorProductForm({
   }
 
   return (
-    <Card className="medical-panel">
-      <form className="form-grid" onSubmit={handleSubmit}>
-        {product ? <input type="hidden" name="product_id" value={product.id} /> : null}
-        <p className="muted">Categories loaded: {categories.length}</p>
-        <div className="field">
-          <label htmlFor={`${mode}-name`}>Name</label>
-          <Input
-            id={`${mode}-name`}
-            name="name"
-            value={values.name}
-            onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
-            placeholder="Paracetamol 500mg"
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`${mode}-description`}>Description</label>
-          <textarea
-            id={`${mode}-description`}
-            name="description"
-            className="textarea"
-            rows={4}
-            value={values.description}
-            onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
-            placeholder="Product description"
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`${mode}-price`}>Price</label>
-          <Input
-            id={`${mode}-price`}
-            name="price"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={values.price}
-            onChange={(event) => setValues((current) => ({ ...current, price: event.target.value }))}
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`${mode}-category`}>Category</label>
-          <select
-  id={`${mode}-category`}
-  name="category_id"
-  className="input"
-  style={{
-    display: "block",
-    width: "100%",
-    minHeight: 44,
-    padding: 10,
-    border: "1px solid #ccc",
-    borderRadius: 8,
-    background: "white",
-    color: "black",
-  }}
-            value={values.category_id}
-            onChange={(event) => setValues((current) => ({ ...current, category_id: event.target.value }))}
-            required
-          >
-            <option value="">Select category</option>
+    <form className="form-grid" onSubmit={handleSubmit}>
+      {product ? <input type="hidden" name="product_id" value={product.id} /> : null}
+      <div className="field">
+        <label htmlFor={`${mode}-name`}>{t("Name")}</label>
+        <Input
+          id={`${mode}-name`}
+          name="name"
+          value={values.name}
+          onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
+          placeholder="باراسيتامول 500 مجم"
+          required
+        />
+      </div>
+      <div className="field">
+        <label htmlFor={`${mode}-description`}>{t("Description")}</label>
+        <textarea
+          id={`${mode}-description`}
+          name="description"
+          className="textarea"
+          rows={4}
+          value={values.description}
+          onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
+          placeholder={t("Product description")}
+          required
+        />
+      </div>
+      <div className="field">
+        <label htmlFor={`${mode}-price`}>{t("Price")}</label>
+        <Input
+          id={`${mode}-price`}
+          name="price"
+          type="number"
+          min="0.01"
+          step="0.01"
+          value={values.price}
+          onChange={(event) => setValues((current) => ({ ...current, price: event.target.value }))}
+          required
+        />
+      </div>
+      <div className="field">
+        <label htmlFor={`${mode}-category`}>{t("Category")}</label>
+        <select
+          id={`${mode}-category`}
+          name="category_id"
+          className="input"
+          value={values.category_id}
+          onChange={(event) => setValues((current) => ({ ...current, category_id: event.target.value }))}
+          required
+        >
+            <option value="">{t("Select category")}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {category.display_name}
               </option>
             ))}
-          </select>
-          {categories.length === 0 ? <p className="danger">No categories are currently available.</p> : null}
-        </div>
-        <div className="field">
-          <label htmlFor={`${mode}-stock`}>Stock Quantity</label>
-          <Input
-            id={`${mode}-stock`}
-            name="stock_quantity"
-            type="number"
-            min="0"
-            step="1"
-            value={values.stock_quantity}
-            onChange={(event) => setValues((current) => ({ ...current, stock_quantity: event.target.value }))}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor={`${mode}-image`}>Image Upload</label>
-          <input id={`${mode}-image`} name="image" type="file" accept="image/*" className="input" />
-          {product?.image_url ? <p className="muted">Current image saved in Supabase storage.</p> : <p className="muted">Image upload is optional.</p>}
-        </div>
-        {message ? <p className={messageType === "error" ? "danger" : "success"}>{message}</p> : null}
-        <div className="actions">
-          <Button type="submit" disabled={loading}>
-            {loading ? "Saving..." : mode === "create" ? "Create Product" : "Save Changes"}
+        </select>
+        {categories.length === 0 ? <p className="danger">{t("No categories are currently available yet.")}</p> : null}
+      </div>
+      <div className="field">
+        <label htmlFor={`${mode}-stock`}>{t("Stock Quantity")}</label>
+        <Input
+          id={`${mode}-stock`}
+          name="stock_quantity"
+          type="number"
+          min="0"
+          step="1"
+          value={values.stock_quantity}
+          onChange={(event) => setValues((current) => ({ ...current, stock_quantity: event.target.value }))}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor={`${mode}-image`}>{t("Image Upload")}</label>
+        <input
+          id={`${mode}-image`}
+          type="file"
+          accept="image/*"
+          className="input"
+          onChange={(event) => {
+            setImageFile(event.target.files?.[0] ?? null);
+          }}
+        />
+        {product?.image_url ? <p className="muted">{t("Current image saved in Supabase storage.")}</p> : <p className="muted">{t("Image upload is optional.")}</p>}
+      </div>
+      {message ? <p className={messageType === "error" ? "danger" : "success"}>{message}</p> : null}
+      <div className="actions">
+        <Button type="submit" disabled={loading}>
+          {loading ? "جارٍ الحفظ..." : mode === "create" ? "إضافة منتج" : "حفظ التعديلات"}
+        </Button>
+        {onCancel ? (
+          <Button type="button" className="secondary-button" onClick={onCancel} disabled={loading}>
+            إلغاء
           </Button>
-          {onCancel ? (
-            <Button type="button" className="secondary-button" onClick={onCancel} disabled={loading}>
-              Cancel
-            </Button>
-          ) : null}
-        </div>
-      </form>
-    </Card>
+        ) : null}
+      </div>
+    </form>
   );
 }
 
-export function VendorProductsClient() {
+export function VendorProductsClient({ initialEditingProductId }: { initialEditingProductId?: string }) {
   const [data, setData] = useState<VendorProductsData | null>(null);
   const [categories, setCategories] = useState<ProductCategoryOption[]>([]);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
@@ -339,6 +345,8 @@ export function VendorProductsClient() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "low_stock" | "out_of_stock">("all");
+  const editFormRef = useRef<HTMLDivElement | null>(null);
 
   async function loadProducts() {
     setLoading(true);
@@ -348,8 +356,8 @@ export function VendorProductsClient() {
     try {
       const nextData = await loadVendorProductsData();
       setData(nextData);
-    } catch (error) {
-      setError(normalizeError(error));
+    } catch (nextError) {
+      setError(normalizeError(nextError));
       setData(null);
     } finally {
       setLoading(false);
@@ -358,9 +366,9 @@ export function VendorProductsClient() {
     try {
       const nextCategories = await loadVendorCategories();
       setCategories(nextCategories);
-    } catch (error) {
+    } catch (nextError) {
       setCategories([]);
-      setCategoriesError(normalizeError(error));
+      setCategoriesError(normalizeError(nextError));
     }
   }
 
@@ -370,9 +378,9 @@ export function VendorProductsClient() {
     try {
       const nextCategories = await loadVendorCategories();
       setCategories(nextCategories);
-    } catch (error) {
+    } catch (nextError) {
       setCategories([]);
-      setCategoriesError(normalizeError(error));
+      setCategoriesError(normalizeError(nextError));
     }
   }
 
@@ -380,9 +388,67 @@ export function VendorProductsClient() {
     void loadProducts();
   }, []);
 
-  async function handleCreateProduct(formData: FormData) {
+  useEffect(() => {
+    if (!initialEditingProductId || !data) {
+      return;
+    }
+
+    if (data.products.some((product) => product.id === initialEditingProductId)) {
+      setEditingProductId(initialEditingProductId);
+    }
+  }, [data, initialEditingProductId]);
+
+  const productCounts = useMemo(() => {
+    const products = data?.products ?? [];
+
+    return {
+      all: products.length,
+      active: products.filter((product) => product.is_active).length,
+      inactive: products.filter((product) => !product.is_active).length,
+      lowStock: products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <= 10).length,
+      outOfStock: products.filter((product) => product.is_active && product.stock_quantity <= 0).length,
+    };
+  }, [data]);
+
+  const filteredProducts = useMemo(() => {
+    const products = data?.products ?? [];
+
+    switch (statusFilter) {
+      case "active":
+        return products.filter((product) => product.is_active);
+      case "inactive":
+        return products.filter((product) => !product.is_active);
+      case "low_stock":
+        return products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <= 10);
+      case "out_of_stock":
+        return products.filter((product) => product.is_active && product.stock_quantity <= 0);
+      default:
+        return products;
+    }
+  }, [data, statusFilter]);
+
+  const editingProduct = useMemo(() => {
+    if (!data || !editingProductId) {
+      return null;
+    }
+
+    return data.products.find((product) => String(product.id) === String(editingProductId)) ?? null;
+  }, [data, editingProductId]);
+
+  useEffect(() => {
+    if (!editingProduct) {
+      return;
+    }
+
+    editFormRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [editingProduct]);
+
+  async function handleCreateProduct(formData: FormData, imageFile: File | null) {
     if (!data) {
-      throw new Error("Vendor account is not ready yet.");
+      throw new Error("حساب المتجر غير جاهز بعد.");
     }
 
     setSaving(true);
@@ -399,35 +465,31 @@ export function VendorProductsClient() {
       const validation = validateProductForm(values);
 
       if (validation.error || !validation.payload) {
-        throw new Error(validation.error ?? "Product validation failed.");
+        throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
       }
 
       let imageUrl: string | null = null;
-      const image = formData.get("image");
 
-      if (image instanceof File && image.size > 0) {
-        imageUrl = await uploadProductImage(image);
+      if (imageFile) {
+        imageUrl = await uploadProductImage(imageFile);
       }
 
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("products").insert({
-        vendor_id: data.vendorId,
+      const result = await vendorCreateProductAction({
         name: validation.payload.name,
         description: validation.payload.description,
         price: validation.payload.price,
-        category_id: validation.payload.category_id,
-        stock_quantity: validation.payload.stock_quantity,
-        image_url: imageUrl,
-        is_active: true,
+        categoryId: validation.payload.category_id,
+        imageUrl,
+        stockQuantity: validation.payload.stock_quantity,
       });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر إنشاء المنتج.");
       }
 
       setFeedback({
         type: "success",
-        message: "Product created successfully.",
+        message: "تم إنشاء المنتج بنجاح.",
       });
       await loadProducts();
     } finally {
@@ -435,14 +497,14 @@ export function VendorProductsClient() {
     }
   }
 
-  async function handleEditProduct(formData: FormData) {
+  async function handleEditProduct(formData: FormData, imageFile: File | null) {
     if (!data) {
-      throw new Error("Vendor account is not ready yet.");
+      throw new Error("حساب المتجر غير جاهز بعد.");
     }
 
     const productId = String(formData.get("product_id") ?? "");
     if (!productId) {
-      throw new Error("Product could not be resolved.");
+      throw new Error("تعذر تحديد المنتج.");
     }
 
     setSaving(true);
@@ -459,43 +521,38 @@ export function VendorProductsClient() {
       const validation = validateProductForm(values);
 
       if (validation.error || !validation.payload) {
-        throw new Error(validation.error ?? "Product validation failed.");
+        throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
       }
 
       const currentProduct = data.products.find((product) => product.id === productId);
       if (!currentProduct) {
-        throw new Error("You can only edit your own products.");
+        throw new Error("يمكنك تعديل منتجاتك فقط.");
       }
 
       let imageUrl = currentProduct.image_url;
-      const image = formData.get("image");
 
-      if (image instanceof File && image.size > 0) {
-        imageUrl = await uploadProductImage(image);
+      if (imageFile) {
+        imageUrl = await uploadProductImage(imageFile);
       }
 
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase
-        .from("products")
-        .update({
-          name: validation.payload.name,
-          description: validation.payload.description,
-          price: validation.payload.price,
-          category_id: validation.payload.category_id,
-          stock_quantity: validation.payload.stock_quantity,
-          image_url: imageUrl,
-        })
-        .eq("id", productId)
-        .eq("vendor_id", data.vendorId);
+      const result = await vendorUpdateProductAction({
+        productId,
+        name: validation.payload.name,
+        description: validation.payload.description,
+        price: validation.payload.price,
+        categoryId: validation.payload.category_id,
+        stockQuantity: validation.payload.stock_quantity,
+        imageUrl,
+      });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تحديث المنتج.");
       }
 
       setEditingProductId(null);
       setFeedback({
         type: "success",
-        message: "Product updated successfully.",
+        message: "تم تحديث المنتج بنجاح.",
       });
       await loadProducts();
     } finally {
@@ -503,24 +560,44 @@ export function VendorProductsClient() {
     }
   }
 
-  async function deactivateProduct(productId: string) {
-    if (!data) {
-      return;
-    }
-
+  async function activateProduct(productId: string) {
     setDeactivatingId(productId);
     setFeedback(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase
-        .from("products")
-        .update({ is_active: false })
-        .eq("id", productId)
-        .eq("vendor_id", data.vendorId);
+      const result = await vendorActivateProductAction({ productId });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تفعيل المنتج.");
+      }
+
+      setFeedback({
+        type: "success",
+        message: "تم تفعيل المنتج بنجاح.",
+      });
+
+      await loadProducts();
+    } catch (nextError) {
+      setFeedback({
+        type: "error",
+        message: normalizeError(nextError),
+      });
+    } finally {
+      setDeactivatingId(null);
+    }
+  }
+
+  async function deactivateProduct(productId: string) {
+    setDeactivatingId(productId);
+    setFeedback(null);
+
+    try {
+      const result = await vendorDeactivateProductAction({
+        productId,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تعطيل المنتج.");
       }
 
       if (editingProductId === productId) {
@@ -529,13 +606,13 @@ export function VendorProductsClient() {
 
       setFeedback({
         type: "success",
-        message: "Product deactivated successfully.",
+        message: "تم تعطيل المنتج بنجاح.",
       });
       await loadProducts();
-    } catch (error) {
+    } catch (nextError) {
       setFeedback({
         type: "error",
-        message: normalizeError(error),
+        message: normalizeError(nextError),
       });
     } finally {
       setDeactivatingId(null);
@@ -545,7 +622,7 @@ export function VendorProductsClient() {
   if (loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading vendor products..." />
+        <LoadingState message="جارٍ تحميل منتجات المتجر..." />
       </Card>
     );
   }
@@ -553,8 +630,7 @@ export function VendorProductsClient() {
   if (error) {
     return (
       <Card className="medical-panel">
-        <p className="danger">{error}</p>
-        <Button onClick={() => void loadProducts()}>Retry</Button>
+        <ErrorState message={error} onRetry={() => void loadProducts()} />
       </Card>
     );
   }
@@ -562,71 +638,183 @@ export function VendorProductsClient() {
   if (!data) {
     return (
       <Card className="medical-panel">
-        <EmptyState title="Vendor not ready" message="Your vendor account could not be resolved." />
+        <EmptyState title="المتجر غير جاهز" message="تعذر تحديد حساب المتجر الخاص بك." />
       </Card>
     );
   }
 
-  const editingProduct = data.products.find((product) => product.id === editingProductId) ?? null;
-
   return (
     <div className="stack">
-      <Card className="medical-panel">
-        <p className="muted">Categories loaded: {categories.length}</p>
-      </Card>
+      <section className="detail-grid">
+        <Card className="medical-panel">
+          <div className="detail-meta">
+            <div className="detail-block">
+              <strong>كل المنتجات</strong>
+              <span>{productCounts.all}</span>
+            </div>
+            <div className="detail-block">
+              <strong>نشط</strong>
+              <span>{productCounts.active}</span>
+            </div>
+            <div className="detail-block">
+              <strong>غير نشط</strong>
+              <span>{productCounts.inactive}</span>
+            </div>
+            <div className="detail-block">
+              <strong>نفد المخزون</strong>
+              <span>{productCounts.outOfStock}</span>
+            </div>
+          </div>
+        </Card>
+      </section>
 
       {categoriesError ? (
         <Card className="medical-panel">
-          <p className="danger">{categoriesError}</p>
-          <Button onClick={() => void loadCategoriesOnly()}>Retry Categories</Button>
+          <ErrorState message={categoriesError} retryLabel="إعادة تحميل الفئات" onRetry={() => void loadCategoriesOnly()} />
         </Card>
       ) : null}
 
-      <VendorProductForm mode="create" categories={categories} loading={saving && !editingProductId} onSubmit={handleCreateProduct} />
+      <Card className="medical-panel">
+        <div className="split-actions">
+          <div>
+            <h3 className="order-card-title">إضافة منتج</h3>
+            <p className="muted order-card-subtitle">أضف منتجًا جديدًا مع السعر والكمية والفئة والصورة الاختيارية.</p>
+          </div>
+        </div>
+        <VendorProductForm mode="create" categories={categories} loading={saving && !editingProductId} onSubmit={handleCreateProduct} />
+      </Card>
 
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
 
       {editingProduct ? (
-        <VendorProductForm
-          mode="edit"
-          categories={categories}
-          product={editingProduct}
-          loading={saving && editingProductId === editingProduct.id}
-          onSubmit={handleEditProduct}
-          onCancel={() => setEditingProductId(null)}
-        />
+        <div id="vendor-edit-product-form" ref={editFormRef}>
+          <Card className="medical-panel">
+            <div className="split-actions">
+              <div>
+                <h3 className="order-card-title">تعديل المنتج</h3>
+                <p className="muted order-card-subtitle">{editingProduct.name}</p>
+              </div>
+            </div>
+            <VendorProductForm
+              mode="edit"
+              categories={categories}
+              product={editingProduct}
+              loading={saving && editingProductId === editingProduct.id}
+              onSubmit={handleEditProduct}
+              onCancel={() => setEditingProductId(null)}
+            />
+          </Card>
+        </div>
       ) : null}
+
+      <Card className="medical-panel">
+        <div className="split-actions">
+          <div>
+            <h3 className="order-card-title">فلاتر الكتالوج</h3>
+            <p className="muted order-card-subtitle">تنقّل بين المنتجات النشطة وغير النشطة والمعرّضة لنقص المخزون من الصفحة نفسها.</p>
+          </div>
+        </div>
+        <div className="filter-chip-row">
+          <button type="button" className={`filter-chip ${statusFilter === "all" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("all")}>
+            <span>الكل</span>
+            <strong>{productCounts.all}</strong>
+          </button>
+          <button type="button" className={`filter-chip ${statusFilter === "active" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("active")}>
+            <span>نشط</span>
+            <strong>{productCounts.active}</strong>
+          </button>
+          <button type="button" className={`filter-chip ${statusFilter === "inactive" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("inactive")}>
+            <span>غير نشط</span>
+            <strong>{productCounts.inactive}</strong>
+          </button>
+          <button type="button" className={`filter-chip ${statusFilter === "low_stock" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("low_stock")}>
+            <span>مخزون منخفض</span>
+            <strong>{productCounts.lowStock}</strong>
+          </button>
+          <button type="button" className={`filter-chip ${statusFilter === "out_of_stock" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("out_of_stock")}>
+            <span>نفد المخزون</span>
+            <strong>{productCounts.outOfStock}</strong>
+          </button>
+        </div>
+      </Card>
 
       {data.products.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="No products yet" message="Your vendor catalog is empty." />
+          <EmptyState title="لا توجد منتجات بعد" message="كتالوج المتجر فارغ حاليًا." />
         </Card>
       ) : (
         <Table
-          title="Products"
-          headers={["Name", "Category", "Price", "Actions"]}
-          rows={data.products.map((product) => [
-            product.name,
-            categories.find((category) => category.id === product.category_id)?.name ?? "-",
-            `${formatCurrency(product.price)} • Stock ${product.stock_quantity}`,
-            <div key={`${product.id}-actions`} className="table-actions">
+          title="المنتجات"
+          headers={["الاسم", "الفئة", "السعر", "الكمية", "الحالة", "الصورة", "الإجراءات"]}
+          rows={filteredProducts.map((product) => [
+            <div key={`${product.id}-name`} className="stack compact-stack">
+              <strong>{product.name}</strong>
+              {product.description ? <span className="muted">{product.description}</span> : null}
+            </div>,
+            categories.find((category) => category.id === product.category_id)?.display_name ?? "-",
+            formatCurrency(product.price),
+            `${product.stock_quantity}`,
+            <Badge key={`${product.id}-status`} className={product.is_active ? "status-delivered" : "status-cancelled"}>
+              {product.is_active ? "نشط" : "غير نشط"}
+            </Badge>,
+            product.image_url ? (
+              <a
+                key={`${product.id}-image`}
+                href={product.image_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-link"
+                aria-label={`فتح صورة ${product.name}`}
+                style={{ display: "inline-flex" }}
+              >
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  style={{
+                    width: 56,
+                    height: 56,
+                    objectFit: "cover",
+                    borderRadius: 12,
+                    border: "1px solid #DCEBDF",
+                    backgroundColor: "#F8FCF8",
+                  }}
+                />
+              </a>
+            ) : (
+              "لا توجد صورة"
+            ),
+            <div key={`${product.id}-actions`} className="table-actions" style={{ pointerEvents: "auto" }}>
               <Button
+                type="button"
                 className="secondary-button"
-                onClick={() => setEditingProductId(product.id)}
+                onClick={() => setEditingProductId(String(product.id))}
                 disabled={saving || deactivatingId === product.id}
               >
-                Edit
+                تعديل
               </Button>
-              <Button
-                className="danger-button"
-                disabled={deactivatingId === product.id || saving}
-                onClick={() => void deactivateProduct(product.id)}
-              >
-                {deactivatingId === product.id ? "Deactivating..." : "Deactivate"}
-              </Button>
-            </div>,
+
+              {product.is_active ? (
+                <Button
+                  type="button"
+                  className="danger-button"
+                  disabled={deactivatingId === product.id || saving}
+                  onClick={() => void deactivateProduct(product.id)}
+                >
+                  {deactivatingId === product.id ? "جارٍ التعطيل..." : "تعطيل"}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  className="secondary-button"
+                  disabled={deactivatingId === product.id || saving}
+                  onClick={() => void activateProduct(product.id)}
+                >
+                  {deactivatingId === product.id ? "جارٍ التفعيل..." : "تفعيل"}
+                </Button>
+              )}
+            </div>
           ])}
-          emptyMessage="No products found."
+          emptyMessage="لا توجد منتجات تطابق الفلتر الحالي."
         />
       )}
     </div>

@@ -1,17 +1,17 @@
 import type { ReactNode } from "react";
-import { RoleRedirect } from "../../../src/components/auth/role-redirect";
 import { LogoutButton } from "../../../src/components/auth/logout-button";
+import { requireDashboardRole } from "../../../src/features/auth/guards";
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  await requireDashboardRole("admin");
+
   return (
-    <RoleRedirect role="admin">
-      <div>
-        <header className="auth-strip">
-          <LogoutButton />
-        </header>
+    <div>
+      <header className="auth-strip">
+        <LogoutButton />
+      </header>
 
-        {children}
-      </div>
-    </RoleRedirect>
+      {children}
+    </div>
   );
 }

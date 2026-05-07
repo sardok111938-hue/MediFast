@@ -183,8 +183,40 @@ export const products: Product[] = [
 ];
 
 export const cartItems: CartItem[] = [
-  { id: "cart-1", product: products[0], quantity: 2 },
-  { id: "cart-2", product: products[1], quantity: 1 },
+  {
+    id: "cart-1",
+    product_id: products[0].id,
+    quantity: 2,
+    snapshot: {
+      product_id: products[0].id,
+      vendor_id: products[0].vendor_id,
+      category_id: products[0].category_id,
+      name: products[0].name,
+      description: products[0].description,
+      price: products[0].price,
+      image_url: products[0].image_url,
+      barcode: products[0].barcode ?? null,
+      stock_quantity: products[0].stock_quantity,
+      is_active: products[0].is_active,
+    },
+  },
+  {
+    id: "cart-2",
+    product_id: products[1].id,
+    quantity: 1,
+    snapshot: {
+      product_id: products[1].id,
+      vendor_id: products[1].vendor_id,
+      category_id: products[1].category_id,
+      name: products[1].name,
+      description: products[1].description,
+      price: products[1].price,
+      image_url: products[1].image_url,
+      barcode: products[1].barcode ?? null,
+      stock_quantity: products[1].stock_quantity,
+      is_active: products[1].is_active,
+    },
+  },
 ];
 
 export const addresses: Address[] = [

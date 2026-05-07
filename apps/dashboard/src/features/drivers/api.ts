@@ -1,7 +1,7 @@
 import { getSupabaseServerClient } from "../../lib/supabase/server";
 
 export async function updateDriverStatus(driverId: string, input: { is_available?: boolean; approval_status?: string }) {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const { data, error } = await supabase
     .from("drivers")
     .update(input)

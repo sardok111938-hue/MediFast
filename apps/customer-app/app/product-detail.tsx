@@ -1,28 +1,47 @@
 import { useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { formatCategoryLabel } from "@medifast/i18n";
 import { theme } from "@medifast/ui";
-import { Card, EmptyCard, HelperText, Pill, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../src/components/CustomerUI";
+import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, Pill, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../src/components/CustomerUI";
 import { addProductToCart } from "../src/lib/cart-store";
-import { getCategoryById, getProductById, getVendorById } from "../src/lib/customer-catalog";
+import { getCategoryById, getProductById, getVendorById, useCustomerCatalogData } from "../src/lib/customer-catalog";
 import { formatCustomerCurrency } from "../src/lib/customer-orders";
+import { CatalogImage } from "../src/components/CatalogImage";
 
 export default function ProductDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ productId?: string | string[] }>();
   const productId = Array.isArray(params.productId) ? params.productId[0] : params.productId;
-  const product = getProductById(productId);
+  const { data, loading, error, reload } = useCustomerCatalogData();
+  const product = getProductById(data.products, productId);
   const [quantity, setQuantity] = useState(1);
-  const vendor = useMemo(() => getVendorById(product?.vendor_id), [product?.vendor_id]);
-  const category = useMemo(() => getCategoryById(product?.category_id), [product?.category_id]);
+  const vendor = useMemo(() => getVendorById(data.vendors, product?.vendor_id), [data.vendors, product?.vendor_id]);
+  const category = useMemo(() => getCategoryById(data.categories, product?.category_id), [data.categories, product?.category_id]);
+
+  if (loading) {
+    return (
+      <Screen title="تفاصيل المنتج" subtitle="راجع تفاصيل المنتج قبل إضافته إلى السلة." backHref="/product-listing" backLabel="العودة إلى المنتجات">
+        <LoadingCard message="جارٍ تحميل المنتج..." />
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen title="تفاصيل المنتج" subtitle="راجع تفاصيل المنتج قبل إضافته إلى السلة." backHref="/product-listing" backLabel="العودة إلى المنتجات">
+        <ErrorCard message={error} onRetry={() => void reload()} />
+      </Screen>
+    );
+  }
 
   if (!product) {
     return (
-      <Screen title="Product Detail" subtitle="Review item information before adding it to your basket." backHref="/product-listing" backLabel="Back to products">
+      <Screen title="تفاصيل المنتج" subtitle="راجع معلومات المنتج قبل إضافته إلى السلة." backHref="/product-listing" backLabel="العودة إلى المنتجات">
         <EmptyCard
-          title="Product not found"
-          message="This product is unavailable right now. Return to the catalog to continue browsing."
-          action={<PrimaryButton label="Back to products" onPress={() => router.push("/product-listing")} />}
+          title="المنتج غير متوفر"
+          message="هذا المنتج غير متاح الآن. ارجع إلى القائمة لمتابعة التصفح."
+          action={<PrimaryButton label="العودة إلى المنتجات" onPress={() => router.push("/product-listing")} />}
         />
       </Screen>
     );
@@ -33,65 +52,80 @@ export default function ProductDetailScreen() {
   return (
     <Screen
       title={product.name}
-      subtitle="Review product information, choose a quantity, and add it to your cart."
+      subtitle="راجع معلومات المنتج، اختر الكمية المناسبة، ثم أضفه إلى السلة."
       backHref="/product-listing"
-      backLabel="Back to browsing"
+      backLabel="العودة إلى التصفح"
     >
       <Card style={styles.heroCard}>
-        <Image source={{ uri: product.image_url }} style={styles.productImage} />
+        <CatalogImage
+          uri={product.image_url}
+          alt={product.name}
+          containerStyle={styles.productImageWrap}
+          imageStyle={styles.productImage}
+          fallbackTextStyle={styles.imageFallbackText}
+        />
         <View style={styles.heroBody}>
           <View style={styles.heroTop}>
             <View style={styles.heroCopy}>
+              <View style={styles.heroBadges}>
+                {category ? <Pill label={formatCategoryLabel(category)} tone="info" /> : null}
+                {product.stock_quantity > 0 ? <Pill label="متوفر الآن" tone="success" /> : <Pill label="غير متوفر" tone="warning" />}
+              </View>
               <Text style={styles.productName}>{product.name}</Text>
               <Text style={styles.productDescription}>{product.description}</Text>
+              <Text style={styles.vendorLabel}>{vendor ? `يباع من ${vendor.name}` : "منتج من متجر معتمد"}</Text>
             </View>
-            {product.express ? <Pill label="Express delivery" tone="success" /> : null}
           </View>
 
-          <Text style={styles.price}>{formatCustomerCurrency(product.price)}</Text>
-          <Text style={styles.stockLabel}>{outOfStock ? "Currently out of stock" : `${product.stock_quantity} items available`}</Text>
+          <View style={styles.purchasePanel}>
+            <Text style={styles.price}>{formatCustomerCurrency(product.price)}</Text>
+            <Text style={styles.stockLabel}>{outOfStock ? "غير متوفر حاليًا" : `الكمية المتوفرة: ${product.stock_quantity}`}</Text>
+            <HelperText tone="info">الأسعار المعروضة للمراجعة، وسيتم تأكيد الطلب النهائي عند الإرسال.</HelperText>
+          </View>
 
           <View style={styles.metaGrid}>
             <View style={styles.metaTile}>
-              <Text style={styles.metaTitle}>Category</Text>
-              <Text style={styles.metaValue}>{category?.name ?? "-"}</Text>
+              <Text style={styles.metaTitle}>الفئة</Text>
+              <Text style={styles.metaValue}>{category ? formatCategoryLabel(category) : "-"}</Text>
             </View>
             <View style={styles.metaTile}>
-              <Text style={styles.metaTitle}>Pharmacy</Text>
+              <Text style={styles.metaTitle}>المتجر</Text>
               <Text style={styles.metaValue}>{vendor?.name ?? "-"}</Text>
             </View>
             <View style={styles.metaTile}>
-              <Text style={styles.metaTitle}>Barcode</Text>
+              <Text style={styles.metaTitle}>الباركود</Text>
               <Text style={styles.metaValue}>{product.barcode ?? "-"}</Text>
             </View>
             <View style={styles.metaTile}>
-              <Text style={styles.metaTitle}>Delivery ETA</Text>
-              <Text style={styles.metaValue}>{vendor ? `${vendor.eta_minutes} min` : "-"}</Text>
+              <Text style={styles.metaTitle}>عنوان الصيدلية</Text>
+              <Text style={styles.metaValue}>{vendor?.address ?? "-"}</Text>
             </View>
           </View>
 
-          <SectionTitle label="Quantity" />
-          <QuantityStepper
-            value={quantity}
-            onIncrement={() => setQuantity((current) => Math.min(product.stock_quantity || current + 1, current + 1))}
-            onDecrement={() => setQuantity((current) => Math.max(1, current - 1))}
-            disableIncrement={outOfStock || quantity >= product.stock_quantity}
-            disableDecrement={quantity <= 1}
-          />
-
-          <HelperText tone="info">Add your quantity now and pay with cash on delivery when the order arrives.</HelperText>
-
-          <View style={styles.buttonGroup}>
-            <PrimaryButton
-              label={outOfStock ? "Out of stock" : "Add to cart"}
-              disabled={outOfStock}
-              onPress={() => {
-                addProductToCart(product, quantity);
-                router.push("/cart");
-              }}
+          <SectionTitle label="الكمية" />
+          <Card style={styles.checkoutCard}>
+            <QuantityStepper
+              value={quantity}
+              onIncrement={() => setQuantity((current) => Math.min(product.stock_quantity || current + 1, current + 1))}
+              onDecrement={() => setQuantity((current) => Math.max(1, current - 1))}
+              disableIncrement={outOfStock || quantity >= product.stock_quantity}
+              disableDecrement={quantity <= 1}
             />
-            <PrimaryButton label="Continue browsing" variant="secondary" onPress={() => router.push("/product-listing")} />
-          </View>
+
+            <HelperText tone="info">اختر الكمية المناسبة الآن ثم أضف المنتج إلى السلة لمتابعة الدفع النقدي عند الاستلام.</HelperText>
+
+            <View style={styles.buttonGroup}>
+              <PrimaryButton
+                label={outOfStock ? "غير متوفر حاليًا" : "أضف إلى السلة الآن"}
+                disabled={outOfStock}
+                onPress={() => {
+                  addProductToCart(product, quantity);
+                  router.push("/cart");
+                }}
+              />
+              <PrimaryButton label="متابعة التصفح" variant="secondary" onPress={() => router.push("/product-listing")} />
+            </View>
+          </Card>
         </View>
       </Card>
     </Screen>
@@ -102,11 +136,16 @@ const styles = StyleSheet.create({
   heroCard: {
     padding: 0,
     overflow: "hidden",
+    gap: theme.spacing[16],
+  },
+  productImageWrap: {
+    margin: theme.spacing[12],
+    marginBottom: 0,
+    borderRadius: theme.radius.lg,
   },
   productImage: {
     width: "100%",
-    height: 260,
-    backgroundColor: "#DCEBDF",
+    height: 300,
   },
   heroBody: {
     padding: theme.spacing[20],
@@ -118,24 +157,47 @@ const styles = StyleSheet.create({
   heroCopy: {
     gap: theme.spacing[8],
   },
+  heroBadges: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: theme.spacing[8],
+  },
   productName: {
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.heading.xl,
+    textAlign: "right",
   },
   productDescription: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.md,
     lineHeight: theme.typography.lineHeight.body,
+    textAlign: "right",
+  },
+  vendorLabel: {
+    color: theme.colors.primaryDark,
+    fontSize: theme.typography.body.sm,
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  purchasePanel: {
+    backgroundColor: "#F5FBF7",
+    borderWidth: 1,
+    borderColor: "#D7E9DC",
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing[16],
+    gap: theme.spacing[4],
   },
   price: {
     color: theme.colors.primaryDark,
     fontWeight: "800",
-    fontSize: 28,
+    fontSize: 30,
+    textAlign: "right",
   },
   stockLabel: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
+    textAlign: "right",
   },
   metaGrid: {
     gap: 10,
@@ -152,13 +214,23 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: theme.typography.caption.md,
     fontWeight: "700",
+    textAlign: "right",
   },
   metaValue: {
     color: theme.colors.text,
     fontSize: theme.typography.body.md,
     fontWeight: "700",
+    textAlign: "right",
+  },
+  checkoutCard: {
+    backgroundColor: "#FFF7E5",
+    borderColor: "#F1E2B5",
+    gap: theme.spacing[12],
   },
   buttonGroup: {
     gap: 10,
+  },
+  imageFallbackText: {
+    fontSize: theme.typography.body.md,
   },
 });

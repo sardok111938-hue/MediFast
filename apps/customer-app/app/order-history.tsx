@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { Card, EmptyCard, ErrorCard, HelperText, ListCard, LoadingCard, PrimaryButton, Screen, SectionTitle, StatusBadge } from "../src/components/CustomerUI";
-import { useCustomerI18n } from "../src/lib/i18n";
 import {
   loadCurrentCustomerOrders,
   formatCustomerCurrency,
@@ -18,7 +17,6 @@ import { subscribeToCustomerOrders, supabase } from "../src/lib/supabase";
 
 export default function OrderHistoryScreen() {
   const router = useRouter();
-  const { t } = useCustomerI18n();
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +65,7 @@ export default function OrderHistoryScreen() {
   }, [customerId, loadOrders]);
 
   return (
-    <Screen title="Your Orders" subtitle="Track active deliveries, review payment status, and reopen any recent order." scroll={false}>
+    <Screen title="الطلبات" subtitle="تابع الطلبات النشطة، وراجع حالة الدفع، وافتح أي طلب حديث بسهولة." scroll={false}>
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -75,20 +73,20 @@ export default function OrderHistoryScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {loading ? (
-          <LoadingCard message="Loading your orders..." />
+          <LoadingCard message="جارٍ تحميل طلباتك..." />
         ) : error ? (
           <ErrorCard message={error} onRetry={() => void loadOrders("refresh")} />
         ) : orders.length === 0 ? (
           <EmptyCard
-            title="No orders yet"
-            message="Your customer orders will appear here after checkout."
-            action={<PrimaryButton label="Start shopping" onPress={() => router.push("/product-listing")} />}
+            title="لا توجد طلبات بعد"
+            message="ستظهر طلباتك هنا بعد إتمام أول عملية شراء."
+            action={<PrimaryButton label="ابدأ التسوق" onPress={() => router.push("/product-listing")} />}
           />
         ) : (
           <>
             {latestOrder ? (
               <Card style={styles.highlightCard}>
-                <SectionTitle label="Track latest order" />
+                <SectionTitle label="تتبع آخر طلب" />
                 <Text style={styles.highlightTitle}>{latestOrder.vendorName}</Text>
                 <HelperText>{formatCustomerDate(latestOrder.createdAt)}</HelperText>
                 <View style={styles.highlightRow}>
@@ -99,7 +97,7 @@ export default function OrderHistoryScreen() {
                   />
                 </View>
                 <PrimaryButton
-                  label="Track latest order"
+                  label="تتبع آخر طلب"
                   onPress={() =>
                     router.push({
                       pathname: "/orders/[orderId]",
@@ -110,11 +108,11 @@ export default function OrderHistoryScreen() {
               </Card>
             ) : null}
 
-            <SectionTitle label="Order history" />
+            <SectionTitle label="سجل الطلبات" />
             {orders.map((order) => (
               <ListCard
                 key={order.id}
-                title={`${t("Orders")} ${order.id}`}
+                title={`الطلب ${order.id}`}
                 subtitle={order.vendorName}
                 badge={<StatusBadge label={formatOrderStatusLabel(order.orderStatus)} tone={orderStatusTone(order.orderStatus)} />}
                 onPress={() =>
@@ -126,18 +124,18 @@ export default function OrderHistoryScreen() {
               >
                 <View style={styles.summaryGrid}>
                   <View style={styles.summaryTile}>
-                    <Text style={styles.summaryLabel}>Total</Text>
+                    <Text style={styles.summaryLabel}>الإجمالي</Text>
                     <Text style={styles.summaryValue}>{formatCustomerCurrency(order.total)}</Text>
                   </View>
                   <View style={styles.summaryTile}>
-                    <Text style={styles.summaryLabel}>Payment</Text>
+                    <Text style={styles.summaryLabel}>الدفع</Text>
                     <Text style={styles.summaryValue}>{formatCustomerPaymentStatusLabel(order.paymentStatus, order.paymentMethod)}</Text>
                   </View>
                 </View>
                 <HelperText>{order.deliveryAddress}</HelperText>
                 <HelperText>{formatCustomerDate(order.createdAt)}</HelperText>
                 <PrimaryButton
-                  label="View details"
+                  label="عرض التفاصيل"
                   variant="secondary"
                   onPress={() =>
                     router.push({
@@ -173,6 +171,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.heading.lg,
+    textAlign: "right",
   },
   highlightRow: {
     gap: theme.spacing[8],
@@ -192,10 +191,12 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: theme.typography.caption.md,
     fontWeight: "700",
+    textAlign: "right",
   },
   summaryValue: {
     color: theme.colors.text,
     fontSize: theme.typography.body.md,
     fontWeight: "800",
+    textAlign: "right",
   },
 });

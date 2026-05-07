@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatPaymentStatusLabel } from "@medifast/types";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -13,6 +13,7 @@ import { formatCurrency } from "../../../lib/utils/format-currency";
 import { formatDate } from "../../../lib/utils/format-date";
 import { OrderStatusBadge } from "./order-status-badge";
 import { useLocale } from "../../../lib/i18n/locale-context";
+import { updateVendorOrderStatusAction } from "../actions";
 
 type VendorOrderItem = {
   id: string;
@@ -25,11 +26,13 @@ type VendorOrderItem = {
 type VendorOrder = {
   id: string;
   customerName: string;
+  driverName: string;
   total: number;
   paymentMethod: string;
   paymentStatus: string;
   orderStatus: string;
   createdAt: string;
+  deliveryAddress: string;
   items: VendorOrderItem[];
 };
 
@@ -37,6 +40,9 @@ type VendorOrderData = {
   vendorId: string;
   orders: VendorOrder[];
 };
+
+const vendorOrderStatuses = ["placed", "accepted", "preparing", "ready_for_pickup", "assigned", "on_the_way", "delivered", "rejected"] as const;
+type VendorOrderStatusFilter = "all" | (typeof vendorOrderStatuses)[number];
 
 function readSingle<T extends Record<string, unknown>>(value: T | T[] | null | undefined) {
   if (Array.isArray(value)) {
@@ -54,24 +60,40 @@ function readProductName(value: { name?: string } | { name?: string }[] | null |
   return readSingle(value)?.name ?? fallback;
 }
 
+function formatDeliveryAddress(
+  value:
+    | { label?: string; line_1?: string; line_2?: string | null; area?: string | null; city?: string }
+    | { label?: string; line_1?: string; line_2?: string | null; area?: string | null; city?: string }[]
+    | null
+    | undefined
+) {
+  const address = readSingle(value);
+
+  if (!address) {
+    return "عنوان التوصيل غير متاح";
+  }
+
+  return [address.label, address.line_1, address.line_2, address.area, address.city].filter(Boolean).join("، ") || "عنوان التوصيل غير متاح";
+}
+
 function normalizeError(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to load vendor orders right now.";
+  return error instanceof Error ? error.message : "تعذر تحميل طلبات المتجر الآن.";
 }
 
 function getNextActions(status: string) {
   if (status === "pending" || status === "placed") {
     return [
-      { label: "Accept Order", nextStatus: "accepted", tone: "primary" as const },
-      { label: "Reject Order", nextStatus: "rejected", tone: "danger" as const },
+      { label: "قبول", nextStatus: "accepted", tone: "primary" as const },
+      { label: "رفض", nextStatus: "rejected", tone: "danger" as const },
     ];
   }
 
   if (status === "accepted") {
-    return [{ label: "Mark Preparing", nextStatus: "preparing", tone: "secondary" as const }];
+    return [{ label: "بدء التحضير", nextStatus: "preparing", tone: "secondary" as const }];
   }
 
   if (status === "preparing") {
-    return [{ label: "Ready for Pickup", nextStatus: "ready_for_pickup", tone: "secondary" as const }];
+    return [{ label: "جاهز للاستلام", nextStatus: "ready_for_pickup", tone: "secondary" as const }];
   }
 
   return [];
@@ -86,7 +108,7 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
   }
 
   if (!vendorId) {
-    throw new Error("Vendor account is not linked correctly.");
+    throw new Error("حساب المتجر غير مرتبط بشكل صحيح.");
   }
 
   const { data, error } = await supabase
@@ -100,6 +122,16 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
       created_at,
       customer:customers(
         profile:profiles(full_name)
+      ),
+      driver:drivers(
+        profile:profiles(full_name)
+      ),
+      address:addresses(
+        label,
+        line_1,
+        line_2,
+        area,
+        city
       ),
       items:order_items(
         id,
@@ -123,15 +155,22 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
 
       return {
         id: String(order.id),
-        customerName: readName((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "Customer"),
+        customerName: readName((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "العميل"),
+        driverName: readName((order.driver as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "غير معيّن"),
         total: Number(order.total ?? 0),
         paymentMethod: String(order.payment_method ?? ""),
         paymentStatus: String(order.payment_status),
         orderStatus: String(order.order_status),
         createdAt: String(order.created_at ?? ""),
+        deliveryAddress: formatDeliveryAddress(
+          order.address as
+            | { label?: string; line_1?: string; line_2?: string | null; area?: string | null; city?: string }
+            | { label?: string; line_1?: string; line_2?: string | null; area?: string | null; city?: string }[]
+            | null
+        ),
         items: items.map((item) => ({
           id: String(item.id),
-          productName: readProductName(item.product as { name?: string } | { name?: string }[] | null, "Product"),
+          productName: readProductName(item.product as { name?: string } | { name?: string }[] | null, "المنتج"),
           quantity: Number(item.quantity ?? 0),
           unitPrice: Number(item.unit_price ?? 0),
           totalPrice: Number(item.total_price ?? 0),
@@ -141,13 +180,18 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
   };
 }
 
-export function VendorOrdersClient() {
+export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilter?: string }) {
   const { t, intlLocale } = useLocale();
   const [data, setData] = useState<VendorOrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<VendorOrderStatusFilter>(
+    initialStatusFilter && vendorOrderStatuses.includes(initialStatusFilter as (typeof vendorOrderStatuses)[number])
+      ? (initialStatusFilter as VendorOrderStatusFilter)
+      : "all"
+  );
 
   async function loadOrders() {
     setLoading(true);
@@ -156,8 +200,8 @@ export function VendorOrdersClient() {
     try {
       const nextData = await loadVendorOrdersData();
       setData(nextData);
-    } catch (error) {
-      setError(normalizeError(error));
+    } catch (nextError) {
+      setError(normalizeError(nextError));
       setData(null);
     } finally {
       setLoading(false);
@@ -167,6 +211,25 @@ export function VendorOrdersClient() {
   useEffect(() => {
     void loadOrders();
   }, []);
+
+  const orderCounts = useMemo(() => {
+    const orders = data?.orders ?? [];
+
+    return vendorOrderStatuses.map((status) => ({
+      status,
+      count: orders.filter((order) => order.orderStatus === status).length,
+    }));
+  }, [data]);
+
+  const filteredOrders = useMemo(() => {
+    const orders = data?.orders ?? [];
+
+    if (statusFilter === "all") {
+      return orders;
+    }
+
+    return orders.filter((order) => order.orderStatus === statusFilter);
+  }, [data, statusFilter]);
 
   async function updateVendorOrderStatus(orderId: string, nextStatus: string) {
     if (!data) {
@@ -197,23 +260,21 @@ export function VendorOrdersClient() {
     );
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase
-        .from("orders")
-        .update({ order_status: nextStatus })
-        .eq("id", orderId)
-        .eq("vendor_id", data.vendorId);
+      const result = await updateVendorOrderStatusAction({
+        orderId,
+        nextStatus,
+      });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تحديث حالة الطلب.");
       }
 
       setFeedback({
         type: "success",
-        message: `Order ${orderId} updated to ${nextStatus.replaceAll("_", " ")}.`,
+        message: `تم تحديث الطلب ${orderId} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
       });
       await loadOrders();
-    } catch (error) {
+    } catch (nextError) {
       setData((current) =>
         current
           ? {
@@ -231,7 +292,7 @@ export function VendorOrdersClient() {
       );
       setFeedback({
         type: "error",
-        message: normalizeError(error),
+        message: normalizeError(nextError),
       });
     } finally {
       setUpdatingOrderId(null);
@@ -241,7 +302,7 @@ export function VendorOrdersClient() {
   if (loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading vendor orders..." />
+        <LoadingState message="جارٍ تحميل طلبات المتجر..." />
       </Card>
     );
   }
@@ -257,7 +318,7 @@ export function VendorOrdersClient() {
   if (!data || data.orders.length === 0) {
     return (
       <Card className="medical-panel">
-        <EmptyState title="No orders yet" message="Vendor-owned orders will appear here once customers begin ordering." />
+        <EmptyState title="لا توجد طلبات بعد" message="ستظهر طلبات المتجر هنا بمجرد أن يبدأ العملاء في الشراء." />
       </Card>
     );
   }
@@ -266,22 +327,56 @@ export function VendorOrdersClient() {
     <div className="stack">
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
 
+      <Card className="medical-panel">
+        <div className="split-actions">
+          <div>
+            <h3 className="order-card-title">مراحل الطلب</h3>
+            <p className="muted order-card-subtitle">صفِّ قائمة التنفيذ حسب المرحلة ونفّذ فقط الإجراء المناسب التالي على الطلبات الجاهزة.</p>
+          </div>
+        </div>
+        <div className="filter-chip-row">
+          <button type="button" className={`filter-chip ${statusFilter === "all" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("all")}>
+            <span>{t("All Orders")}</span>
+            <strong>{data.orders.length}</strong>
+          </button>
+          {orderCounts.map(({ status, count }) => (
+            <button
+              type="button"
+              key={status}
+              className={`filter-chip ${statusFilter === status ? "filter-chip-active" : ""}`.trim()}
+              onClick={() => setStatusFilter(status)}
+            >
+              <span>{t(status.replaceAll("_", " "))}</span>
+              <strong>{count}</strong>
+            </button>
+          ))}
+        </div>
+      </Card>
+
       <Table
-        title="Orders"
-        headers={["Order ID", "Customer", "Total", "Payment Status", "Order Status", "Created At"]}
-        rows={data.orders.map((order) => [
+        title="الطلبات"
+        headers={["معرّف الطلب", "العميل", "العناصر", "الإجمالي", "حالة الدفع", "عنوان التوصيل", "حالة الطلب", "تاريخ الإنشاء"]}
+        rows={filteredOrders.map((order) => [
           order.id,
           order.customerName,
+          `${order.items.length} عنصر`,
           formatCurrency(order.total, intlLocale),
           formatPaymentStatusLabel(order.paymentStatus, order.paymentMethod),
+          order.deliveryAddress,
           <OrderStatusBadge key={`${order.id}-status`} status={order.orderStatus} />,
           order.createdAt ? formatDate(order.createdAt, intlLocale) : "-",
         ])}
-        emptyMessage="No vendor orders found."
+        emptyMessage={statusFilter === "all" ? "لا توجد طلبات للمتجر." : "لا توجد طلبات للمتجر في هذه المرحلة حاليًا."}
       />
 
       <section className="detail-grid">
-        {data.orders.map((order) => {
+        {filteredOrders.length === 0 ? (
+          <Card className="medical-panel">
+            <EmptyState title="لا توجد طلبات في هذه المرحلة" message="جرّب مرحلة أخرى أو انتظر وصول الطلب التالي من العميل." />
+          </Card>
+        ) : null}
+
+        {filteredOrders.map((order) => {
           const actions = getNextActions(order.orderStatus);
 
           return (
@@ -289,9 +384,7 @@ export function VendorOrdersClient() {
               <div className="inline-actions split-actions">
                 <div>
                   <h3 className="order-card-title">{`${t("Order")} ${order.id}`}</h3>
-                  <p className="muted order-card-subtitle">
-                    {`${t("Customer:")} ${order.customerName}`}
-                  </p>
+                  <p className="muted order-card-subtitle">{`${t("Customer:")} ${order.customerName}`}</p>
                 </div>
                 <OrderStatusBadge status={order.orderStatus} />
               </div>
@@ -309,30 +402,38 @@ export function VendorOrdersClient() {
                   <strong>{t("Created")}</strong>
                   <span>{order.createdAt ? formatDate(order.createdAt, intlLocale) : "-"}</span>
                 </div>
+                <div className="detail-block">
+                  <strong>{t("Driver")}</strong>
+                  <span>{order.driverName}</span>
+                </div>
+                <div className="detail-block">
+                  <strong>{t("Address")}</strong>
+                  <span>{order.deliveryAddress}</span>
+                </div>
               </div>
 
               <Table
-                title="Order Items"
-                headers={["Product", "Qty", "Unit Price", "Total"]}
+                title="عناصر الطلب"
+                headers={["المنتج", "الكمية", "سعر الوحدة", "الإجمالي"]}
                 rows={order.items.map((item) => [
                   item.productName,
                   `${item.quantity}`,
                   formatCurrency(item.unitPrice, intlLocale),
                   formatCurrency(item.totalPrice, intlLocale),
                 ])}
-                emptyMessage="No order items are linked to this order."
+                emptyMessage="لا توجد عناصر مرتبطة بهذا الطلب."
               />
 
               <div className="inline-actions">
-                {actions.length === 0 ? <p className="muted">No vendor actions are available for this order.</p> : null}
+                {actions.length === 0 ? <p className="muted">لا توجد إجراءات متاحة للمتجر لهذا الطلب.</p> : null}
                 {actions.map((action) => (
                   <Button
                     key={`${order.id}-${action.nextStatus}`}
-                    className={action.tone === "danger" ? "danger-button" : action.tone === "secondary" ? "secondary-button" : ""}
+                    variant={action.tone === "danger" ? "danger" : action.tone === "secondary" ? "secondary" : "primary"}
                     disabled={updatingOrderId === order.id}
                     onClick={() => void updateVendorOrderStatus(order.id, action.nextStatus)}
                   >
-                    {updatingOrderId === order.id ? "Updating..." : action.label}
+                    {updatingOrderId === order.id ? "جارٍ التحديث..." : action.label}
                   </Button>
                 ))}
               </div>

@@ -1,17 +1,17 @@
 import type { ReactNode } from "react";
-import { RoleRedirect } from "../../../src/components/auth/role-redirect";
 import { LogoutButton } from "../../../src/components/auth/logout-button";
+import { requireDashboardRole } from "../../../src/features/auth/guards";
 
-export default function VendorLayout({ children }: { children: ReactNode }) {
+export default async function VendorLayout({ children }: { children: ReactNode }) {
+  await requireDashboardRole("vendor");
+
   return (
-    <RoleRedirect role="vendor">
-      <div>
-        <header className="auth-strip auth-strip-end">
-          <LogoutButton />
-        </header>
+    <div>
+      <header className="auth-strip auth-strip-end">
+        <LogoutButton />
+      </header>
 
-        {children}
-      </div>
-    </RoleRedirect>
+      {children}
+    </div>
   );
 }

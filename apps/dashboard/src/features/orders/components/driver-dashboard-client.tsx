@@ -50,7 +50,7 @@ export function DriverDashboardClient() {
   if (loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading driver dashboard..." />
+        <LoadingState message="جارٍ تحميل لوحة السائق..." />
       </Card>
     );
   }
@@ -66,7 +66,7 @@ export function DriverDashboardClient() {
   if (!data) {
     return (
       <Card className="medical-panel">
-        <EmptyState title="No driver profile found" message="Link this account to a driver record to view assigned deliveries." />
+        <EmptyState title="لم يتم العثور على ملف السائق" message="اربط هذا الحساب بسجل سائق لعرض الشحنات المعيّنة." />
       </Card>
     );
   }
@@ -95,13 +95,13 @@ export function DriverDashboardClient() {
 
       {currentOrders.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="No active deliveries" message="New assigned deliveries will appear here as soon as they are ready to move." />
-          <Button onClick={() => router.push("/driver/orders")}>Open Orders</Button>
+          <EmptyState title="لا توجد شحنات نشطة" message="ستظهر الشحنات المعيّنة الجديدة هنا بمجرد أن تصبح جاهزة للتحرك." />
+          <Button onClick={() => router.push("/driver/orders")}>فتح الطلبات</Button>
         </Card>
       ) : (
         <Table
-          title="Current Deliveries"
-          headers={["Order ID", "Vendor", "Customer", "Total", "Status", "Created"]}
+          title="الشحنات الحالية"
+          headers={["معرّف الطلب", "المتجر", "العميل", "الإجمالي", "الحالة", "تاريخ الإنشاء"]}
           rows={currentOrders.map((order) => [
             order.id,
             order.vendorName,
@@ -110,14 +110,14 @@ export function DriverDashboardClient() {
             <OrderStatusBadge key={`${order.id}-summary-status`} status={order.orderStatus} />,
             order.createdAt ? formatDate(order.createdAt, intlLocale) : "-",
           ])}
-          emptyMessage="No current deliveries are assigned to you."
+          emptyMessage="لا توجد شحنات حالية معيّنة لك."
         />
       )}
 
       <div className="inline-actions">
-        <Button onClick={() => router.push("/driver/orders")}>Open Delivery Queue</Button>
+        <Button onClick={() => router.push("/driver/orders")}>فتح قائمة التوصيل</Button>
         <Button className="secondary-button" onClick={() => void loadSummary()}>
-          Refresh
+          تحديث
         </Button>
       </div>
     </div>

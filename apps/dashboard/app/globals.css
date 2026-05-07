@@ -274,6 +274,10 @@ html[dir="rtl"] .hero {
   cursor: pointer;
   min-height: 48px;
   font-size: var(--font-size-body-lg);
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .table-row {
@@ -288,6 +292,28 @@ html[dir="rtl"] .hero {
   line-height: var(--line-height-relaxed);
   direction: inherit;
   font-size: var(--font-size-body-sm);
+}
+
+.table h3,
+.order-card-title,
+.order-card-subtitle,
+.detail-block,
+.empty-state,
+.muted,
+.success,
+.danger {
+  overflow-wrap: anywhere;
+}
+
+.table-row > strong,
+.table-cell,
+.table-cell > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.table-cell {
+  unicode-bidi: plaintext;
 }
 
 .table-row-header {
@@ -326,6 +352,10 @@ html[dir="rtl"] .hero {
   gap: var(--space-16);
 }
 
+.compact-stack {
+  gap: var(--space-8);
+}
+
 .input {
   width: 100%;
   padding-block: var(--space-12);
@@ -337,6 +367,7 @@ html[dir="rtl"] .hero {
   font: inherit;
   text-align: start;
   min-height: 48px;
+  line-height: var(--line-height-relaxed);
 }
 
 select.input {
@@ -380,6 +411,16 @@ select.input {
   resize: vertical;
   text-align: start;
   min-height: 120px;
+  line-height: var(--line-height-relaxed);
+}
+
+html[dir="rtl"] .input,
+html[dir="rtl"] .textarea,
+html[dir="rtl"] .field label,
+html[dir="rtl"] .table,
+html[dir="rtl"] .detail-block,
+html[dir="rtl"] .empty-state {
+  text-align: right;
 }
 
 .actions {
@@ -404,6 +445,14 @@ select.input {
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-start;
+}
+
+html[dir="rtl"] .table-actions,
+html[dir="rtl"] .actions,
+html[dir="rtl"] .filter-chip-row,
+html[dir="rtl"] .inline-actions,
+html[dir="rtl"] .inventory-actions {
+  justify-content: flex-end;
 }
 
 .detail-grid {
@@ -467,6 +516,7 @@ select.input {
   background: #f8fcf8;
   color: var(--text-primary);
   font-weight: 700;
+  cursor: pointer;
 }
 
 .filter-chip strong {
@@ -541,6 +591,48 @@ select.input {
   line-height: var(--line-height-relaxed);
 }
 
+.inventory-list {
+  display: grid;
+  gap: var(--space-12);
+  margin-top: var(--space-16);
+}
+
+.inventory-row {
+  display: grid;
+  gap: var(--space-12);
+  padding-block: var(--space-16);
+  border-top: 1px solid var(--border);
+}
+
+.inventory-actions {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.inventory-stock-input {
+  max-width: 140px;
+}
+
+.inventory-highlight {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+  align-items: center;
+  padding-block: var(--space-12);
+  border-top: 1px solid var(--border);
+}
+
+.inventory-highlight-copy {
+  margin: 0;
+}
+
+.inline-link {
+  color: var(--info);
+  font-weight: 700;
+}
+
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
@@ -584,6 +676,25 @@ select.input {
 
   .table-row {
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 10px;
+    padding-block: var(--space-12);
+  }
+
+  .table-row-header {
+    display: none;
+  }
+
+  .table-cell {
+    display: grid;
+    gap: 4px;
+  }
+
+  .table-cell::before {
+    content: attr(data-label);
+    color: var(--text-secondary);
+    font-size: var(--font-size-caption);
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
   }
 }

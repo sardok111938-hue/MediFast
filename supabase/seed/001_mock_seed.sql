@@ -1,11 +1,11 @@
-insert into public.categories (name, icon)
+insert into public.categories (name, name_ar, icon)
 values
-  ('Medicine', 'cross'),
-  ('Vitamins', 'leaf'),
-  ('Skin Care', 'sparkles'),
-  ('Baby Care', 'heart'),
-  ('Medical Devices', 'pulse'),
-  ('Personal Care', 'drop')
+  ('Medicine', 'الأدوية', 'cross'),
+  ('Vitamins', 'الفيتامينات', 'leaf'),
+  ('Skin Care', 'العناية بالبشرة', 'sparkles'),
+  ('Baby Care', 'العناية بالطفل', 'heart'),
+  ('Medical Devices', 'الأجهزة الطبية', 'pulse'),
+  ('Personal Care', 'العناية الشخصية', 'drop')
 on conflict (name) do nothing;
 
 insert into public.coupons (code, description, discount_type, discount_value, active)

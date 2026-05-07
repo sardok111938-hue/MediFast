@@ -2,12 +2,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Text } from "react-native";
 import { Card, FormInput, HelperText, PrimaryButton, Screen } from "../src/components/CustomerUI";
-import { useCustomerI18n } from "../src/lib/i18n";
 import { isSupabaseConfigured, signInCustomer, signUpCustomer, supabase } from "../src/lib/supabase";
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { t, isRTL } = useCustomerI18n();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,19 +74,19 @@ export default function AuthScreen() {
   }
 
   return (
-    <Screen title="Login or Sign Up" subtitle="Use real Supabase email/password auth for customer access.">
+    <Screen title="تسجيل الدخول أو إنشاء حساب" subtitle="استخدم بريدك الإلكتروني وكلمة المرور للوصول إلى حساب العميل.">
       <Card>
-        <Text style={{ fontWeight: "700", textAlign: isRTL ? "right" : "left" }}>{t("Customer access")}</Text>
-        <FormInput value={fullName} onChangeText={setFullName} placeholder="Full name for signup" />
-        <FormInput value={email} onChangeText={setEmail} placeholder="Email address" />
-        <FormInput value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry />
+        <Text style={{ fontWeight: "700", textAlign: "right" }}>دخول العميل</Text>
+        <FormInput value={fullName} onChangeText={setFullName} placeholder="الاسم الكامل للتسجيل" />
+        <FormInput value={email} onChangeText={setEmail} placeholder="البريد الإلكتروني" />
+        <FormInput value={password} onChangeText={setPassword} placeholder="كلمة المرور" secureTextEntry />
         {message ? (
           <HelperText tone={message.includes("بنجاح") ? "success" : "danger"}>{message}</HelperText>
         ) : (
-          <HelperText>New customers can sign up here. Existing customers can sign in with the same form.</HelperText>
+          <HelperText>يمكن للعملاء الجدد إنشاء حساب من هنا، ويمكن للعملاء الحاليين تسجيل الدخول من النموذج نفسه.</HelperText>
         )}
-        <PrimaryButton label={loading ? "Signing in..." : "Sign in"} onPress={handleSignIn} disabled={loading} />
-        <PrimaryButton label={loading ? "Creating account..." : "Sign up"} onPress={handleSignUp} disabled={loading} />
+        <PrimaryButton label={loading ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"} onPress={handleSignIn} disabled={loading} />
+        <PrimaryButton label={loading ? "جارٍ إنشاء الحساب..." : "إنشاء حساب"} onPress={handleSignUp} disabled={loading} />
       </Card>
     </Screen>
   );

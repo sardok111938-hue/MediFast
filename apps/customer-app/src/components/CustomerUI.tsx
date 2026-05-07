@@ -2,8 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import { theme } from "@medifast/ui";
 import type { ComponentProps, ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getCartItemCount, useCustomerCart } from "../lib/cart-store";
 import { useCustomerI18n } from "../lib/i18n";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -19,35 +20,35 @@ type TabItem = {
 const tabItems: TabItem[] = [
   {
     key: "home",
-    label: "Home",
+    label: "الرئيسية",
     icon: "home-outline",
     href: "/home",
     matches: (pathname) => pathname === "/home" || pathname === "/categories",
   },
   {
     key: "search",
-    label: "Search",
+    label: "البحث",
     icon: "search-outline",
     href: "/search",
     matches: (pathname) => pathname === "/search" || pathname === "/product-listing" || pathname === "/product-detail",
   },
   {
     key: "orders",
-    label: "Orders",
+    label: "الطلبات",
     icon: "receipt-outline",
     href: "/order-history",
     matches: (pathname) => pathname === "/order-history" || pathname === "/order-tracking" || pathname.startsWith("/orders/"),
   },
   {
     key: "cart",
-    label: "Cart",
+    label: "السلة",
     icon: "bag-handle-outline",
     href: "/cart",
     matches: (pathname) => pathname === "/cart" || pathname === "/checkout",
   },
   {
     key: "profile",
-    label: "Profile",
+    label: "الحساب",
     icon: "person-outline",
     href: "/profile",
     matches: (pathname) => pathname === "/profile" || pathname === "/address-selection",
@@ -67,7 +68,7 @@ function BackButton({ label, href }: { label: string; href: string }) {
   const { t, isRTL } = useCustomerI18n();
 
   return (
-    <Pressable style={[styles.backButton, isRTL ? styles.backButtonRtl : null]} onPress={() => router.push(href as never)}>
+    <Pressable style={[styles.backButton, isRTL ? styles.backButtonRtl : null]} onPress={() => router.replace(href as never)}>
       <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={18} color={theme.colors.primaryDark} />
       <Text style={styles.backButtonText}>{t(label)}</Text>
     </Pressable>
@@ -77,22 +78,29 @@ function BackButton({ label, href }: { label: string; href: string }) {
 function CustomerTabBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { t } = useCustomerI18n();
+  const { t, isRTL } = useCustomerI18n();
+  const cartItems = useCustomerCart();
+  const cartCount = getCartItemCount(cartItems);
 
   return (
     <View style={styles.tabBarWrap}>
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, isRTL ? styles.tabBarRtl : null]}>
         {tabItems.map((tab) => {
           const active = tab.matches(pathname);
 
           return (
-            <Pressable key={tab.key} style={styles.tabButton} onPress={() => router.push(tab.href as never)}>
+            <Pressable key={tab.key} style={styles.tabButton} onPress={() => router.replace(tab.href as never)}>
               <View style={[styles.tabIconWrap, active ? styles.tabIconWrapActive : null]}>
                 <Ionicons
                   name={active ? (tab.icon.replace("-outline", "") as IconName) : tab.icon}
                   size={20}
                   color={active ? theme.colors.primaryDark : theme.colors.muted}
                 />
+                {tab.key === "cart" && cartCount > 0 ? (
+                  <View style={styles.cartCountBadge}>
+                    <Text style={styles.cartCountBadgeText}>{cartCount > 99 ? "99+" : String(cartCount)}</Text>
+                  </View>
+                ) : null}
               </View>
               <Text style={[styles.tabLabel, active ? styles.tabLabelActive : null]}>{t(tab.label)}</Text>
             </Pressable>
@@ -110,7 +118,7 @@ export function Screen({
   action,
   scroll = true,
   backHref,
-  backLabel = "Back",
+  backLabel = "رجوع",
   showTabBar,
   contentContainerStyle,
 }: {
@@ -146,20 +154,21 @@ export function Screen({
   if (!scroll) {
     return (
       <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-        <View style={styles.screen}>
+        <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={[styles.nonScrollContent, withTabs ? styles.nonScrollContentWithTabs : null, contentContainerStyle]}>{content}</View>
           {withTabs ? <CustomerTabBar /> : null}
-        </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <View style={styles.screen}>
+      <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             styles.scrollContent,
             withTabs ? styles.scrollContentWithTabs : null,
@@ -169,7 +178,7 @@ export function Screen({
           {content}
         </ScrollView>
         {withTabs ? <CustomerTabBar /> : null}
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -296,6 +305,7 @@ export function SearchInput({
         style={[styles.searchInput, isRTL ? styles.searchInputRtl : null]}
         value={value}
         onChangeText={onChangeText}
+        textAlign={isRTL ? "right" : "left"}
       />
     </View>
   );
@@ -306,11 +316,15 @@ export function FormInput({
   onChangeText,
   placeholder,
   secureTextEntry,
+  multiline,
+  numberOfLines,
 }: {
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
   secureTextEntry?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
 }) {
   const { t, isRTL } = useCustomerI18n();
 
@@ -322,7 +336,11 @@ export function FormInput({
       placeholderTextColor={theme.colors.muted}
       secureTextEntry={secureTextEntry}
       autoCapitalize="none"
-      style={[styles.formInput, isRTL ? styles.formInputRtl : null]}
+      multiline={multiline}
+      numberOfLines={numberOfLines}
+      textAlignVertical={multiline ? "top" : "center"}
+      textAlign={isRTL ? "right" : "left"}
+      style={[styles.formInput, multiline ? styles.formInputMultiline : null, isRTL ? styles.formInputRtl : null]}
     />
   );
 }
@@ -366,7 +384,7 @@ export function PrimaryButton({
   loading?: boolean;
   icon?: IconName;
 }) {
-  const { t } = useCustomerI18n();
+  const { t, isRTL } = useCustomerI18n();
 
   return (
     <Pressable
@@ -380,7 +398,7 @@ export function PrimaryButton({
       onPress={onPress}
       disabled={disabled || loading}
     >
-      <View style={styles.buttonContent}>
+      <View style={[styles.buttonContent, isRTL ? styles.buttonContentRtl : null]}>
         {icon ? (
           <Ionicons
             name={icon}
@@ -575,16 +593,18 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
   },
   headerSpacer: {
-    width: 88,
+    minWidth: 72,
   },
   headerText: {
     gap: theme.spacing[8],
   },
   title: {
-    fontSize: theme.typography.heading.xl,
-    fontWeight: "800",
-    color: theme.colors.text,
-  },
+  fontSize: theme.typography.heading.xl,
+  fontWeight: "800",
+  color: theme.colors.text,
+  lineHeight: 44,
+  paddingTop: 4,
+},
   subtitle: {
     fontSize: theme.typography.body.md,
     lineHeight: theme.typography.lineHeight.body,
@@ -602,7 +622,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(20, 83, 45, 0.08)",
   },
   backButtonRtl: {
     flexDirection: "row-reverse",
@@ -614,16 +634,16 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing[20],
+    borderRadius: 22,
+    padding: theme.spacing[16],
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(20, 83, 45, 0.06)",
     gap: theme.spacing[12],
     shadowColor: theme.shadows.card.shadowColor,
-    shadowOpacity: theme.shadows.card.shadowOpacity,
-    shadowRadius: theme.shadows.card.shadowRadius,
-    shadowOffset: theme.shadows.card.shadowOffset,
-    elevation: theme.shadows.card.elevation,
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
   cardPressed: {
     opacity: 0.92,
@@ -649,12 +669,16 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.heading.md,
     fontWeight: "800",
     color: theme.colors.text,
+    flexShrink: 1,
+    lineHeight: theme.typography.lineHeight.body,
   },
   listCardSubtitle: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
     lineHeight: theme.typography.lineHeight.compact,
+    flexShrink: 1,
   },
+
   pill: {
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -662,7 +686,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing[4],
     backgroundColor: theme.colors.accent,
     paddingHorizontal: theme.spacing[12],
-    paddingVertical: theme.spacing[8],
+    paddingVertical: 6,
     borderRadius: 999,
   },
   pillSuccess: {
@@ -688,10 +712,12 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
   },
   sectionTitle: {
-    fontSize: theme.typography.heading.md,
-    fontWeight: "800",
-    color: theme.colors.text,
-  },
+  fontSize: theme.typography.heading.md,
+  fontWeight: "800",
+  color: theme.colors.text,
+  lineHeight: 32,
+  paddingTop: 2,
+},
   sectionAction: {
     color: theme.colors.primaryDark,
     fontWeight: "700",
@@ -701,12 +727,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[8],
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
     paddingHorizontal: theme.spacing[16],
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(20, 83, 45, 0.07)",
+    shadowColor: theme.shadows.card.shadowColor,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
   },
   searchWrapRtl: {
     flexDirection: "row-reverse",
@@ -718,6 +749,7 @@ const styles = StyleSheet.create({
   },
   searchInputRtl: {
     textAlign: "right",
+    writingDirection: "rtl",
   },
   searchButtonText: {
     flex: 1,
@@ -726,17 +758,23 @@ const styles = StyleSheet.create({
   },
   formInput: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
+    borderRadius: 18,
     paddingHorizontal: theme.spacing[16],
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(20, 83, 45, 0.08)",
     color: theme.colors.text,
-    minHeight: 54,
+    minHeight: 50,
     fontSize: theme.typography.body.md,
+  },
+  formInputMultiline: {
+    minHeight: 112,
+    paddingTop: 14,
+    paddingBottom: 14,
   },
   formInputRtl: {
     textAlign: "right",
+    writingDirection: "rtl",
   },
   helperText: {
     fontSize: theme.typography.caption.md,
@@ -754,17 +792,17 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing[16],
+    paddingVertical: 12,
     paddingHorizontal: theme.spacing[20],
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 56,
+    minHeight: 48,
   },
   buttonSecondary: {
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(20, 83, 45, 0.08)",
   },
   buttonGhost: {
     backgroundColor: "transparent",
@@ -783,10 +821,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing[8],
   },
+  buttonContentRtl: {
+    flexDirection: "row-reverse",
+  },
   buttonText: {
     color: "#FFFFFF",
     fontWeight: "800",
-    fontSize: theme.typography.body.lg,
+    fontSize: theme.typography.body.md,
+    textAlign: "center",
+    lineHeight: theme.typography.lineHeight.compact,
+    flexShrink: 1,
   },
   buttonTextSecondary: {
     color: theme.colors.text,
@@ -798,7 +842,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: theme.spacing[12],
-    paddingVertical: theme.spacing[8],
+    paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: theme.status.neutral.background,
   },
@@ -852,6 +896,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontSize: theme.typography.body.sm,
     lineHeight: theme.typography.lineHeight.compact,
+    minWidth: 0,
   },
   detailValueRtl: {
     textAlign: "right",
@@ -859,23 +904,22 @@ const styles = StyleSheet.create({
   detailNodeWrap: {
     flex: 1.3,
     alignItems: "flex-end",
+    minWidth: 0,
   },
   quantityWrap: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: theme.colors.background,
+    backgroundColor: "#EEF7F1",
     borderRadius: 999,
     padding: 4,
     gap: theme.spacing[8],
   },
   quantityButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -899,11 +943,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   stateTitle: {
-    fontSize: theme.typography.heading.md,
-    fontWeight: "800",
-    color: theme.colors.text,
-    textAlign: "center",
-  },
+  fontSize: theme.typography.heading.md,
+  fontWeight: "800",
+  color: theme.colors.text,
+  textAlign: "center",
+  lineHeight: 32,
+  paddingTop: 2,
+},
   stateMessage: {
     fontSize: theme.typography.body.sm,
     lineHeight: theme.typography.lineHeight.body,
@@ -922,7 +968,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "rgba(255,255,255,0.98)",
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(20, 83, 45, 0.08)",
     borderRadius: 28,
     paddingHorizontal: theme.spacing[8],
     paddingVertical: 10,
@@ -932,10 +978,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
+  tabBarRtl: {
+    flexDirection: "row-reverse",
+  },
   tabButton: {
     flex: 1,
     alignItems: "center",
-    gap: 6,
+    gap: 5,
+    minHeight: 50,
+    justifyContent: "center",
   },
   tabIconWrap: {
     width: 38,
@@ -943,14 +994,35 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
   },
   tabIconWrapActive: {
     backgroundColor: theme.colors.accent,
+    transform: [{ translateY: -1 }],
+  },
+  cartCountBadge: {
+    position: "absolute",
+    top: -4,
+    right: -8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: theme.colors.danger,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  cartCountBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
   },
   tabLabel: {
     color: theme.colors.muted,
     fontSize: theme.typography.caption.sm,
     fontWeight: "700",
+    textAlign: "center",
+    lineHeight: theme.typography.lineHeight.compact,
   },
   tabLabelActive: {
     color: theme.colors.primaryDark,

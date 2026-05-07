@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { formatCategoryLabel } from "@medifast/i18n";
 import { Badge } from "../../components/ui/badge";
 import type { ProductCategoryOption, ProductRow, TableModel } from "../../types/dashboard";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
@@ -20,7 +21,7 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
 }
 
 export async function listProducts(): Promise<ProductRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("products")
@@ -33,16 +34,13 @@ export async function listProducts(): Promise<ProductRow[]> {
 }
 
 export async function listVendorProducts(): Promise<ProductRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
 
   const { data: vendorId, error: vendorError } = await supabase.rpc("get_vendor_id");
-
-  console.log("VENDOR DEBUG →", { vendorId, vendorError });
 
   if (vendorError) throw vendorError;
 
   if (!vendorId) {
-    console.error("Vendor not linked to auth user.");
     return [];
   }
 
@@ -50,7 +48,6 @@ export async function listVendorProducts(): Promise<ProductRow[]> {
     .from("products")
     .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
     .eq("vendor_id", vendorId)
-    .eq("is_active", true)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -127,11 +124,11 @@ export function getInventoryTableModel(products: ProductRow[]): TableModel {
 }
 
 export async function listProductCategories(): Promise<ProductCategoryOption[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name")
+    .select("id, name, name_ar, icon")
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -139,11 +136,16 @@ export async function listProductCategories(): Promise<ProductCategoryOption[]> 
   return (data ?? []).map((category) => ({
     id: String(category.id),
     name: String(category.name),
+    name_ar: category.name_ar ? String(category.name_ar) : null,
+    display_name: formatCategoryLabel({
+      name: String(category.name),
+      name_ar: category.name_ar ? String(category.name_ar) : null,
+    }),
   }));
 }
 
 export async function getProductById(productId: string): Promise<ProductRow | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("products")

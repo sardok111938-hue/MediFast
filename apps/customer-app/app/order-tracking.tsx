@@ -39,8 +39,8 @@ export default function OrderTrackingScreen() {
   }, [loadLatestOrder]);
 
   return (
-    <Screen title="Order Tracking" subtitle="Jump straight to your newest order and continue following the delivery.">
-      {loading ? <LoadingCard message="Loading your order..." /> : null}
+    <Screen title="تتبع الطلب" subtitle="افتح أحدث طلب لديك مباشرةً واستمر في متابعة مسار التوصيل.">
+      {loading ? <LoadingCard message="جارٍ تحميل الطلب..." /> : null}
       {!loading && error ? <ErrorCard message={error} onRetry={() => void loadLatestOrder()} /> : null}
       {!loading && !error && latestOrder ? (
         <Card style={styles.trackerCard}>
@@ -54,7 +54,7 @@ export default function OrderTrackingScreen() {
             />
           </View>
           <PrimaryButton
-            label="Track latest order"
+            label="تتبع آخر طلب"
             onPress={() =>
               router.push({
                 pathname: "/orders/[orderId]",
@@ -62,14 +62,14 @@ export default function OrderTrackingScreen() {
               })
             }
           />
-          <PrimaryButton label="Open Orders" onPress={() => router.push("/order-history")} variant="secondary" />
+          <PrimaryButton label="فتح الطلبات" onPress={() => router.push("/order-history")} variant="secondary" />
         </Card>
       ) : null}
       {!loading && !error && !latestOrder ? (
         <EmptyCard
-          title="No orders yet"
-          message="Your customer orders will appear here after checkout."
-          action={<PrimaryButton label="Start shopping" onPress={() => router.push("/product-listing")} />}
+          title="لا توجد طلبات بعد"
+          message="ستظهر طلباتك هنا بعد إتمام الشراء."
+          action={<PrimaryButton label="ابدأ التسوق" onPress={() => router.push("/product-listing")} />}
         />
       ) : null}
     </Screen>
@@ -85,6 +85,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.heading.lg,
+    textAlign: "right",
   },
   badgeStack: {
     gap: theme.spacing[8],

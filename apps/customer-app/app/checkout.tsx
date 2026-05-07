@@ -1,22 +1,24 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "expo-router";
-import { formatPaymentStatusLabel } from "@medifast/types";
 import { StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
-import { Card, DetailRow, HelperText, Pill, PrimaryButton, Screen, SectionTitle, StatusBadge } from "../src/components/CustomerUI";
+import { Card, DetailRow, ErrorCard, HelperText, LoadingCard, Pill, PrimaryButton, Screen, SectionTitle, StatusBadge } from "../src/components/CustomerUI";
 import { getCartItemCount, useCustomerCart } from "../src/lib/cart-store";
+import { useCartFreshness } from "../src/lib/cart-freshness";
 import { buildCheckoutPreview, placeCashOnDeliveryOrder } from "../src/lib/cod-checkout";
-import { getPrimaryAddress } from "../src/lib/customer-catalog";
-import { formatCustomerCurrency } from "../src/lib/customer-orders";
+import { formatSavedAddressLine, getPrimaryAddress, useCustomerCatalogData } from "../src/lib/customer-catalog";
+import { formatCustomerCurrency, formatCustomerPaymentStatusLabel } from "../src/lib/customer-orders";
 import { clearCustomerCart } from "../src/lib/cart-store";
 
 export default function CheckoutScreen() {
   const router = useRouter();
   const cartItems = useCustomerCart();
+  const { data, loading, error, reload } = useCustomerCatalogData();
   const [submitting, setSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const address = getPrimaryAddress();
+  const address = getPrimaryAddress(data.addresses, data.defaultAddressId);
   const cartCount = getCartItemCount(cartItems);
+  const freshness = useCartFreshness(cartItems);
 
   const { preview, validationError } = useMemo(() => {
     try {
@@ -34,6 +36,16 @@ export default function CheckoutScreen() {
 
   async function handlePlaceCashOrder() {
     if (!preview) {
+      return;
+    }
+
+    if (!freshness.valid) {
+      setSubmissionError("لا يمكن إرسال الطلب قبل معالجة مشاكل صلاحية السلة.");
+      return;
+    }
+
+    if (!address) {
+      setSubmissionError("يرجى اختيار عنوان توصيل افتراضي قبل إرسال الطلب.");
       return;
     }
 
@@ -55,17 +67,22 @@ export default function CheckoutScreen() {
   }
 
   return (
-    <Screen title="Checkout" subtitle="Confirm your delivery details and place a cash on delivery order." backHref="/cart" backLabel="Back to cart">
+    <Screen title="الدفع" subtitle="أكد بيانات التوصيل ثم أرسل طلب الدفع النقدي عند الاستلام." backHref="/cart" backLabel="العودة إلى السلة">
+      {loading ? <LoadingCard message="جارٍ تحميل العنوان والبيانات..." /> : null}
+      {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
+      {freshness.loading ? <LoadingCard message="جارٍ التحقق من صلاحية السلة..." /> : null}
+      {freshness.error ? <ErrorCard message={freshness.error} onRetry={() => void freshness.refresh()} /> : null}
+
       <Card style={styles.heroCard}>
-        <Pill label="Cash on delivery" tone="warning" />
-        <Text style={styles.heroTitle}>Cash to be paid on delivery</Text>
-        <Text style={styles.heroText}>Your order is reserved now. Payment will be collected when the driver hands over the delivery.</Text>
+        <Pill label="الدفع عند الاستلام" tone="warning" />
+        <Text style={styles.heroTitle}>الدفع نقدًا عند التوصيل</Text>
+        <Text style={styles.heroText}>تم حجز طلبك الآن، وسيتم تحصيل المبلغ عند تسليم الطلب من قبل السائق.</Text>
       </Card>
 
       <Card>
         <SectionTitle
-          label="Delivery address"
-          actionLabel="Change"
+          label="عنوان التوصيل"
+          actionLabel="تغيير"
           onAction={() =>
             router.push({
               pathname: "/address-selection",
@@ -73,44 +90,80 @@ export default function CheckoutScreen() {
             })
           }
         />
-        <Text style={styles.addressTitle}>{address?.label ?? "Select address"}</Text>
+        <Text style={styles.addressTitle}>عنوان التوصيل</Text>
         <Text style={styles.addressLine}>
-          {address ? `${address.line_1}${address.line_2 ? `, ${address.line_2}` : ""}, ${address.area}, ${address.city}` : "Choose a delivery address before placing the order."}
+          {address ? formatSavedAddressLine(address) : "اختر عنوان التوصيل قبل إرسال الطلب."}
         </Text>
+        {!address ? (
+          <>
+            <HelperText tone="danger">لا يمكن إكمال الدفع عند الاستلام بدون عنوان توصيل افتراضي.</HelperText>
+            <PrimaryButton
+              label="اختيار عنوان التوصيل"
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: "/address-selection",
+                  params: { from: "checkout" },
+                })
+              }
+            />
+          </>
+        ) : null}
       </Card>
 
       <Card>
-        <SectionTitle label="Items in this order" />
+        <SectionTitle label="منتجات الطلب" />
         {cartItems.map((item) => (
-          <View key={item.id} style={styles.itemRow}>
-            <View style={styles.itemCopy}>
-              <Text style={styles.itemName}>{item.product.name}</Text>
-              <Text style={styles.itemMeta}>
-                {item.quantity} x {formatCustomerCurrency(item.product.price)}
-              </Text>
+          <View key={item.id} style={styles.itemStack}>
+            <View style={styles.itemRow}>
+              <View style={styles.itemCopy}>
+                <Text style={styles.itemName}>{item.snapshot.name}</Text>
+                <Text style={styles.itemMeta}>
+                  {formatCustomerCurrency(item.snapshot.price)} × {item.quantity}
+                </Text>
+              </View>
+              <Text style={styles.itemTotal}>{formatCustomerCurrency(item.snapshot.price * item.quantity)}</Text>
             </View>
-            <Text style={styles.itemTotal}>{formatCustomerCurrency(item.product.price * item.quantity)}</Text>
+
+            {freshness.issuesByProductId[item.product_id]?.map((issue, index) => (
+              <Card key={`${item.product_id}-${issue.kind}-${index}`} style={styles.warningCard}>
+                <HelperText tone={issue.kind === "price_changed" ? "info" : "danger"}>{issue.message}</HelperText>
+                <View style={styles.warningActions}>
+                  {issue.kind === "quantity_exceeds_stock" ? (
+                    <PrimaryButton
+                      label={`تقليل الكمية إلى ${issue.availableStock}`}
+                      variant="secondary"
+                      onPress={() => freshness.reduceToAvailableStock(item.product_id, issue.availableStock)}
+                    />
+                  ) : null}
+                  {issue.kind !== "price_changed" ? (
+                    <PrimaryButton label="إزالة المنتج" variant="ghost" onPress={() => freshness.removeItem(item.product_id)} />
+                  ) : null}
+                </View>
+              </Card>
+            ))}
           </View>
         ))}
       </Card>
 
       <Card>
-        <SectionTitle label="Order summary" />
-        <DetailRow label="Items" value={String(cartCount)} />
-        <DetailRow label="Subtotal" value={formatCustomerCurrency(preview?.subtotal ?? 0)} />
-        <DetailRow label="Delivery fee" value={formatCustomerCurrency(preview?.deliveryFee ?? 0)} />
-        <DetailRow label="Total" value={formatCustomerCurrency(preview?.total ?? 0)} />
-        <DetailRow label="Payment method" value="Cash on delivery" />
-        <DetailRow label="Payment status" value={<StatusBadge label={formatPaymentStatusLabel("pending", "cash_on_delivery")} tone="warning" />} />
-        <HelperText tone="info">Your pharmacy will prepare the order first, then a driver will collect the cash at the doorstep.</HelperText>
+        <SectionTitle label="ملخص الطلب" />
+        <DetailRow label="عدد القطع" value={String(cartCount)} />
+        <DetailRow label="الإجمالي الفرعي" value={formatCustomerCurrency(preview?.subtotal ?? 0)} />
+        <DetailRow label="رسوم التوصيل" value={formatCustomerCurrency(preview?.deliveryFee ?? 0)} />
+        <DetailRow label="الإجمالي" value={formatCustomerCurrency(preview?.total ?? 0)} />
+        <DetailRow label="طريقة الدفع" value="الدفع عند الاستلام" />
+        <DetailRow label="حالة الدفع" value={<StatusBadge label={formatCustomerPaymentStatusLabel("pending", "cash_on_delivery")} tone="warning" />} />
+        <HelperText tone="info">ستبدأ الصيدلية بتحضير الطلب أولًا، ثم يقوم السائق بتحصيل المبلغ عند باب المنزل.</HelperText>
+        {!freshness.valid ? <HelperText tone="danger">عالج مشاكل صلاحية السلة قبل إرسال الطلب.</HelperText> : null}
         {validationError ? <HelperText tone="danger">{validationError}</HelperText> : null}
         {submissionError ? <HelperText tone="danger">{submissionError}</HelperText> : null}
       </Card>
 
       <PrimaryButton
-        label={submitting ? "جارٍ إنشاء الطلب..." : "Place Order"}
+        label={submitting ? "جارٍ إنشاء الطلب..." : "إرسال الطلب"}
         onPress={() => void handlePlaceCashOrder()}
-        disabled={!preview || submitting}
+        disabled={!preview || !address || submitting || !freshness.valid}
       />
     </Screen>
   );
@@ -125,24 +178,31 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.heading.lg,
+    textAlign: "right",
   },
   heroText: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
     lineHeight: theme.typography.lineHeight.body,
+    textAlign: "right",
   },
   addressTitle: {
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.body.lg,
+    textAlign: "right",
   },
   addressLine: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
     lineHeight: theme.typography.lineHeight.body,
+    textAlign: "right",
+  },
+  itemStack: {
+    gap: theme.spacing[8],
   },
   itemRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
     gap: theme.spacing[12],
@@ -156,14 +216,24 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: "700",
     fontSize: theme.typography.body.md,
+    textAlign: "right",
   },
   itemMeta: {
     color: theme.colors.muted,
     fontSize: theme.typography.caption.md,
+    textAlign: "right",
   },
   itemTotal: {
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.body.md,
+    textAlign: "left",
+  },
+  warningCard: {
+    backgroundColor: "#FFF7E5",
+    borderColor: "#F1E2B5",
+  },
+  warningActions: {
+    gap: 10,
   },
 });

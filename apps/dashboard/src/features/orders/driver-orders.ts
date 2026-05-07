@@ -38,23 +38,23 @@ function readVendorName(value: SingleRecord<{ name?: string }>, fallback: string
 function formatDeliveryAddress(value: SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>) {
   const address = readSingle(value);
   if (!address) {
-    return "Delivery address unavailable";
+    return "عنوان التوصيل غير متاح";
   }
 
-  return [address.line_1, address.line_2, address.area, address.city].filter(Boolean).join(", ") || "Delivery address unavailable";
+  return [address.line_1, address.line_2, address.area, address.city].filter(Boolean).join("، ") || "عنوان التوصيل غير متاح";
 }
 
 export function normalizeError(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to load driver orders right now.";
+  return error instanceof Error ? error.message : "تعذر تحميل طلبات السائق الآن.";
 }
 
 export function getDriverNextActions(status: string) {
-  if (status === "assigned" || status === "accepted") {
-    return [{ label: "Mark Out for Delivery", nextStatus: "on_the_way" }];
+  if (status === "assigned") {
+    return [{ label: "في الطريق", nextStatus: "on_the_way" }];
   }
 
   if (status === "on_the_way") {
-    return [{ label: "Mark Delivered", nextStatus: "delivered" }];
+    return [{ label: "تم التوصيل", nextStatus: "delivered" }];
   }
 
   return [];
@@ -69,7 +69,7 @@ export async function loadDriverOrdersData(): Promise<DriverOrdersData> {
   }
 
   if (!driverId) {
-    throw new Error("Driver account is not linked correctly.");
+    throw new Error("حساب السائق غير مرتبط بشكل صحيح.");
   }
 
   const { data, error } = await supabase
@@ -101,31 +101,12 @@ export async function loadDriverOrdersData(): Promise<DriverOrdersData> {
     driverId: String(driverId),
     orders: (data ?? []).map((order) => ({
       id: String(order.id),
-      vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "Vendor"),
-      customerName: readName((order.customer as { profile?: SingleRecord<{ full_name?: string }> } | null)?.profile, "Customer"),
+      vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "المتجر"),
+      customerName: readName((order.customer as { profile?: SingleRecord<{ full_name?: string }> } | null)?.profile, "العميل"),
       total: Number(order.total ?? 0),
       orderStatus: String(order.order_status ?? ""),
       createdAt: String(order.created_at ?? ""),
       deliveryAddress: formatDeliveryAddress(order.address as SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>),
     })),
   };
-}
-
-export async function updateDriverOrderStatus(input: {
-  driverId: string;
-  orderId: string;
-  currentStatus: string;
-  nextStatus: string;
-}) {
-  const supabase = getSupabaseBrowserClient();
-  const { error } = await supabase
-    .from("orders")
-    .update({ order_status: input.nextStatus })
-    .eq("id", input.orderId)
-    .eq("driver_id", input.driverId)
-    .eq("order_status", input.currentStatus);
-
-  if (error) {
-    throw error;
-  }
 }

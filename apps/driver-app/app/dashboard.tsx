@@ -75,7 +75,7 @@ export default function DriverDashboardScreen() {
           <DriverCard>
             <View style={styles.accountHeader}>
               <View style={styles.accountMeta}>
-                <Text style={[styles.accountName, isRTL ? styles.textRight : null]}>{driver?.fullName ?? "Driver"}</Text>
+                <Text style={[styles.accountName, isRTL ? styles.textRight : null]}>{driver?.fullName ?? "السائق"}</Text>
                 <DriverBadge label={driver?.approvalStatus ?? "unknown"} tone={statusTone(driver?.approvalStatus ?? "")} />
               </View>
               <DriverButton

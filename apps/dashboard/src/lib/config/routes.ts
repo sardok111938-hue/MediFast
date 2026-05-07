@@ -7,22 +7,25 @@ export const ROUTES = {
 
 export const ADMIN_ROUTES = [
   { href: "/admin/overview", label: "Overview" },
+  { href: "/admin/assignments", label: "Assignments" },
   { href: "/admin/drivers", label: "Drivers" },
   { href: "/admin/vendors", label: "Vendors" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/support", label: "Support" },
+  { href: "/admin/coupons", label: "Coupons" },
+  { href: "/admin/delivery-fees", label: "Delivery Fees" },
+  { href: "/admin/settings", label: "Settings" },
 ] as const;
 
 export const VENDOR_ROUTES = [
   { href: "/vendor", label: "Dashboard" },
   { href: "/vendor/orders", label: "Orders" },
   { href: "/vendor/products", label: "Products" },
-  { href: "/vendor/products/new", label: "Add Product" },
   { href: "/vendor/inventory", label: "Inventory" },
-  { href: "/vendor/offers", label: "Offers / Discounts" },
-  { href: "/vendor/settings", label: "Store Settings" },
 ] as const;
 
 export const DRIVER_ROUTES = [

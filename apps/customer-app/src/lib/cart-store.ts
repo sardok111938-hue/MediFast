@@ -1,13 +1,9 @@
-import { cartItems as initialCartItems } from "@medifast/ui";
-import type { CartItem, Product } from "@medifast/types";
+import type { CartItem, CartProductSnapshot, Product } from "@medifast/types";
 import { useSyncExternalStore } from "react";
 
 type CartListener = () => void;
 
-let cartState: CartItem[] = initialCartItems.map((item) => ({
-  ...item,
-  product: { ...item.product },
-}));
+let cartState: CartItem[] = [];
 
 const listeners = new Set<CartListener>();
 
@@ -28,11 +24,34 @@ function getSnapshot() {
   return cartState;
 }
 
-function cloneCart(items: CartItem[]) {
-  return items.map((item) => ({
-    ...item,
-    product: { ...item.product },
-  }));
+function buildProductSnapshot(product: Product): CartProductSnapshot {
+  return {
+    product_id: product.id,
+    vendor_id: product.vendor_id,
+    category_id: product.category_id,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    image_url: product.image_url,
+    barcode: product.barcode ?? null,
+    stock_quantity: product.stock_quantity,
+    is_active: product.is_active,
+  };
+}
+
+function updateSnapshotForProduct(product: Product) {
+  const snapshot = buildProductSnapshot(product);
+
+  cartState = cartState.map((item) =>
+    item.product_id === product.id
+      ? {
+          ...item,
+          snapshot,
+        }
+      : item
+  );
+
+  emitChange();
 }
 
 export function useCustomerCart() {
@@ -41,14 +60,16 @@ export function useCustomerCart() {
 
 export function addProductToCart(product: Product, quantity = 1) {
   const safeQuantity = Math.max(1, Math.trunc(quantity));
-  const existingItem = cartState.find((item) => item.product.id === product.id);
+  const snapshot = buildProductSnapshot(product);
+  const existingItem = cartState.find((item) => item.product_id === product.id);
 
   if (existingItem) {
     cartState = cartState.map((item) =>
-      item.product.id === product.id
+      item.product_id === product.id
         ? {
             ...item,
             quantity: item.quantity + safeQuantity,
+            snapshot,
           }
         : item
     );
@@ -57,8 +78,9 @@ export function addProductToCart(product: Product, quantity = 1) {
       ...cartState,
       {
         id: `cart-${product.id}`,
-        product: { ...product },
+        product_id: product.id,
         quantity: safeQuantity,
+        snapshot,
       },
     ];
   }
@@ -75,7 +97,7 @@ export function setCartItemQuantity(productId: string, quantity: number) {
   }
 
   cartState = cartState.map((item) =>
-    item.product.id === productId
+    item.product_id === productId
       ? {
           ...item,
           quantity: safeQuantity,
@@ -87,8 +109,12 @@ export function setCartItemQuantity(productId: string, quantity: number) {
 }
 
 export function removeProductFromCart(productId: string) {
-  cartState = cartState.filter((item) => item.product.id !== productId);
+  cartState = cartState.filter((item) => item.product_id !== productId);
   emitChange();
+}
+
+export function refreshCartItemSnapshot(product: Product) {
+  updateSnapshotForProduct(product);
 }
 
 export function getCartItemCount(items: CartItem[] = cartState) {
@@ -96,7 +122,7 @@ export function getCartItemCount(items: CartItem[] = cartState) {
 }
 
 export function getCartSubtotal(items: CartItem[] = cartState) {
-  return items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  return items.reduce((sum, item) => sum + item.snapshot.price * item.quantity, 0);
 }
 
 export function clearCustomerCart() {
@@ -105,6 +131,6 @@ export function clearCustomerCart() {
 }
 
 export function resetCustomerCart() {
-  cartState = cloneCart(initialCartItems);
+  cartState = [];
   emitChange();
 }

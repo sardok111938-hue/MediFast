@@ -14,26 +14,16 @@ export function isDashboardSupabaseConfigured() {
 }
 
 export async function signInDashboardUser(email: string, password: string) {
-  console.log("SIGNIN START", email);
-
   const supabase = getSupabaseBrowserClient();
-
-  console.log("SUPABASE CLIENT READY");
 
   let authResponse: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
 
   try {
-    console.log("CALLING SUPABASE AUTH");
-
     authResponse = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-
-    console.log("AUTH RESPONSE", authResponse);
   } catch (error) {
-    console.error("SUPABASE AUTH THREW", error);
-    
     const message = error instanceof Error ? error.message : "Unable to reach Supabase. Check your URL, anon key, and network connection.";
     const authError: AuthFailure = {
       name: "AuthRetryableFetchError",

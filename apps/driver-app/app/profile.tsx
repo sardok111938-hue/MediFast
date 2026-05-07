@@ -32,7 +32,7 @@ export default function DriverProfileScreen() {
         <DriverErrorCard message={error} onRetry={() => void refresh()} />
       ) : (
         <DriverListCard
-          title={driver?.fullName ?? "Driver"}
+          title={driver?.fullName ?? "السائق"}
           badge={<DriverBadge label={driver?.approvalStatus ?? "unknown"} tone={statusTone(driver?.approvalStatus ?? "")} />}
         >
           <DriverRow label="Availability" value={driver?.isAvailable ? "Online" : "Offline"} />

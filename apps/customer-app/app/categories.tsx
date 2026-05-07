@@ -1,36 +1,38 @@
-import { useMemo } from "react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { formatCategoryLabel } from "@medifast/i18n";
 import { theme } from "@medifast/ui";
-import { Card, Pill, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
-import { getCustomerCategories } from "../src/lib/customer-catalog";
+import { Card, ErrorCard, LoadingCard, Pill, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
+import { useCustomerCatalogData } from "../src/lib/customer-catalog";
 
 const categoryDescriptions: Record<string, string> = {
-  "cat-1": "Pain relief, cold remedies, and essential over-the-counter treatments.",
-  "cat-2": "Daily vitamins, immunity support, and supplements for routine wellness.",
-  "cat-3": "Gentle cleansers, serums, and pharmacy-grade skincare picks.",
-  "cat-4": "Trusted baby care, feeding, and daily family essentials.",
-  "cat-5": "Thermometers, monitors, and practical home medical devices.",
-  "cat-6": "Personal hygiene, oral care, and everyday health basics.",
+  Medicine: "مسكنات وعلاجات البرد والأدوية الأساسية للاستخدام اليومي.",
+  Vitamins: "فيتامينات ومكملات لدعم المناعة والصحة العامة.",
+  "Skin Care": "منظفات وسيروم وعناية بالبشرة من الصيدلية.",
+  "Medical Devices": "أجهزة منزلية عملية مثل مقاييس الحرارة ومستلزمات المتابعة.",
+  "Baby Care": "منتجات موثوقة للعناية بالأطفال والرضع.",
+  "Personal Care": "عناية شخصية ونظافة يومية ومنتجات أساسية للمنزل.",
 };
 
 export default function CategoriesScreen() {
   const router = useRouter();
-  const categories = useMemo(() => getCustomerCategories(), []);
+  const { data, loading, error, reload } = useCustomerCatalogData();
 
   return (
-    <Screen title="Categories" subtitle="Browse the catalog by need and jump straight into the right aisle.">
-      <SectionTitle label="All Categories" actionLabel="Search" onAction={() => router.push("/search")} />
+    <Screen title="الفئات" subtitle="تصفح المنتجات حسب الاحتياج واختر القسم المناسب بسرعة.">
+      {loading ? <LoadingCard message="جارٍ تحميل الفئات..." /> : null}
+      {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
+      <SectionTitle label="كل الفئات" actionLabel="البحث" onAction={() => router.push("/search")} />
       <View style={styles.grid}>
-        {categories.map((category) => (
+        {data.categories.map((category) => (
           <Card key={category.id} style={styles.categoryCard}>
             <View style={styles.categoryHeader}>
-              <Text style={styles.categoryTitle}>{category.name}</Text>
-              <Pill label="Popular" tone="info" />
+              <Text style={styles.categoryTitle}>{formatCategoryLabel(category)}</Text>
+              <Pill label="الأكثر طلبًا" tone="info" />
             </View>
-            <Text style={styles.categoryDescription}>{categoryDescriptions[category.id] ?? "Browse pharmacy essentials in this section."}</Text>
+            <Text style={styles.categoryDescription}>{categoryDescriptions[category.name] ?? "تصفح احتياجات الصيدلية ضمن هذا القسم."}</Text>
             <PrimaryButton
-              label="Open category"
+              label="فتح الفئة"
               onPress={() =>
                 router.push({
                   pathname: "/product-listing",
@@ -53,9 +55,9 @@ const styles = StyleSheet.create({
     gap: theme.spacing[16],
   },
   categoryHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: theme.spacing[12],
   },
   categoryTitle: {
@@ -63,10 +65,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: theme.typography.heading.lg,
     fontWeight: "800",
+    textAlign: "right",
   },
   categoryDescription: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
     lineHeight: theme.typography.lineHeight.body,
+    textAlign: "right",
   },
 });

@@ -20,11 +20,11 @@ export function formatPaymentStatusLabel(
   paymentMethod?: PaymentMethod | string | null
 ) {
   if (status === "pending") {
-    return paymentMethod === "cash_on_delivery" ? "Cash to be paid on delivery" : "Pending";
+    return paymentMethod === "cash_on_delivery" ? "الدفع نقدًا عند التوصيل" : "قيد الانتظار";
   }
 
   if (status === "collected") {
-    return paymentMethod === "cash_on_delivery" ? "Paid (Cash)" : "Collected";
+    return paymentMethod === "cash_on_delivery" ? "تم تحصيل المبلغ" : "تم التحصيل";
   }
 
   return status.replaceAll("_", " ");
@@ -41,6 +41,7 @@ export interface Profile {
 export interface Category {
   id: string;
   name: string;
+  name_ar?: string | null;
   icon: string;
 }
 
@@ -67,21 +68,35 @@ export interface Product {
   express?: boolean;
 }
 
+export interface CartProductSnapshot {
+  product_id: string;
+  vendor_id: string;
+  category_id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  barcode?: string | null;
+  stock_quantity: number;
+  is_active: boolean;
+}
+
 export interface Address {
   id: string;
-  label: string;
   line_1: string;
-  line_2?: string;
-  city: string;
-  area: string;
-  lat?: number;
-  lng?: number;
+  label?: string | null;
+  line_2?: string | null;
+  city?: string | null;
+  area?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface CartItem {
   id: string;
-  product: Product;
+  product_id: string;
   quantity: number;
+  snapshot: CartProductSnapshot;
 }
 
 export interface Order {

@@ -1,12 +1,17 @@
 import { Card, Screen } from "../src/components/CustomerUI";
 import { Text } from "react-native";
+import { theme } from "@medifast/ui";
 
 export default function CashConfirmationScreen() {
   return (
-    <Screen title="Cash on Delivery" subtitle="Final confirmation state before order placement.">
+    <Screen title="الدفع عند الاستلام" subtitle="رسالة تأكيد أخيرة قبل إرسال الطلب.">
       <Card>
-        <Text>Please prepare exact or near-exact cash where possible.</Text>
-        <Text>The driver will collect payment once your order is delivered.</Text>
+        <Text style={{ color: theme.colors.text, textAlign: "right", lineHeight: theme.typography.lineHeight.body }}>
+          يُفضّل تجهيز المبلغ كاملًا أو مبلغ قريب منه قدر الإمكان.
+        </Text>
+        <Text style={{ color: theme.colors.text, textAlign: "right", lineHeight: theme.typography.lineHeight.body }}>
+          سيقوم السائق بتحصيل المبلغ عند تسليم الطلب إليك.
+        </Text>
       </Card>
     </Screen>
   );

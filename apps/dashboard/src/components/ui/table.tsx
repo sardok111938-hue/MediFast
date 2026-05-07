@@ -30,7 +30,9 @@ export function Table({
       {rows.map((row, index) => (
         <div className="table-row" key={`${title}-${index}`} style={tableStyle}>
           {row.map((cell, cellIndex) => (
-            <div key={`${cell}-${cellIndex}`}>{typeof cell === "string" ? t(cell) : cell}</div>
+            <div key={`${title}-${index}-${cellIndex}`} className="table-cell" data-label={t(headers[cellIndex] ?? "")}>
+              {typeof cell === "string" ? t(cell) : cell}
+            </div>
           ))}
         </div>
       ))}

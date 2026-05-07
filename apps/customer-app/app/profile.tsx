@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
-import { Card, DetailRow, HelperText, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
-import { getSavedAddresses } from "../src/lib/customer-catalog";
+import { Card, DetailRow, ErrorCard, HelperText, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
+import { getSavedAddresses, useCustomerCatalogData } from "../src/lib/customer-catalog";
 import { signOutCustomer, supabase } from "../src/lib/supabase";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [fullName, setFullName] = useState("Customer");
+  const { data, loading, error, reload } = useCustomerCatalogData();
+  const [fullName, setFullName] = useState("العميل");
   const [email, setEmail] = useState("customer@example.com");
   const [loggingOut, setLoggingOut] = useState(false);
-  const addresses = useMemo(() => getSavedAddresses(), []);
+  const addresses = useMemo(() => getSavedAddresses(data.addresses), [data.addresses]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -20,7 +21,7 @@ export default function ProfileScreen() {
         return;
       }
 
-      setFullName(String(user.user_metadata.full_name ?? "Customer"));
+      setFullName(String(user.user_metadata.full_name ?? "العميل"));
       setEmail(user.email ?? "customer@example.com");
     });
   }, []);
@@ -33,7 +34,10 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Screen title="Profile" subtitle="Manage your account, saved addresses, and order shortcuts.">
+    <Screen title="الحساب" subtitle="أدر بيانات حسابك وعناوينك المحفوظة واختصارات الطلبات من مكان واحد.">
+      {loading ? <LoadingCard message="جارٍ تحميل بيانات الحساب..." /> : null}
+      {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
+
       <Card style={styles.profileCard}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{fullName.slice(0, 1).toUpperCase()}</Text>
@@ -43,16 +47,16 @@ export default function ProfileScreen() {
       </Card>
 
       <Card>
-        <SectionTitle label="Account details" />
-        <DetailRow label="Full name" value={fullName} />
-        <DetailRow label="Email" value={email} />
-        <DetailRow label="Preferred payment" value="Cash on delivery" />
+        <SectionTitle label="بيانات الحساب" />
+        <DetailRow label="الاسم الكامل" value={fullName} />
+        <DetailRow label="البريد الإلكتروني" value={email} />
+        <DetailRow label="طريقة الدفع المفضلة" value="الدفع عند الاستلام" />
       </Card>
 
       <Card>
         <SectionTitle
-          label="Saved addresses"
-          actionLabel="Manage"
+          label="العناوين المحفوظة"
+          actionLabel="إدارة"
           onAction={() =>
             router.push({
               pathname: "/address-selection",
@@ -60,10 +64,10 @@ export default function ProfileScreen() {
             })
           }
         />
-        <Text style={styles.addressCount}>{addresses.length} saved addresses</Text>
-        <HelperText>Keep your delivery locations up to date for faster checkout.</HelperText>
+        <Text style={styles.addressCount}>{addresses.length} عناوين محفوظة</Text>
+        <HelperText>حدّث عناوين التوصيل لديك باستمرار لتجربة دفع أسرع.</HelperText>
         <PrimaryButton
-          label="Open addresses"
+          label="فتح العناوين"
           variant="secondary"
           onPress={() =>
             router.push({
@@ -75,10 +79,10 @@ export default function ProfileScreen() {
       </Card>
 
       <Card>
-        <SectionTitle label="Quick actions" />
-        <PrimaryButton label="Track latest order" onPress={() => router.push("/order-tracking")} />
-        <PrimaryButton label="View order history" variant="secondary" onPress={() => router.push("/order-history")} />
-        <PrimaryButton label={loggingOut ? "Logging out..." : "Logout"} variant="ghost" onPress={() => void handleLogout()} disabled={loggingOut} />
+        <SectionTitle label="إجراءات سريعة" />
+        <PrimaryButton label="تتبع آخر طلب" onPress={() => router.push("/order-tracking")} />
+        <PrimaryButton label="عرض سجل الطلبات" variant="secondary" onPress={() => router.push("/order-history")} />
+        <PrimaryButton label={loggingOut ? "جارٍ تسجيل الخروج..." : "تسجيل الخروج"} variant="ghost" onPress={() => void handleLogout()} disabled={loggingOut} />
       </Card>
     </Screen>
   );
@@ -107,14 +111,17 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.heading.lg,
+    textAlign: "right",
   },
   email: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
+    textAlign: "right",
   },
   addressCount: {
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.body.lg,
+    textAlign: "right",
   },
 });

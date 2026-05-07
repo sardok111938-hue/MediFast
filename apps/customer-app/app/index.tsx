@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Card, HelperText, Pill, PrimaryButton, Screen } from "../src/components/CustomerUI";
-import { useCustomerI18n } from "../src/lib/i18n";
 import { isSupabaseConfigured, supabase } from "../src/lib/supabase";
 
 export default function SplashScreen() {
@@ -39,14 +38,14 @@ export default function SplashScreen() {
   }
 
   return (
-    <Screen title="MediFast" subtitle="Fast pharmacy delivery with cash on delivery checkout for MVP.">
+    <Screen title="ميدي فاست" subtitle="توصيل صيدلية سريع مع دفع نقدي عند الاستلام.">
       <Card>
-        <Pill label="Express pharmacy marketplace" />
-        <PrimaryButton label={continueLoading || checkingSession ? "Loading..." : "Continue"} onPress={() => void handleContinue()} disabled={continueLoading || checkingSession} />
+        <Pill label="منصة صيدلية سريعة" />
+        <PrimaryButton label={continueLoading || checkingSession ? "جارٍ التحميل..." : "متابعة"} onPress={() => void handleContinue()} disabled={continueLoading || checkingSession} />
         <HelperText>
           {configured
-            ? "Continue into the real customer app. If you're signed out, you'll be taken to login first."
-            : "Supabase auth is not configured, so Continue opens the MVP home directly."}
+            ? "تابع إلى تطبيق العميل. إذا لم تكن مسجل الدخول فسيتم توجيهك أولًا إلى صفحة الحساب."
+            : "مصادقة Supabase غير مهيأة، لذلك سيتم فتح الصفحة الرئيسية التجريبية مباشرة."}
         </HelperText>
       </Card>
     </Screen>

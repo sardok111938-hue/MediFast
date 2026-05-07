@@ -1,4 +1,4 @@
-import { formatPaymentStatusLabel, type PaymentMethod } from "@medifast/types";
+import { formatOrderStatusLabel, formatPaymentStatusLabel } from "@medifast/i18n";
 import { getActiveSession, getAuthenticatedUser, supabase } from "./supabase";
 
 export type DriverProfile = {
@@ -139,20 +139,20 @@ export function statusTone(status: string): "neutral" | "warning" | "success" | 
 }
 
 export function getStatusLabel(status: string) {
-  return status.replaceAll("_", " ");
+  return formatOrderStatusLabel(status);
 }
 
 export function getPaymentStatusLabel(paymentStatus: string, paymentMethod: string) {
-  return formatPaymentStatusLabel(paymentStatus, paymentMethod as PaymentMethod | string);
+  return formatPaymentStatusLabel(paymentStatus, paymentMethod);
 }
 
 export function getDriverNextActions(status: string) {
-  if (status === "assigned" || status === "accepted") {
-    return [{ label: "Mark Out for Delivery", nextStatus: "on_the_way" }];
+  if (status === "assigned") {
+    return [{ label: "في الطريق", nextStatus: "on_the_way" }];
   }
 
   if (status === "on_the_way") {
-    return [{ label: "Mark Delivered", nextStatus: "delivered" }];
+    return [{ label: "تم التوصيل", nextStatus: "delivered" }];
   }
 
   return [];
@@ -200,7 +200,7 @@ export async function getCurrentDriverProfile(): Promise<DriverProfile> {
 
   return {
     driverId: String(data.id),
-    fullName: readName((data.profile as { full_name?: string } | { full_name?: string }[] | null) ?? null, "Driver"),
+    fullName: readName((data.profile as { full_name?: string } | { full_name?: string }[] | null) ?? null, "السائق"),
     isAvailable: Boolean(data.is_available),
     approvalStatus: String(data.approval_status ?? ""),
   };
@@ -210,8 +210,8 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
   const items = Array.isArray(order.items) ? order.items : [];
   return {
     id: String(order.id),
-    customerName: readCustomerName(order.customer, "Customer"),
-    vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "Vendor"),
+    customerName: readCustomerName(order.customer, "العميل"),
+    vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "المتجر"),
     pickupAddress: formatAddress(order.vendor as SingleRecord<{ address_line_1?: string; address_line_2?: string | null; city?: string; area?: string | null }>),
     dropoffAddress: formatAddress(order.address as SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>),
     total: Number(order.total ?? 0),
@@ -221,7 +221,7 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
       createdAt: String(order.created_at ?? ""),
       items: items.map((item) => ({
         id: String(item.id),
-        productName: readProductName(item.product as SingleRecord<{ name?: string }>, "Product"),
+        productName: readProductName(item.product as SingleRecord<{ name?: string }>, "المنتج"),
         quantity: Number(item.quantity ?? 0),
         unitPrice: Number(item.unit_price ?? 0),
         totalPrice: Number(item.total_price ?? 0),
@@ -341,7 +341,7 @@ export async function updateDriverOrderStatus(input: {
   }
 
   if (!data) {
-    throw new Error("Order could not be updated.");
+    throw new Error("تعذر تحديث الطلب.");
   }
 
   return {

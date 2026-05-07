@@ -14,7 +14,6 @@ import {
   SectionTitle,
   StatusBadge,
 } from "../../src/components/CustomerUI";
-import { useCustomerI18n } from "../../src/lib/i18n";
 import {
   customerOrderTimeline,
   formatCustomerCurrency,
@@ -32,7 +31,6 @@ import { subscribeToOrderTracking, supabase } from "../../src/lib/supabase";
 
 export default function CustomerOrderDetailScreen() {
   const router = useRouter();
-  const { t } = useCustomerI18n();
   const params = useLocalSearchParams<{ orderId?: string | string[] }>();
   const orderId = Array.isArray(params.orderId) ? params.orderId[0] : params.orderId;
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -83,18 +81,18 @@ export default function CustomerOrderDetailScreen() {
   const deliveryHeadline = order ? getDeliveryHeadline(order) : null;
 
   return (
-    <Screen title="Order Detail" subtitle="Live order progress, payment details, and delivery updates." scroll={false} backHref="/order-history" backLabel="Back to orders">
+    <Screen title="تفاصيل الطلب" subtitle="تابع تقدم الطلب وحالة الدفع وتحديثات التوصيل بشكل مباشر." scroll={false} backHref="/order-history" backLabel="العودة إلى الطلبات">
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {loading ? (
-          <LoadingCard message="Loading your order..." />
+          <LoadingCard message="جارٍ تحميل الطلب..." />
         ) : error ? (
           <ErrorCard message={error} onRetry={() => void loadOrder()} />
         ) : !order ? (
-          <EmptyCard title="Order not found" message="This order is not available for the current customer account." />
+          <EmptyCard title="الطلب غير موجود" message="هذا الطلب غير متاح لحساب العميل الحالي." />
         ) : (
           <>
             <Card style={styles.statusCard}>
-              <Text style={styles.orderNumber}>{`${t("Orders")} ${order.id}`}</Text>
+              <Text style={styles.orderNumber}>{`الطلب ${order.id}`}</Text>
               <Text style={styles.vendorName}>{order.vendorName}</Text>
               <View style={styles.badgeStack}>
                 <StatusBadge label={formatOrderStatusLabel(order.orderStatus)} tone={orderStatusTone(order.orderStatus)} />
@@ -107,16 +105,16 @@ export default function CustomerOrderDetailScreen() {
             </Card>
 
             <Card>
-              <SectionTitle label="Delivery status" />
-              <DetailRow label="Driver / Delivery" value={order.driverName ?? "Awaiting driver assignment"} />
-              <DetailRow label="Delivery Address" value={order.deliveryAddress} />
-              <DetailRow label="Created" value={formatCustomerDate(order.createdAt)} />
+              <SectionTitle label="حالة التوصيل" />
+              <DetailRow label="السائق" value={order.driverName ?? "بانتظار تعيين السائق"} />
+              <DetailRow label="عنوان التوصيل" value={order.deliveryAddress} />
+              <DetailRow label="تاريخ الإنشاء" value={formatCustomerDate(order.createdAt)} />
             </Card>
 
             <Card>
-              <SectionTitle label="Status Timeline" />
+              <SectionTitle label="مخطط الحالة" />
               {order.orderStatus === "rejected" || order.orderStatus === "cancelled" ? (
-                <HelperText tone="danger">This order was {formatOrderStatusLabel(order.orderStatus)}.</HelperText>
+                <HelperText tone="danger">تم إنهاء هذا الطلب بحالة: {formatOrderStatusLabel(order.orderStatus)}.</HelperText>
               ) : (
                 customerOrderTimeline.map((step, index) => {
                   const stepState = getTimelineStepState(order.orderStatus, step);
@@ -141,10 +139,10 @@ export default function CustomerOrderDetailScreen() {
                       </View>
                       <View style={styles.timelineCopy}>
                         <Text style={[styles.timelineLabel, stepState === "upcoming" ? styles.timelineLabelUpcoming : null]}>
-                          {t(formatOrderStatusLabel(step))}
+                          {formatOrderStatusLabel(step)}
                         </Text>
                         <Text style={styles.timelineHint}>
-                          {stepState === "completed" ? "Completed" : stepState === "current" ? "Current step" : "Up next"}
+                          {stepState === "completed" ? "مكتملة" : stepState === "current" ? "المرحلة الحالية" : "المرحلة التالية"}
                         </Text>
                       </View>
                     </View>
@@ -154,29 +152,29 @@ export default function CustomerOrderDetailScreen() {
             </Card>
 
             <Card>
-              <SectionTitle label="Payment & totals" />
-              <DetailRow label="Total" value={formatCustomerCurrency(order.total)} />
-              <DetailRow label="Payment method" value="Cash on delivery" />
-              <DetailRow label="Payment status" value={formatCustomerPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} />
+              <SectionTitle label="الدفع والإجماليات" />
+              <DetailRow label="الإجمالي" value={formatCustomerCurrency(order.total)} />
+              <DetailRow label="طريقة الدفع" value="الدفع عند الاستلام" />
+              <DetailRow label="حالة الدفع" value={formatCustomerPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} />
             </Card>
 
             <Card>
-              <SectionTitle label="Items" />
+              <SectionTitle label="المنتجات" />
               {order.items.length === 0 ? (
-                <HelperText>No order items were found.</HelperText>
+                <HelperText>لم يتم العثور على منتجات داخل هذا الطلب.</HelperText>
               ) : (
                 order.items.map((item) => (
                   <View key={item.id} style={styles.itemCard}>
                     <Text style={styles.itemTitle}>{item.productName}</Text>
-                    <DetailRow label="Quantity" value={String(item.quantity)} />
-                    <DetailRow label="Unit price" value={formatCustomerCurrency(item.unitPrice)} />
-                    <DetailRow label="Subtotal" value={formatCustomerCurrency(item.totalPrice)} />
+                    <DetailRow label="الكمية" value={String(item.quantity)} />
+                    <DetailRow label="سعر القطعة" value={formatCustomerCurrency(item.unitPrice)} />
+                    <DetailRow label="الإجمالي الفرعي" value={formatCustomerCurrency(item.totalPrice)} />
                   </View>
                 ))
               )}
             </Card>
 
-            <PrimaryButton label="Browse products again" variant="secondary" onPress={() => router.push("/product-listing")} />
+            <PrimaryButton label="العودة لتصفح المنتجات" variant="secondary" onPress={() => router.push("/product-listing")} />
           </>
         )}
       </ScrollView>
@@ -202,18 +200,19 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryDark,
     fontWeight: "800",
     fontSize: theme.typography.caption.md,
-    textTransform: "uppercase",
+    textAlign: "right",
   },
   vendorName: {
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.heading.lg,
+    textAlign: "right",
   },
   badgeStack: {
     gap: theme.spacing[8],
   },
   timelineRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     gap: theme.spacing[12],
     minHeight: 64,
   },
@@ -255,6 +254,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: theme.typography.body.md,
     fontWeight: "800",
+    textAlign: "right",
   },
   timelineLabelUpcoming: {
     color: theme.colors.muted,
@@ -262,6 +262,7 @@ const styles = StyleSheet.create({
   timelineHint: {
     color: theme.colors.muted,
     fontSize: theme.typography.caption.md,
+    textAlign: "right",
   },
   itemCard: {
     borderWidth: 1,
@@ -275,5 +276,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: theme.typography.body.lg,
     color: theme.colors.text,
+    textAlign: "right",
   },
 });

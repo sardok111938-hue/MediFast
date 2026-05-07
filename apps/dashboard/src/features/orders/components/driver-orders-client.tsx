@@ -13,11 +13,11 @@ import {
   getDriverNextActions,
   loadDriverOrdersData,
   normalizeError,
-  updateDriverOrderStatus,
   type DriverOrdersData,
 } from "../driver-orders";
 import { OrderStatusBadge } from "./order-status-badge";
 import { useLocale } from "../../../lib/i18n/locale-context";
+import { updateDriverOrderStatusAction } from "../actions";
 
 export function DriverOrdersClient() {
   const { t, intlLocale } = useLocale();
@@ -74,16 +74,18 @@ export function DriverOrdersClient() {
     );
 
     try {
-      await updateDriverOrderStatus({
-        driverId: data.driverId,
+      const result = await updateDriverOrderStatusAction({
         orderId,
-        currentStatus: previousOrder.orderStatus,
         nextStatus,
       });
 
+      if (!result.success) {
+        throw new Error(result.error ?? "Order status could not be updated.");
+      }
+
       setFeedback({
         type: "success",
-        message: `Order ${orderId} updated to ${nextStatus.replaceAll("_", " ")}.`,
+        message: `تم تحديث الطلب ${orderId} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
       });
       await loadOrders();
     } catch (nextError) {
@@ -114,7 +116,7 @@ export function DriverOrdersClient() {
   if (loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading assigned deliveries..." />
+        <LoadingState message="جارٍ تحميل الشحنات المعيّنة..." />
       </Card>
     );
   }
@@ -130,7 +132,7 @@ export function DriverOrdersClient() {
   if (!data || data.orders.length === 0) {
     return (
       <Card className="medical-panel">
-        <EmptyState title="No assigned deliveries" message="Orders assigned to this driver will appear here once dispatch is complete." />
+        <EmptyState title="لا توجد شحنات معيّنة" message="ستظهر الطلبات المعيّنة لهذا السائق هنا بعد اكتمال الإسناد." />
       </Card>
     );
   }
@@ -140,8 +142,8 @@ export function DriverOrdersClient() {
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
 
       <Table
-        title="Assigned Orders"
-        headers={["Order ID", "Vendor", "Customer", "Total", "Delivery Address", "Order Status", "Created At"]}
+        title="الطلبات المعيّنة"
+        headers={["معرّف الطلب", "المتجر", "العميل", "الإجمالي", "عنوان التوصيل", "حالة الطلب", "تاريخ الإنشاء"]}
         rows={data.orders.map((order) => [
           order.id,
           order.vendorName,
@@ -151,7 +153,7 @@ export function DriverOrdersClient() {
           <OrderStatusBadge key={`${order.id}-status`} status={order.orderStatus} />,
           order.createdAt ? formatDate(order.createdAt, intlLocale) : "-",
         ])}
-        emptyMessage="No orders are assigned to this driver."
+        emptyMessage="لا توجد طلبات معيّنة لهذا السائق."
       />
 
       <section className="detail-grid">
@@ -164,7 +166,7 @@ export function DriverOrdersClient() {
                 <div>
                   <h3 className="order-card-title">{`${t("Order")} ${order.id}`}</h3>
                   <p className="muted order-card-subtitle">
-                    {order.vendorName} to {order.customerName}
+                    {`${order.vendorName} ← ${order.customerName}`}
                   </p>
                 </div>
                 <OrderStatusBadge status={order.orderStatus} />
@@ -186,14 +188,14 @@ export function DriverOrdersClient() {
               </div>
 
               <div className="inline-actions">
-                {actions.length === 0 ? <p className="muted">No driver actions are available for this order.</p> : null}
+                {actions.length === 0 ? <p className="muted">لا توجد إجراءات متاحة للسائق لهذا الطلب.</p> : null}
                 {actions.map((action) => (
                   <Button
                     key={`${order.id}-${action.nextStatus}`}
                     disabled={updatingOrderId === order.id}
                     onClick={() => void handleStatusUpdate(order.id, action.nextStatus)}
                   >
-                    {updatingOrderId === order.id ? "Updating..." : action.label}
+                    {updatingOrderId === order.id ? "جارٍ التحديث..." : action.label}
                   </Button>
                 ))}
               </div>

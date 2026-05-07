@@ -1,0 +1,190 @@
+import { getSupabaseServerClient } from "../../lib/supabase/server";
+
+type VendorOverviewOrderRow = {
+  id: string;
+  total: number;
+  payment_status: string;
+  payment_method: string;
+  order_status: string;
+  created_at: string;
+  customer_name: string;
+  address: string;
+};
+
+type VendorOverviewProductRow = {
+  id: string;
+  name: string;
+  stock_quantity: number;
+  is_active: boolean;
+};
+
+export type VendorOverviewData = {
+  hasVendor: boolean;
+  orderCounts: {
+    today: number;
+    placed: number;
+    preparing: number;
+    readyForPickup: number;
+    delivered: number;
+    codPending: number;
+    codCollected: number;
+  };
+  productCounts: {
+    active: number;
+    inactive: number;
+    lowStock: number;
+    outOfStock: number;
+  };
+  recentOrders: VendorOverviewOrderRow[];
+  stockAlerts: VendorOverviewProductRow[];
+};
+
+function readSingle<T extends Record<string, unknown>>(value: T | T[] | null | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
+}
+
+function isToday(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  return date >= startOfToday;
+}
+
+function buildAddress(address: {
+  label?: string;
+  line_1?: string;
+  line_2?: string | null;
+  area?: string | null;
+  city?: string;
+} | null) {
+  return [address?.label, address?.line_1, address?.line_2, address?.area, address?.city].filter(Boolean).join("، ");
+}
+
+export async function getVendorOverviewData(): Promise<VendorOverviewData> {
+  const supabase = await getSupabaseServerClient();
+  const { data: vendorId, error: vendorError } = await supabase.rpc("get_vendor_id");
+
+  if (vendorError) {
+    throw vendorError;
+  }
+
+  if (!vendorId) {
+    return {
+      hasVendor: false,
+      orderCounts: {
+        today: 0,
+        placed: 0,
+        preparing: 0,
+        readyForPickup: 0,
+        delivered: 0,
+        codPending: 0,
+        codCollected: 0,
+      },
+      productCounts: {
+        active: 0,
+        inactive: 0,
+        lowStock: 0,
+        outOfStock: 0,
+      },
+      recentOrders: [],
+      stockAlerts: [],
+    };
+  }
+
+  const [{ data: ordersData, error: ordersError }, { data: productsData, error: productsError }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select(`
+        id,
+        total,
+        payment_status,
+        payment_method,
+        order_status,
+        created_at,
+        customer:customers(
+          profile:profiles(full_name)
+        ),
+        address:addresses(
+          label,
+          line_1,
+          line_2,
+          area,
+          city
+        )
+      `)
+      .eq("vendor_id", vendorId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("products")
+      .select("id, name, stock_quantity, is_active")
+      .eq("vendor_id", vendorId)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  if (ordersError) {
+    throw ordersError;
+  }
+
+  if (productsError) {
+    throw productsError;
+  }
+
+  const recentOrders = (ordersData ?? []).map((order) => ({
+    id: String(order.id),
+    total: Number(order.total ?? 0),
+    payment_status: String(order.payment_status ?? ""),
+    payment_method: String(order.payment_method ?? ""),
+    order_status: String(order.order_status ?? ""),
+    created_at: String(order.created_at ?? ""),
+    customer_name: String(
+      readSingle((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile)?.full_name ?? "Customer"
+    ),
+    address: buildAddress(
+      readSingle(order.address as {
+        label?: string;
+        line_1?: string;
+        line_2?: string | null;
+        area?: string | null;
+        city?: string;
+      })
+    ),
+  }));
+
+  const products = (productsData ?? []).map((product) => ({
+    id: String(product.id),
+    name: String(product.name ?? ""),
+    stock_quantity: Number(product.stock_quantity ?? 0),
+    is_active: Boolean(product.is_active),
+  }));
+
+  return {
+    hasVendor: true,
+    orderCounts: {
+      today: recentOrders.filter((order) => isToday(order.created_at)).length,
+      placed: recentOrders.filter((order) => order.order_status === "placed" || order.order_status === "pending").length,
+      preparing: recentOrders.filter((order) => order.order_status === "preparing").length,
+      readyForPickup: recentOrders.filter((order) => order.order_status === "ready_for_pickup").length,
+      delivered: recentOrders.filter((order) => order.order_status === "delivered").length,
+      codPending: recentOrders.filter((order) => order.payment_method === "cash_on_delivery" && order.payment_status === "pending").length,
+      codCollected: recentOrders.filter((order) => order.payment_method === "cash_on_delivery" && order.payment_status === "collected").length,
+    },
+    productCounts: {
+      active: products.filter((product) => product.is_active).length,
+      inactive: products.filter((product) => !product.is_active).length,
+      lowStock: products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <= 10).length,
+      outOfStock: products.filter((product) => product.is_active && product.stock_quantity <= 0).length,
+    },
+    recentOrders: recentOrders.slice(0, 6),
+    stockAlerts: products.filter((product) => product.is_active && product.stock_quantity <= 10).slice(0, 6),
+  };
+}

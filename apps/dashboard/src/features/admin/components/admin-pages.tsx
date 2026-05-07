@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import { formatCategoryLabel } from "@medifast/i18n";
 import { formatPaymentStatusLabel } from "@medifast/types";
 import { Input } from "../../../components/ui/input";
 import { Card } from "../../../components/ui/card";
@@ -16,6 +17,17 @@ import { getSupabaseBrowserClient } from "../../../lib/supabase/browser";
 import { useLocale } from "../../../lib/i18n/locale-context";
 import { formatCurrency } from "../../../lib/utils/format-currency";
 import { formatDate } from "../../../lib/utils/format-date";
+import {
+  adminCreateCategoryAction,
+  adminCreateProductAction,
+  adminDeactivateProductAction,
+  adminDeleteCategoryAction,
+  adminUpdateCategoryAction,
+  adminUpdateDriverAction,
+  adminUpdateProductAction,
+  adminUpdateVendorAction,
+} from "../actions";
+import { assignDriverAction, updateAdminOrderStatusAction } from "../../orders/actions";
 import { OrderStatusBadge } from "../../orders/components/order-status-badge";
 import type { ProductCategoryOption, ProductRow } from "../../../types/dashboard";
 
@@ -98,11 +110,14 @@ type AdminCustomerRow = {
 type AdminCategoryRow = {
   id: string;
   name: string;
+  nameAr: string | null;
+  displayName: string;
   createdAt: string;
 };
 
 type CategoryFormValues = {
   name: string;
+  nameAr: string;
 };
 
 const orderStatusOptions = [
@@ -129,12 +144,13 @@ function readName(value: { full_name?: string } | { full_name?: string }[] | nul
   return readSingle(value)?.full_name ?? fallback;
 }
 
-function readCategoryName(value: { name?: string } | { name?: string }[] | null | undefined) {
-  return readSingle(value)?.name ?? "-";
+function readCategoryName(value: { name?: string; name_ar?: string | null } | { name?: string; name_ar?: string | null }[] | null | undefined) {
+  const record = readSingle(value);
+  return formatCategoryLabel(record) || "-";
 }
 
 function normalizeError(error: unknown) {
-  return error instanceof Error ? error.message : "Unable to load dashboard data right now.";
+  return error instanceof Error ? error.message : "تعذر تحميل بيانات لوحة التحكم الآن.";
 }
 
 async function fetchCount(table: string) {
@@ -180,7 +196,7 @@ async function loadOverviewData(): Promise<OverviewData> {
           price,
           stock_quantity,
           is_active,
-          category:categories(name)
+          category:categories(name, name_ar)
         `)
   .eq("is_active", true)
   .order("created_at", { ascending: false })
@@ -197,26 +213,26 @@ async function loadOverviewData(): Promise<OverviewData> {
 
   return {
     stats: [
-      { label: "Vendors", value: `${vendorsCount}`, hint: "Pharmacy partners live in marketplace" },
-      { label: "Drivers", value: `${driversCount}`, hint: "Courier accounts available to operations" },
-      { label: "Customers", value: `${customersCount}`, hint: "Profiles ready for repeat orders" },
-      { label: "Products", value: `${productsCount}`, hint: "Catalog items synced from Supabase" },
-      { label: "Categories", value: `${categoriesCount}`, hint: "Catalog organization health" },
-      { label: "Orders", value: `${ordersCount}`, hint: "Total tracked order records" },
+      { label: "المتاجر", value: `${vendorsCount}`, hint: "شركاء الصيدليات النشطون في السوق" },
+      { label: "السائقون", value: `${driversCount}`, hint: "حسابات التوصيل المتاحة للتشغيل" },
+      { label: "العملاء", value: `${customersCount}`, hint: "ملفات جاهزة لطلبات متكررة" },
+      { label: "المنتجات", value: `${productsCount}`, hint: "عناصر الكتالوج المتزامنة من Supabase" },
+      { label: "الفئات", value: `${categoriesCount}`, hint: "حالة تنظيم الكتالوج" },
+      { label: "الطلبات", value: `${ordersCount}`, hint: "إجمالي سجلات الطلبات المتعقبة" },
     ],
     ordersTable: {
-      title: "Recent Orders",
-      headers: ["Order", "Customer", "Vendor", "Status"],
+      title: "أحدث الطلبات",
+      headers: ["الطلب", "العميل", "المتجر", "الحالة"],
       rows: (ordersResult.data ?? []).map((order) => [
         String(order.id),
-        readName((readSingle(order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile), "Customer"),
+        readName((readSingle(order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile), "العميل"),
         readCategoryName(order.vendor as { name?: string } | { name?: string }[] | null),
         <OrderStatusBadge key={`overview-order-${order.id}`} status={String(order.order_status)} />,
       ]),
     },
     productsTable: {
-      title: "Recent Products",
-      headers: ["Product", "Category", "Price", "Stock"],
+      title: "أحدث المنتجات",
+      headers: ["المنتج", "الفئة", "السعر", "المخزون"],
       rows: (productsResult.data ?? []).map((product) => [
         String(product.name),
         readCategoryName(product.category as { name?: string } | { name?: string }[] | null),
@@ -239,13 +255,13 @@ async function loadVendorsTable(): Promise<TableModel> {
   }
 
   return {
-    title: "Vendors",
-    headers: ["Name", "Address", "Approval", "Status"],
+    title: "المتاجر",
+    headers: ["الاسم", "العنوان", "الموافقة", "الحالة"],
     rows: (data ?? []).map((vendor) => [
       String(vendor.name),
-      [vendor.address_line_1, vendor.area, vendor.city].filter(Boolean).join(", ") || "-",
+      [vendor.address_line_1, vendor.area, vendor.city].filter(Boolean).join("، ") || "-",
       String(vendor.approval_status),
-      vendor.is_active ? "Open" : "Closed",
+      vendor.is_active ? "نشط" : "مغلق",
     ]),
   };
 }
@@ -269,11 +285,11 @@ async function loadDriversTable(): Promise<TableModel> {
   }
 
   return {
-    title: "Drivers",
-    headers: ["Driver", "Available", "Approval", "Location"],
+    title: "السائقون",
+    headers: ["السائق", "التوفر", "الموافقة", "الموقع"],
     rows: (data ?? []).map((driver) => [
-      readName(driver.profile as { full_name?: string } | { full_name?: string }[] | null, "Driver"),
-      driver.is_available ? "Yes" : "No",
+      readName(driver.profile as { full_name?: string } | { full_name?: string }[] | null, "السائق"),
+      driver.is_available ? "نعم" : "لا",
       String(driver.approval_status),
       `${driver.current_lat ?? "-"}, ${driver.current_lng ?? "-"}`,
     ]),
@@ -296,16 +312,16 @@ async function loadCustomersTable(): Promise<TableModel> {
   }
 
   return {
-    title: "Customers",
-    headers: ["Customer", "Phone", "Joined", "Status"],
+    title: "العملاء",
+    headers: ["العميل", "الهاتف", "تاريخ الانضمام", "الحالة"],
     rows: (data ?? []).map((customer) => {
       const profile = readSingle(customer.profile as { full_name?: string; phone?: string | null } | { full_name?: string; phone?: string | null }[] | null);
 
       return [
-        profile?.full_name ?? "Customer",
+        profile?.full_name ?? "العميل",
         profile?.phone ?? "-",
         customer.created_at ? formatDate(String(customer.created_at)) : "-",
-        "Active",
+        "نشط",
       ];
     }),
   };
@@ -315,7 +331,7 @@ async function loadCategoriesTable(): Promise<TableModel> {
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, created_at")
+    .select("id, name, name_ar, icon, created_at")
     .order("name", { ascending: true });
 
   if (error) {
@@ -323,13 +339,16 @@ async function loadCategoriesTable(): Promise<TableModel> {
   }
 
   return {
-    title: "Categories",
-    headers: ["Category", "Created", "Catalog State", "Theme"],
+    title: "الفئات",
+    headers: ["الاسم العربي", "الاسم الداخلي", "تاريخ الإنشاء", "حالة الكتالوج"],
     rows: (data ?? []).map((category) => [
+      formatCategoryLabel({
+        name: String(category.name),
+        name_ar: category.name_ar ? String(category.name_ar) : null,
+      }) || "-",
       String(category.name),
       category.created_at ? formatDate(String(category.created_at)) : "-",
-      "Live",
-      "Green-ready",
+      "نشط",
     ]),
   };
 }
@@ -345,7 +364,7 @@ async function loadProductsTable(): Promise<TableModel> {
       stock_quantity,
       is_active,
       vendor:vendors(name),
-      category:categories(name)
+      category:categories(name, name_ar)
     `)
     .order("created_at", { ascending: false });
 
@@ -354,13 +373,13 @@ async function loadProductsTable(): Promise<TableModel> {
   }
 
   return {
-    title: "Products",
-    headers: ["Name", "Vendor", "Category", "Price"],
+    title: "المنتجات",
+    headers: ["الاسم", "المتجر", "الفئة", "السعر"],
     rows: (data ?? []).map((product) => [
       String(product.name),
       readCategoryName(product.vendor as { name?: string } | { name?: string }[] | null),
       readCategoryName(product.category as { name?: string } | { name?: string }[] | null),
-      `${formatCurrency(Number(product.price ?? 0))} • Stock ${Number(product.stock_quantity ?? 0)} • ${product.is_active ? "Active" : "Inactive"}`,
+      `${formatCurrency(Number(product.price ?? 0))} • المخزون ${Number(product.stock_quantity ?? 0)} • ${product.is_active ? "نشط" : "غير نشط"}`,
     ]),
   };
 }
@@ -381,7 +400,7 @@ async function loadAdminVendorsData(): Promise<AdminVendorRow[]> {
     name: String(vendor.name),
     approvalStatus: String(vendor.approval_status),
     isActive: Boolean(vendor.is_active),
-    address: [vendor.address_line_1, vendor.area, vendor.city].filter(Boolean).join(", ") || "-",
+    address: [vendor.address_line_1, vendor.area, vendor.city].filter(Boolean).join("، ") || "-",
   }));
 }
 
@@ -405,7 +424,7 @@ async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
 
   return (data ?? []).map((driver) => ({
     id: String(driver.id),
-    fullName: readName(driver.profile as { full_name?: string } | { full_name?: string }[] | null, "Driver"),
+    fullName: readName(driver.profile as { full_name?: string } | { full_name?: string }[] | null, "السائق"),
     approvalStatus: String(driver.approval_status),
     isAvailable: Boolean(driver.is_available),
     currentLat: driver.current_lat == null ? null : Number(driver.current_lat),
@@ -433,7 +452,7 @@ async function loadAdminCustomersData(): Promise<AdminCustomerRow[]> {
 
     return {
       id: String(customer.id),
-      fullName: profile?.full_name ?? "Customer",
+      fullName: profile?.full_name ?? "العميل",
       phone: profile?.phone ?? null,
       createdAt: String(customer.created_at ?? ""),
     };
@@ -444,7 +463,7 @@ async function loadAdminCategoriesData(): Promise<AdminCategoryRow[]> {
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, created_at")
+    .select("id, name, name_ar, icon, created_at")
     .order("name", { ascending: true });
 
   if (error) {
@@ -454,6 +473,11 @@ async function loadAdminCategoriesData(): Promise<AdminCategoryRow[]> {
   return (data ?? []).map((category) => ({
     id: String(category.id),
     name: String(category.name),
+    nameAr: category.name_ar ? String(category.name_ar) : null,
+    displayName: formatCategoryLabel({
+      name: String(category.name),
+      name_ar: category.name_ar ? String(category.name_ar) : null,
+    }),
     createdAt: String(category.created_at ?? ""),
   }));
 }
@@ -477,7 +501,7 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
   const supabase = getSupabaseBrowserClient();
 
   const [categoriesResult, productsResult] = await Promise.all([
-    supabase.from("categories").select("id, name").order("name", { ascending: true }),
+    supabase.from("categories").select("id, name, name_ar, icon").order("name", { ascending: true }),
     supabase
       .from("products")
       .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
@@ -497,6 +521,11 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
     categories: (categoriesResult.data ?? []).map((category) => ({
       id: String(category.id),
       name: String(category.name),
+      name_ar: category.name_ar ? String(category.name_ar) : null,
+      display_name: formatCategoryLabel({
+        name: String(category.name),
+        name_ar: category.name_ar ? String(category.name_ar) : null,
+      }),
     })),
     products: (productsResult.data ?? []).map((product) =>
       mapProductRow(product as Record<string, unknown>)
@@ -531,11 +560,11 @@ function validateProductForm(values: ProductFormValues) {
   const categoryId = values.category_id.trim();
 
   if (!name || !description || !values.price || !categoryId) {
-    return { error: "Please complete all required fields." };
+    return { error: "يرجى إكمال جميع الحقول المطلوبة." };
   }
 
   if (Number.isNaN(price) || price <= 0) {
-    return { error: "Price must be greater than 0." };
+    return { error: "يجب أن يكون السعر أكبر من 0." };
   }
 
   return {
@@ -581,6 +610,7 @@ function AdminProductForm({
   onSubmit: (formData: FormData) => Promise<void>;
   onCancel?: () => void;
 }) {
+  const { t } = useLocale();
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
   const [values, setValues] = useState<ProductFormValues>(buildInitialProductFormValues(product));
@@ -612,7 +642,7 @@ function AdminProductForm({
 
     try {
       await onSubmit(formData);
-      setMessage(mode === "create" ? "Product created successfully." : "Product updated successfully.");
+      setMessage(mode === "create" ? "تم إنشاء المنتج بنجاح." : "تم تحديث المنتج بنجاح.");
       setMessageType("success");
 
       if (mode === "create") {
@@ -630,18 +660,18 @@ function AdminProductForm({
       <form className="form-grid" onSubmit={handleSubmit}>
         {product ? <input type="hidden" name="product_id" value={product.id} /> : null}
         <div className="field">
-          <label htmlFor={`${mode}-name`}>Name</label>
+          <label htmlFor={`${mode}-name`}>{t("Name")}</label>
           <Input
             id={`${mode}-name`}
             name="name"
             value={values.name}
             onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
-            placeholder="Paracetamol 500mg"
+            placeholder="باراسيتامول 500 مجم"
             required
           />
         </div>
         <div className="field">
-          <label htmlFor={`${mode}-description`}>Description</label>
+          <label htmlFor={`${mode}-description`}>{t("Description")}</label>
           <textarea
             id={`${mode}-description`}
             name="description"
@@ -649,12 +679,12 @@ function AdminProductForm({
             rows={4}
             value={values.description}
             onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
-            placeholder="Short product description"
+            placeholder={t("وصف مختصر للمنتج")}
             required
           />
         </div>
         <div className="field">
-          <label htmlFor={`${mode}-price`}>Price</label>
+          <label htmlFor={`${mode}-price`}>{t("Price")}</label>
           <Input
             id={`${mode}-price`}
             name="price"
@@ -667,7 +697,7 @@ function AdminProductForm({
           />
         </div>
         <div className="field">
-          <label htmlFor={`${mode}-category`}>Category</label>
+          <label htmlFor={`${mode}-category`}>{t("Category")}</label>
           <select
             id={`${mode}-category`}
             name="category_id"
@@ -676,27 +706,27 @@ function AdminProductForm({
             onChange={(event) => setValues((current) => ({ ...current, category_id: event.target.value }))}
             required
           >
-            <option value="">Select category</option>
+            <option value="">{t("Select category")}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.name}
+                {category.display_name}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor={`${mode}-image`}>Image Upload</label>
+          <label htmlFor={`${mode}-image`}>{t("Image Upload")}</label>
           <input id={`${mode}-image`} name="image" type="file" accept="image/*" className="input" />
-          {product?.image_url ? <p className="muted">Current image saved in Supabase storage.</p> : null}
+          {product?.image_url ? <p className="muted">{t("Current image saved in Supabase storage.")}</p> : null}
         </div>
         {message ? <p className={messageType === "error" ? "danger" : "success"}>{message}</p> : null}
         <div className="actions">
           <Button type="submit" disabled={loading}>
-            {loading ? "Saving..." : mode === "create" ? "Create Product" : "Save Changes"}
+            {loading ? "جارٍ الحفظ..." : mode === "create" ? "إضافة منتج" : "حفظ التعديلات"}
           </Button>
           {onCancel ? (
             <Button type="button" className="secondary-button" onClick={onCancel} disabled={loading}>
-              Cancel
+              إلغاء
             </Button>
           ) : null}
         </div>
@@ -757,39 +787,36 @@ function AdminProductsManager() {
       const validation = validateProductForm(values);
 
       if (validation.error || !validation.payload) {
-        throw new Error(validation.error ?? "Product validation failed.");
+        throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
       }
 
       const vendorId = await resolveDefaultVendorId();
       if (!vendorId) {
-        throw new Error("Create a vendor first before adding admin products.");
+        throw new Error("أنشئ متجرًا أولًا قبل إضافة منتجات الإدارة.");
       }
 
       const image = formData.get("image");
       if (!(image instanceof File) || image.size === 0) {
-        throw new Error("Please upload a product image.");
+        throw new Error("يرجى رفع صورة للمنتج.");
       }
 
       const imageUrl = await uploadAdminProductImage(image);
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("products").insert({
-        vendor_id: vendorId,
+      const result = await adminCreateProductAction({
+        vendorId,
         name: validation.payload.name,
         description: validation.payload.description,
         price: validation.payload.price,
-        category_id: validation.payload.category_id,
-        image_url: imageUrl,
-        stock_quantity: 0,
-        is_active: true,
+        categoryId: validation.payload.category_id,
+        imageUrl,
       });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر إنشاء المنتج.");
       }
 
       setFeedback({
         type: "success",
-        message: "Product created successfully.",
+        message: "تم إنشاء المنتج بنجاح.",
       });
       await load();
     } finally {
@@ -800,7 +827,7 @@ function AdminProductsManager() {
   async function handleEditProduct(formData: FormData) {
     const productId = String(formData.get("product_id") ?? "");
     if (!productId) {
-      throw new Error("Product could not be resolved for editing.");
+      throw new Error("تعذر تحديد المنتج المطلوب للتعديل.");
     }
 
     setSaving(true);
@@ -816,7 +843,7 @@ function AdminProductsManager() {
       const validation = validateProductForm(values);
 
       if (validation.error || !validation.payload) {
-        throw new Error(validation.error ?? "Product validation failed.");
+        throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
       }
 
       const currentProduct = state.data?.products.find((product) => product.id === productId) ?? null;
@@ -827,26 +854,23 @@ function AdminProductsManager() {
         imageUrl = await uploadAdminProductImage(image);
       }
 
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase
-        .from("products")
-        .update({
-          name: validation.payload.name,
-          description: validation.payload.description,
-          price: validation.payload.price,
-          category_id: validation.payload.category_id,
-          image_url: imageUrl,
-        })
-        .eq("id", productId);
+      const result = await adminUpdateProductAction({
+        productId,
+        name: validation.payload.name,
+        description: validation.payload.description,
+        price: validation.payload.price,
+        categoryId: validation.payload.category_id,
+        imageUrl,
+      });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تحديث المنتج.");
       }
 
       setEditingProductId(null);
       setFeedback({
         type: "success",
-        message: "Product updated successfully.",
+        message: "تم تحديث المنتج بنجاح.",
       });
       await load();
     } finally {
@@ -859,15 +883,12 @@ function AdminProductsManager() {
     setFeedback(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase
-  .from("products")
-  .update({ is_active: false })
-  .eq("id", productId);
+      const result = await adminDeactivateProductAction({
+        productId,
+      });
 
-
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تعطيل المنتج.");
       }
 
       if (editingProductId === productId) {
@@ -876,7 +897,7 @@ function AdminProductsManager() {
 
       setFeedback({
         type: "success",
-        message: "Product deactivated successfully.",
+        message: "تم تعطيل المنتج بنجاح.",
       });
       await load();
     } catch (error) {
@@ -892,7 +913,7 @@ function AdminProductsManager() {
   if (state.loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading product manager..." />
+        <LoadingState message="جارٍ تحميل إدارة المنتجات..." />
       </Card>
     );
   }
@@ -928,30 +949,30 @@ function AdminProductsManager() {
 
       {products.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="No products yet" message="Create the first admin-managed product to populate this catalog." />
+          <EmptyState title="لا توجد منتجات بعد" message="أنشئ أول منتج تديره الإدارة لتعبئة هذا الكتالوج." />
         </Card>
       ) : (
         <Table
-          title="Products"
-          headers={["Name", "Category", "Price", "Actions"]}
+          title="المنتجات"
+          headers={["الاسم", "الفئة", "السعر", "الإجراءات"]}
           rows={products.map((product) => [
             product.name,
-            categories.find((category) => category.id === product.category_id)?.name ?? "-",
-            `${formatCurrency(product.price)}${product.image_url ? " • Image ready" : " • No image"}`,
+            categories.find((category) => category.id === product.category_id)?.display_name ?? "-",
+            `${formatCurrency(product.price)}${product.image_url ? " • الصورة جاهزة" : " • لا توجد صورة"}`,
             <div key={`${product.id}-actions`} className="table-actions">
               <Button className="secondary-button" onClick={() => setEditingProductId(product.id)} disabled={saving || deletingId === product.id}>
-                Edit
+                تعديل
               </Button>
               <Button
                 className="danger-button"
                 onClick={() => void handleDeleteProduct(product.id)}
                 disabled={saving || deletingId === product.id}
               >
-                {deletingId === product.id ? "Deactivating..." : "Deactivate"}
+                {deletingId === product.id ? "جارٍ التعطيل..." : "تعطيل"}
               </Button>
             </div>,
           ])}
-          emptyMessage="No products have been added yet."
+          emptyMessage="لم تتم إضافة أي منتجات بعد."
         />
       )}
     </div>
@@ -981,11 +1002,11 @@ async function loadOrdersTable(): Promise<TableModel> {
   }
 
   return {
-    title: "Orders",
-    headers: ["Order", "Customer", "Payment", "Status"],
+    title: "الطلبات",
+    headers: ["الطلب", "العميل", "الدفع", "الحالة"],
     rows: (data ?? []).map((order) => [
       `${String(order.id)} • ${readCategoryName(order.vendor as { name?: string } | { name?: string }[] | null)}`,
-      readName((readSingle(order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile), "Customer"),
+      readName((readSingle(order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile), "العميل"),
       `${String(order.payment_method)} • ${formatPaymentStatusLabel(String(order.payment_status), String(order.payment_method))} • ${formatCurrency(Number(order.total ?? 0))}`,
       <OrderStatusBadge key={`order-${order.id}`} status={String(order.order_status)} />,
     ]),
@@ -1022,7 +1043,7 @@ async function loadAdminOrdersData(): Promise<AdminOrderManagerRow[]> {
     id: String(order.id),
     customerName: readName(
       readSingle((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile),
-      "Customer"
+      "العميل"
     ),
     vendorName: readCategoryName(order.vendor as { name?: string } | { name?: string }[] | null),
     total: Number(order.total ?? 0),
@@ -1033,7 +1054,7 @@ async function loadAdminOrdersData(): Promise<AdminOrderManagerRow[]> {
     driverId: order.driver_id ? String(order.driver_id) : null,
     driverName: readName(
       readSingle((order.driver as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile),
-      "Unassigned"
+      "غير معيّن"
     ),
   }));
 }
@@ -1062,7 +1083,7 @@ async function loadAvailableDrivers(): Promise<DriverOption[]> {
 
     return {
       id: String(driver.id),
-      fullName: profile?.full_name ?? "Driver",
+      fullName: profile?.full_name ?? "السائق",
     };
   });
 }
@@ -1144,7 +1165,7 @@ function ResourceTable({
   if (!state.data || state.data.rows.length === 0) {
     return (
       <Card className="medical-panel">
-        <EmptyState title="Nothing to review" message={emptyMessage} />
+        <EmptyState title="لا يوجد ما يمكن مراجعته" message={emptyMessage} />
       </Card>
     );
   }
@@ -1206,7 +1227,7 @@ function OverviewContent() {
   if (state.loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading admin overview..." />
+        <LoadingState message="جارٍ تحميل نظرة الإدارة العامة..." />
       </Card>
     );
   }
@@ -1222,7 +1243,7 @@ function OverviewContent() {
   if (!state.data) {
     return (
       <Card className="medical-panel">
-        <EmptyState title="No overview data" message="Supabase did not return overview metrics." />
+        <EmptyState title="لا توجد بيانات عامة" message="لم تُرجع Supabase مؤشرات النظرة العامة." />
       </Card>
     );
   }
@@ -1297,11 +1318,14 @@ function AdminVendorsManager() {
     setFeedback(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("vendors").update(updates).eq("id", vendorId);
+      const result = await adminUpdateVendorAction({
+        vendorId,
+        approvalStatus: updates.approval_status,
+        isActive: updates.is_active,
+      });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تحديث المتجر.");
       }
 
       setFeedback({
@@ -1322,7 +1346,7 @@ function AdminVendorsManager() {
   if (state.loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading vendors from Supabase..." />
+        <LoadingState message="جارٍ تحميل المتاجر من Supabase..." />
       </Card>
     );
   }
@@ -1342,17 +1366,17 @@ function AdminVendorsManager() {
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
       {vendors.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="No vendors yet" message="No pharmacy partners have been onboarded yet." />
+          <EmptyState title="لا توجد متاجر بعد" message="لم تتم إضافة أي شركاء صيدليات بعد." />
         </Card>
       ) : (
         <Table
-          title="Vendors"
-          headers={["Name", "Address", "Approval", "Status", "Actions"]}
+          title="المتاجر"
+          headers={["الاسم", "العنوان", "الموافقة", "الحالة", "الإجراءات"]}
           rows={vendors.map((vendor) => [
             vendor.name,
             vendor.address,
             vendor.approvalStatus,
-            vendor.isActive ? "Active" : "Inactive",
+            vendor.isActive ? "نشط" : "غير نشط",
             <div key={`${vendor.id}-actions`} className="table-actions">
               <Button
                 className="secondary-button"
@@ -1361,11 +1385,11 @@ function AdminVendorsManager() {
                   void updateVendor(
                     vendor.id,
                     { approval_status: "approved" },
-                    `${vendor.name} approved successfully.`
+                    `تم اعتماد ${vendor.name} بنجاح.`
                   )
                 }
               >
-                Approve
+                اعتماد
               </Button>
               <Button
                 className="danger-button"
@@ -1374,11 +1398,11 @@ function AdminVendorsManager() {
                   void updateVendor(
                     vendor.id,
                     { approval_status: "rejected" },
-                    `${vendor.name} rejected successfully.`
+                    `تم رفض ${vendor.name} بنجاح.`
                   )
                 }
               >
-                Reject
+                رفض
               </Button>
               <Button
                 disabled={updatingVendorId === vendor.id}
@@ -1386,15 +1410,15 @@ function AdminVendorsManager() {
                   void updateVendor(
                     vendor.id,
                     { is_active: !vendor.isActive },
-                    `${vendor.name} ${vendor.isActive ? "deactivated" : "activated"} successfully.`
+                    `${vendor.isActive ? "تم تعطيل" : "تم تفعيل"} ${vendor.name} بنجاح.`
                   )
                 }
               >
-                {updatingVendorId === vendor.id ? "Saving..." : vendor.isActive ? "Deactivate" : "Activate"}
+                {updatingVendorId === vendor.id ? "جارٍ الحفظ..." : vendor.isActive ? "تعطيل" : "تفعيل"}
               </Button>
             </div>,
           ])}
-          emptyMessage="No vendors have been onboarded yet."
+          emptyMessage="لم تتم إضافة أي متاجر بعد."
         />
       )}
     </div>
@@ -1446,11 +1470,14 @@ function AdminDriversManager() {
     setFeedback(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("drivers").update(updates).eq("id", driverId);
+      const result = await adminUpdateDriverAction({
+        driverId,
+        approvalStatus: updates.approval_status,
+        isAvailable: updates.is_available,
+      });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تحديث السائق.");
       }
 
       setFeedback({
@@ -1471,7 +1498,7 @@ function AdminDriversManager() {
   if (state.loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading drivers from Supabase..." />
+        <LoadingState message="جارٍ تحميل السائقين من Supabase..." />
       </Card>
     );
   }
@@ -1491,16 +1518,16 @@ function AdminDriversManager() {
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
       {drivers.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="No drivers yet" message="No driver accounts are available yet." />
+          <EmptyState title="لا يوجد سائقون بعد" message="لا توجد حسابات سائقين متاحة بعد." />
         </Card>
       ) : (
         <Table
-          title="Drivers"
-          headers={["Driver", "Approval", "Availability", "Location", "Actions"]}
+          title="السائقون"
+          headers={["السائق", "الموافقة", "التوفر", "الموقع", "الإجراءات"]}
           rows={drivers.map((driver) => [
             driver.fullName,
             driver.approvalStatus,
-            driver.isAvailable ? "Active" : "Inactive",
+            driver.isAvailable ? "نشط" : "غير نشط",
             `${driver.currentLat ?? "-"}, ${driver.currentLng ?? "-"}`,
             <div key={`${driver.id}-actions`} className="table-actions">
               <Button
@@ -1510,11 +1537,11 @@ function AdminDriversManager() {
                   void updateDriver(
                     driver.id,
                     { approval_status: "approved" },
-                    `${driver.fullName} approved successfully.`
+                    `تم اعتماد ${driver.fullName} بنجاح.`
                   )
                 }
               >
-                Approve
+                اعتماد
               </Button>
               <Button
                 className="danger-button"
@@ -1523,11 +1550,11 @@ function AdminDriversManager() {
                   void updateDriver(
                     driver.id,
                     { approval_status: "rejected" },
-                    `${driver.fullName} rejected successfully.`
+                    `تم رفض ${driver.fullName} بنجاح.`
                   )
                 }
               >
-                Reject
+                رفض
               </Button>
               <Button
                 disabled={updatingDriverId === driver.id}
@@ -1535,15 +1562,15 @@ function AdminDriversManager() {
                   void updateDriver(
                     driver.id,
                     { is_available: !driver.isAvailable },
-                    `${driver.fullName} marked ${driver.isAvailable ? "inactive" : "active"} successfully.`
+                    `${driver.isAvailable ? "تم تعطيل" : "تم تفعيل"} ${driver.fullName} بنجاح.`
                   )
                 }
               >
-                {updatingDriverId === driver.id ? "Saving..." : driver.isAvailable ? "Deactivate" : "Activate"}
+                {updatingDriverId === driver.id ? "جارٍ الحفظ..." : driver.isAvailable ? "تعطيل" : "تفعيل"}
               </Button>
             </div>,
           ])}
-          emptyMessage="No drivers are available yet."
+          emptyMessage="لا توجد حسابات سائقين متاحة بعد."
         />
       )}
     </div>
@@ -1591,7 +1618,7 @@ function AdminCustomersManager() {
   if (state.loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading customers from Supabase..." />
+        <LoadingState message="جارٍ تحميل العملاء من Supabase..." />
       </Card>
     );
   }
@@ -1608,19 +1635,19 @@ function AdminCustomersManager() {
 
   return customers.length === 0 ? (
     <Card className="medical-panel">
-      <EmptyState title="No customers yet" message="No customers have signed up yet." />
+      <EmptyState title="لا يوجد عملاء بعد" message="لم يسجل أي عملاء بعد." />
     </Card>
   ) : (
     <Table
-      title="Customers"
-      headers={["Customer", "Phone", "Joined", "Status"]}
+      title="العملاء"
+      headers={["العميل", "الهاتف", "تاريخ الانضمام", "الحالة"]}
       rows={customers.map((customer) => [
         customer.fullName,
         customer.phone ?? "-",
         customer.createdAt ? formatDate(customer.createdAt) : "-",
-        "Read only",
+        "للقراءة فقط",
       ])}
-      emptyMessage="No customers have signed up yet."
+      emptyMessage="لم يسجل أي عملاء بعد."
     />
   );
 }
@@ -1636,8 +1663,10 @@ function AdminCategoriesManager() {
     loading: true,
   });
   const [categoryName, setCategoryName] = useState("");
+  const [categoryArabicName, setCategoryArabicName] = useState("");
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingArabicName, setEditingArabicName] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -1676,7 +1705,7 @@ function AdminCategoriesManager() {
     if (!name) {
       setFeedback({
         type: "error",
-        message: "Category name is required.",
+        message: "اسم الفئة مطلوب.",
       });
       return;
     }
@@ -1685,17 +1714,17 @@ function AdminCategoriesManager() {
     setFeedback(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("categories").insert({ name });
+      const result = await adminCreateCategoryAction({ name, nameAr: categoryArabicName.trim() || null });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر إنشاء الفئة.");
       }
 
       setCategoryName("");
+      setCategoryArabicName("");
       setFeedback({
         type: "success",
-        message: "Category created successfully.",
+        message: "تم إنشاء الفئة بنجاح.",
       });
       await load();
     } catch (error) {
@@ -1714,7 +1743,7 @@ function AdminCategoriesManager() {
     if (!name) {
       setFeedback({
         type: "error",
-        message: "Category name is required.",
+        message: "اسم الفئة مطلوب.",
       });
       return;
     }
@@ -1723,18 +1752,22 @@ function AdminCategoriesManager() {
     setFeedback(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("categories").update({ name }).eq("id", categoryId);
+      const result = await adminUpdateCategoryAction({
+        categoryId,
+        name,
+        nameAr: editingArabicName.trim() || null,
+      });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تحديث الفئة.");
       }
 
       setEditingCategoryId(null);
       setEditingName("");
+      setEditingArabicName("");
       setFeedback({
         type: "success",
-        message: "Category updated successfully.",
+        message: "تم تحديث الفئة بنجاح.",
       });
       await load();
     } catch (error) {
@@ -1752,21 +1785,23 @@ function AdminCategoriesManager() {
     setFeedback(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("categories").delete().eq("id", categoryId);
+      const result = await adminDeleteCategoryAction({
+        categoryId,
+      });
 
-      if (error) {
-        throw error;
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر حذف الفئة.");
       }
 
       if (editingCategoryId === categoryId) {
         setEditingCategoryId(null);
         setEditingName("");
+        setEditingArabicName("");
       }
 
       setFeedback({
         type: "success",
-        message: "Category deleted successfully. Referencing products will keep working with a null category.",
+        message: "تم حذف الفئة بنجاح. ستستمر المنتجات المرتبطة بالعمل مع فئة فارغة.",
       });
       await load();
     } catch (error) {
@@ -1782,7 +1817,7 @@ function AdminCategoriesManager() {
   if (state.loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading categories from Supabase..." />
+        <LoadingState message="جارٍ تحميل الفئات من Supabase..." />
       </Card>
     );
   }
@@ -1802,17 +1837,26 @@ function AdminCategoriesManager() {
       <Card className="medical-panel">
         <form className="form-grid" onSubmit={createCategory}>
           <div className="field">
-            <label htmlFor="admin-category-name">Category Name</label>
+            <label htmlFor="admin-category-name">الاسم الداخلي</label>
             <Input
               id="admin-category-name"
               value={categoryName}
               onChange={(event) => setCategoryName(event.target.value)}
-              placeholder="Pain Relief"
+              placeholder="Medicine"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="admin-category-name-ar">الاسم العربي</label>
+            <Input
+              id="admin-category-name-ar"
+              value={categoryArabicName}
+              onChange={(event) => setCategoryArabicName(event.target.value)}
+              placeholder="الأدوية"
             />
           </div>
           <div className="actions">
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Create Category"}
+              {saving ? "جارٍ الحفظ..." : "إضافة فئة"}
             </Button>
           </div>
         </form>
@@ -1822,39 +1866,41 @@ function AdminCategoriesManager() {
 
       {categories.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="No categories yet" message="Create the first category to organize the MediFast catalog." />
+          <EmptyState title="لا توجد فئات بعد" message="أنشئ أول فئة لتنظيم كتالوج ميدي فاست." />
         </Card>
       ) : (
         <Table
-          title="Categories"
-          headers={["Category", "Created", "State", "Actions"]}
+          title="الفئات"
+          headers={["الاسم العربي", "الاسم الداخلي", "تاريخ الإنشاء", "الحالة", "الإجراءات"]}
           rows={categories.map((category) => [
             editingCategoryId === category.id ? (
-              <Input
-                key={`${category.id}-input`}
-                value={editingName}
-                onChange={(event) => setEditingName(event.target.value)}
-              />
+              <Input key={`${category.id}-name-ar-input`} value={editingArabicName} onChange={(event) => setEditingArabicName(event.target.value)} />
+            ) : (
+              category.displayName || "-"
+            ),
+            editingCategoryId === category.id ? (
+              <Input key={`${category.id}-name-input`} value={editingName} onChange={(event) => setEditingName(event.target.value)} />
             ) : (
               category.name
             ),
             category.createdAt ? formatDate(category.createdAt) : "-",
-            "Live",
+            "نشط",
             <div key={`${category.id}-actions`} className="table-actions">
               {editingCategoryId === category.id ? (
                 <>
                   <Button disabled={saving} onClick={() => void saveCategory(category.id)}>
-                    {saving ? "Saving..." : "Save"}
+                    {saving ? "جارٍ الحفظ..." : "حفظ"}
                   </Button>
                   <Button
                     className="secondary-button"
                     disabled={saving}
                     onClick={() => {
-                      setEditingCategoryId(null);
-                      setEditingName("");
-                    }}
-                  >
-                    Cancel
+                    setEditingCategoryId(null);
+                    setEditingName("");
+                    setEditingArabicName("");
+                  }}
+                >
+                  إلغاء
                   </Button>
                 </>
               ) : (
@@ -1864,9 +1910,10 @@ function AdminCategoriesManager() {
                   onClick={() => {
                     setEditingCategoryId(category.id);
                     setEditingName(category.name);
+                    setEditingArabicName(category.nameAr ?? "");
                   }}
                 >
-                  Edit
+                  تعديل
                 </Button>
               )}
               <Button
@@ -1874,11 +1921,11 @@ function AdminCategoriesManager() {
                 disabled={deletingCategoryId === category.id || saving}
                 onClick={() => void deleteCategory(category.id)}
               >
-                {deletingCategoryId === category.id ? "Deleting..." : "Delete"}
+                {deletingCategoryId === category.id ? "جارٍ الحذف..." : "حذف"}
               </Button>
             </div>,
           ])}
-          emptyMessage="No categories are available yet."
+          emptyMessage="لا توجد فئات متاحة بعد."
         />
       )}
     </div>
@@ -1958,33 +2005,20 @@ function AdminOrdersManager() {
     }));
 
     try {
-  const supabase = getSupabaseBrowserClient();
+      const result = await updateAdminOrderStatusAction({
+        orderId,
+        nextStatus,
+      });
 
-  const { error } = await supabase
-    .from("orders")
-    .update({ order_status: nextStatus })
-    .eq("id", orderId);
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر تحديث حالة الطلب.");
+      }
 
-  if (error) {
-    throw error;
-  }
-
-  if (nextStatus === "delivered" && previousOrder.driverId) {
-    const { error: driverError } = await supabase
-      .from("drivers")
-      .update({ is_available: true })
-      .eq("id", previousOrder.driverId);
-
-    if (driverError) {
-      throw driverError;
-    }
-  }
-
-  setFeedback({
-    type: "success",
-    message: `Order ${orderId} updated to ${nextStatus.replaceAll("_", " ")}.`,
-  });
-} catch (error) {
+      setFeedback({
+        type: "success",
+        message: `تم تحديث الطلب ${orderId} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
+      });
+    } catch (error) {
       setState((current) => ({
         data:
           current.data?.map((order) =>
@@ -2035,37 +2069,23 @@ function AdminOrdersManager() {
       loading: current.loading,
     }));
 
-try {
-  const supabase = getSupabaseBrowserClient();
+    try {
+      const result = await assignDriverAction({
+        orderId,
+        driverId: selectedDriverId,
+      });
 
-  const { error: orderError } = await supabase
-    .from("orders")
-    .update({
-      driver_id: selectedDriverId,
-      order_status: "assigned",
-    })
-    .eq("id", orderId);
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر إسناد السائق.");
+      }
 
-  if (orderError) {
-    throw orderError;
-  }
+      setFeedback({
+        type: "success",
+        message: `تم تعيين سائق للطلب ${orderId}.`,
+      });
 
-  const { error: driverError } = await supabase
-    .from("drivers")
-    .update({ is_available: false })
-    .eq("id", selectedDriverId);
-
-  if (driverError) {
-    throw driverError;
-  }
-
-  setFeedback({
-    type: "success",
-    message: `Driver assigned to order ${orderId}.`,
-  });
-
-  await load();
-} catch (error) {
+      await load();
+    } catch (error) {
       setState((current) => ({
         data:
           current.data?.map((order) =>
@@ -2093,7 +2113,7 @@ try {
   if (state.loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="Loading orders from Supabase..." />
+        <LoadingState message="جارٍ تحميل الطلبات من Supabase..." />
       </Card>
     );
   }
@@ -2112,8 +2132,8 @@ try {
     <div className="stack">
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
       <Table
-        title="Orders"
-        headers={["Order ID", "Customer", "Vendor", "Total", "Payment Status", "Order Status", "Driver", "Created Date"]}
+        title="الطلبات"
+        headers={["معرّف الطلب", "العميل", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء"]}
         rows={orders.map((order) => [
           order.id,
           order.customerName,
@@ -2149,7 +2169,7 @@ try {
 </select>,
           order.createdAt ? formatDate(order.createdAt) : "-",
         ])}
-        emptyMessage="No orders are available yet."
+        emptyMessage="لا توجد طلبات متاحة بعد."
       />
     </div>
   );
@@ -2170,7 +2190,7 @@ export function AdminMedicalCallout({
 
   return (
     <Card className="medical-callout">
-      <Badge>Medical Ops</Badge>
+      <Badge>العمليات الطبية</Badge>
       <h3>{t(title)}</h3>
       <p className="muted">{t(body)}</p>
     </Card>

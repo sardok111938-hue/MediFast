@@ -25,7 +25,7 @@ function readProductName(value: ProductNameContainer, fallback: string) {
 }
 
 export async function listOrdersForAdmin(): Promise<AdminOrderRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const { data } = await supabase
     .from("orders")
     .select(`
@@ -55,7 +55,7 @@ export async function listOrdersForAdmin(): Promise<AdminOrderRow[]> {
 }
 
 export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const { data } = await supabase
     .from("orders")
     .select(`
@@ -144,7 +144,7 @@ export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
 }
 
 export async function listOrdersForVendor(vendorId?: string): Promise<VendorOrderRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   let query = supabase
     .from("orders")
     .select(`
@@ -182,7 +182,7 @@ export async function listOrdersForVendor(vendorId?: string): Promise<VendorOrde
 }
 
 export async function listVendorOrderDetails(vendorId?: string): Promise<VendorOrderDetailRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   let query = supabase
     .from("orders")
     .select(`

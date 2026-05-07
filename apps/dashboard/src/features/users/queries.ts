@@ -2,7 +2,7 @@ import type { TableModel, UserRow } from "../../types/dashboard";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
 
 export async function listUsers(): Promise<UserRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const { data } = await supabase
     .from("profiles")
     .select("id, full_name, role, phone")

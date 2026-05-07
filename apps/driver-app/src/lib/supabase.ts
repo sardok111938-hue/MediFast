@@ -92,7 +92,7 @@ export async function signInDriver(email: string, password: string) {
     await signOutDriver();
     return {
       ...authResponse,
-      error: new Error("Driver session could not be established on this device."),
+      error: new Error("تعذر إنشاء جلسة السائق على هذا الجهاز."),
     };
   }
 
@@ -102,7 +102,7 @@ export async function signInDriver(email: string, password: string) {
     await signOutDriver();
     return {
       ...authResponse,
-      error: new Error("This account is not approved for driver access."),
+      error: new Error("هذا الحساب غير معتمد للوصول إلى تطبيق السائق."),
     };
   }
 

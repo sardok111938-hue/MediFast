@@ -8,7 +8,7 @@ import { theme } from "@medifast/ui";
 
 export default function DriverLoginScreen() {
   const router = useRouter();
-  const { isRTL } = useDriverI18n();
+  const { t, isRTL } = useDriverI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,7 @@ export default function DriverLoginScreen() {
     <DriverScreen title="Driver Login" subtitle="Sign in with your MediFast driver account to view assigned deliveries in real time.">
       <DriverCard>
         <Text style={[styles.message, isRTL ? styles.textRight : null]}>
-          Approved drivers can sign in and start receiving assignment updates.
+          {t("Approved drivers can sign in and start receiving assignment updates.")}
         </Text>
         <DriverInput value={email} onChangeText={setEmail} placeholder="Driver email" />
         <DriverInput value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry />

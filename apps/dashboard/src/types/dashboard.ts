@@ -90,6 +90,8 @@ export interface ProductRow {
 export interface ProductCategoryOption {
   id: string;
   name: string;
+  name_ar: string | null;
+  display_name: string;
 }
 
 export interface VendorRow {

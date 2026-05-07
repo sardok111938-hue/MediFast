@@ -5,10 +5,10 @@ import { dashboardNavigation } from "../../../../src/lib/config/navigation";
 
 export default function DriverOrdersPage() {
   return (
-    <DashboardShell title="Driver Orders" subtitle="Pickup and delivery progress for your assigned MediFast orders." nav={dashboardNavigation.driver}>
+    <DashboardShell title="طلبات السائق" subtitle="تابع الاستلام والتوصيل للطلبات المعيّنة لك." nav={dashboardNavigation.driver}>
       <PageHeader
-        title="Orders"
-        description="Review only the deliveries assigned to you and move them from pickup to doorstep completion."
+        title="الطلبات"
+        description="راجع الشحنات المعيّنة لك فقط وانقلها من الاستلام حتى اكتمال التوصيل."
       />
       <DriverOrdersClient />
     </DashboardShell>

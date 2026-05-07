@@ -12,7 +12,7 @@ export function AssignmentSubmitButton({
 
   return (
     <Button type="submit" loading={pending} disabled={disabled}>
-      {pending ? "Assigning..." : "Assign Driver"}
+      {pending ? "جارٍ الإسناد..." : "إسناد السائق"}
     </Button>
   );
 }

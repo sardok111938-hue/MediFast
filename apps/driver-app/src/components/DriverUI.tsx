@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   headerText: { gap: theme.spacing[8] },
   headerActions: { flexDirection: "row", gap: theme.spacing[8], alignItems: "center", justifyContent: "flex-end" },
   headerActionsRtl: { flexDirection: "row-reverse" },
-  title: { fontSize: theme.typography.heading.xl, fontWeight: "800", color: theme.colors.text, marginTop: theme.spacing[4] },
+  title: { fontSize: theme.typography.heading.xl, fontWeight: "800", color: theme.colors.text, marginTop: theme.spacing[4], lineHeight: theme.typography.lineHeight.body },
   subtitle: { color: theme.colors.muted, lineHeight: theme.typography.lineHeight.body, fontSize: theme.typography.body.md },
   textRight: { textAlign: "right" },
   card: {
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   listCardHeaderRtl: { flexDirection: "row-reverse" },
   listCardText: { flex: 1, gap: theme.spacing[4] },
   listCardBody: { gap: theme.spacing[12] },
-  listCardTitle: { fontSize: theme.typography.heading.md, fontWeight: "800", color: theme.colors.text },
+  listCardTitle: { fontSize: theme.typography.heading.md, fontWeight: "800", color: theme.colors.text, lineHeight: theme.typography.lineHeight.body },
   listCardSubtitle: { color: theme.colors.muted, fontSize: theme.typography.body.sm, lineHeight: theme.typography.lineHeight.compact },
   input: {
     backgroundColor: theme.colors.surface,
@@ -314,6 +314,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     fontSize: theme.typography.body.md,
     textAlign: "right",
+    writingDirection: "rtl",
   },
   helper: { fontSize: theme.typography.caption.md, color: theme.colors.muted, lineHeight: theme.typography.lineHeight.compact },
   helperDanger: { color: theme.colors.danger },
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.55,
   },
-  buttonText: { color: "#FFFFFF", fontWeight: "800", fontSize: theme.typography.body.lg },
+  buttonText: { color: "#FFFFFF", fontWeight: "800", fontSize: theme.typography.body.lg, textAlign: "center", lineHeight: theme.typography.lineHeight.compact },
   buttonTextSecondary: { color: theme.colors.text },
   buttonTextGhost: { color: theme.colors.primaryDark, fontSize: theme.typography.body.md },
   statCard: {
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
     shadowOffset: theme.shadows.card.shadowOffset,
     elevation: theme.shadows.card.elevation,
   },
-  statLabel: { color: theme.colors.muted, fontSize: theme.typography.caption.md, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
+  statLabel: { color: theme.colors.muted, fontSize: theme.typography.caption.md, fontWeight: "700" },
   statValue: { color: theme.colors.text, fontSize: theme.typography.heading.xl, fontWeight: "800" },
   statHint: { color: theme.colors.muted, fontSize: theme.typography.body.sm, lineHeight: theme.typography.lineHeight.compact },
   badge: {
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
   },
   rowRtl: { flexDirection: "row-reverse" },
   rowLabel: { color: theme.colors.muted, fontWeight: "700", flex: 1, fontSize: theme.typography.body.sm },
-  rowValue: { color: theme.colors.text, flex: 1.3, textAlign: "right", fontSize: theme.typography.body.sm, lineHeight: theme.typography.lineHeight.compact },
+  rowValue: { color: theme.colors.text, flex: 1.3, textAlign: "right", fontSize: theme.typography.body.sm, lineHeight: theme.typography.lineHeight.compact, minWidth: 0 },
   rowValueMuted: { color: theme.colors.muted },
   rowValueRtl: { textAlign: "right" },
   stateIcon: { fontSize: theme.typography.heading.lg, fontWeight: "800", color: theme.colors.primaryDark, textAlign: "center" },

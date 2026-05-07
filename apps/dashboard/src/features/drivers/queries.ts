@@ -12,7 +12,7 @@ function readDriverName(profile: DriverProfile) {
 }
 
 export async function listDrivers(): Promise<DriverRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const { data } = await supabase
     .from("drivers")
     .select(`

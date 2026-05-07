@@ -219,6 +219,7 @@ export const translations = {
     ,"This order is not assigned to you or is no longer available.": "This order is not assigned to you or is no longer available."
     ,"Order updated to": "Order updated to"
     ,"Cash on delivery": "Cash on delivery"
+    ,"approved": "approved"
   },
   ar: {
     "MediFast": "ميدي فاست",
@@ -435,10 +436,46 @@ export const translations = {
     ,"This order is not assigned to you or is no longer available.": "هذا الطلب غير معيّن لك أو لم يعد متاحًا."
     ,"Order updated to": "تم تحديث الطلب إلى"
     ,"Cash on delivery": "الدفع عند الاستلام"
+    ,"approved": "معتمد"
   }
 } as const;
 
 export type TranslationKey = keyof typeof translations.en;
+
+const orderStatusLabels = {
+  placed: "تم إنشاء الطلب",
+  accepted: "تم القبول",
+  preparing: "قيد التحضير",
+  ready_for_pickup: "جاهز للاستلام",
+  assigned: "تم تعيين سائق",
+  on_the_way: "في الطريق",
+  delivered: "تم التوصيل",
+  rejected: "مرفوض",
+  cancelled: "ملغي",
+} as const;
+
+const paymentStatusLabels = {
+  pending: "الدفع نقدًا عند التوصيل",
+  collected: "تم تحصيل المبلغ",
+} as const;
+
+const approvalStatusLabels = {
+  pending: "قيد المراجعة",
+  approved: "معتمد",
+  rejected: "مرفوض",
+} as const;
+
+const roleLabels = {
+  admin: "مدير",
+  customer: "العميل",
+  driver: "السائق",
+  vendor: "المتجر",
+} as const;
+
+const addressLabels = {
+  Home: "المنزل",
+  Office: "العمل",
+} as const;
 
 export function isRtlLocale(locale: Locale) {
   return RTL_LOCALES.includes(locale);
@@ -452,4 +489,45 @@ export function resolveLocale(input?: string | null): Locale {
 export function translateKey(locale: Locale, key: string) {
   const dictionary = translations[locale] as Record<string, string>;
   return dictionary[key] ?? key;
+}
+
+export function formatOrderStatusLabel(status: string) {
+  return orderStatusLabels[status as keyof typeof orderStatusLabels] ?? translateKey(DEFAULT_LOCALE, status);
+}
+
+export function formatPaymentStatusLabel(status: string, paymentMethod?: string | null) {
+  if (status === "pending") {
+    return paymentMethod === "cash_on_delivery" ? paymentStatusLabels.pending : "قيد الانتظار";
+  }
+
+  if (status === "collected") {
+    return paymentMethod === "cash_on_delivery" ? paymentStatusLabels.collected : "تم التحصيل";
+  }
+
+  return translateKey(DEFAULT_LOCALE, status);
+}
+
+export function formatApprovalStatusLabel(status: string) {
+  return approvalStatusLabels[status as keyof typeof approvalStatusLabels] ?? translateKey(DEFAULT_LOCALE, status);
+}
+
+export function formatRoleLabel(role: string) {
+  return roleLabels[role as keyof typeof roleLabels] ?? translateKey(DEFAULT_LOCALE, role);
+}
+
+export function formatAddressLabel(label: string) {
+  return addressLabels[label as keyof typeof addressLabels] ?? label;
+}
+
+export function formatCategoryLabel(category?: { name?: string | null; name_ar?: string | null } | null) {
+  if (!category) {
+    return "";
+  }
+
+  const arabicName = category.name_ar?.trim();
+  if (arabicName) {
+    return arabicName;
+  }
+
+  return category.name?.trim() ?? "";
 }

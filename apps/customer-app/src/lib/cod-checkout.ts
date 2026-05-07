@@ -20,18 +20,18 @@ export function buildCheckoutPreview(items: CartItem[]): CheckoutPreview {
     throw new Error("السلة فارغة.");
   }
 
-  const vendorIds = new Set(items.map((item) => item.product.vendor_id));
+  const vendorIds = new Set(items.map((item) => item.snapshot.vendor_id));
   if (vendorIds.size > 1) {
     throw new Error("لا يمكن إتمام الطلب من أكثر من متجر في الوقت الحالي.");
   }
 
-  const invalidItem = items.find((item) => !item.product.id || !item.product.is_active || item.quantity <= 0);
+  const invalidItem = items.find((item) => !item.product_id || !item.snapshot.is_active || item.quantity <= 0);
   if (invalidItem) {
     throw new Error("توجد منتجات غير متاحة أو غير صالحة في السلة.");
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const vendorId = items[0]?.product.vendor_id;
+  const subtotal = items.reduce((sum, item) => sum + item.snapshot.price * item.quantity, 0);
+  const vendorId = items[0]?.snapshot.vendor_id;
 
   if (!vendorId) {
     throw new Error("تعذر تحديد المتجر المرتبط بهذه السلة.");
@@ -51,7 +51,7 @@ export async function placeCashOnDeliveryOrder(items: CartItem[]) {
 
   const { data, error } = await supabase.rpc("create_cod_order", {
     cart_items_input: items.map((item) => ({
-      product_id: item.product.id,
+      product_id: item.product_id,
       quantity: item.quantity,
     })),
   });

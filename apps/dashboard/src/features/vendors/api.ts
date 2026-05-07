@@ -1,7 +1,7 @@
 import { getSupabaseServerClient } from "../../lib/supabase/server";
 
 export async function getVendorById(vendorId: string) {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const { data, error } = await supabase
     .from("vendors")
     .select("id, user_id, name, address_line_1, city, area, approval_status, is_active")
