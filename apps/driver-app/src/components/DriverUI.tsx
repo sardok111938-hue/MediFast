@@ -54,8 +54,12 @@ export function DriverScreen({
   );
 }
 
-export function DriverCard({ children }: { children: ReactNode }) {
-  return <View style={styles.card}>{children}</View>;
+export function DriverCard({ children, variant = "default" }: { children: ReactNode; variant?: "default" | "accent" | "subtle" }) {
+  return (
+    <View style={[styles.card, variant === "accent" ? styles.cardAccent : null, variant === "subtle" ? styles.cardSubtle : null]}>
+      {children}
+    </View>
+  );
 }
 
 export function DriverListCard({
@@ -72,7 +76,7 @@ export function DriverListCard({
   const { t, isRTL } = useDriverI18n();
 
   return (
-    <DriverCard>
+    <DriverCard variant={badge ? "default" : "subtle"}>
       <View style={[styles.listCardHeader, isRTL ? styles.listCardHeaderRtl : null]}>
         <View style={styles.listCardText}>
           <Text style={[styles.listCardTitle, isRTL ? styles.textRight : null]}>{renderTranslatedText(title, t)}</Text>
@@ -175,6 +179,10 @@ export function DriverStatCard({ label, value, hint }: { label: string; value: s
   );
 }
 
+export function DriverSummaryGrid({ children }: { children: ReactNode }) {
+  return <View style={styles.summaryGrid}>{children}</View>;
+}
+
 export function DriverBadge({ label, tone = "neutral" }: { label: string; tone?: "neutral" | "warning" | "success" | "danger" | "info" }) {
   const { t } = useDriverI18n();
   return (
@@ -223,6 +231,40 @@ export function DriverRow({
       <Text style={[styles.rowValue, valueTone === "muted" ? styles.rowValueMuted : null, isRTL ? styles.rowValueRtl : null]}>
         {renderTranslatedText(value, t)}
       </Text>
+    </View>
+  );
+}
+
+export function DriverRouteBlock({
+  pickup,
+  dropoff,
+}: {
+  pickup: string;
+  dropoff: string;
+}) {
+  const { t, isRTL } = useDriverI18n();
+
+  return (
+    <View style={styles.routeBlock}>
+      <View style={[styles.routeRow, isRTL ? styles.routeRowRtl : null]}>
+        <View style={styles.routeDot} />
+        <View style={styles.routeText}>
+          <Text style={[styles.routeLabel, isRTL ? styles.textRight : null]}>{t("Pickup")}</Text>
+          <Text style={[styles.routeValue, isRTL ? styles.textRight : null]} numberOfLines={2}>
+            {pickup}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.routeLine} />
+      <View style={[styles.routeRow, isRTL ? styles.routeRowRtl : null]}>
+        <View style={[styles.routeDot, styles.routeDotDropoff]} />
+        <View style={styles.routeText}>
+          <Text style={[styles.routeLabel, isRTL ? styles.textRight : null]}>{t("Dropoff")}</Text>
+          <Text style={[styles.routeValue, isRTL ? styles.textRight : null]} numberOfLines={2}>
+            {dropoff}
+          </Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -297,6 +339,14 @@ const styles = StyleSheet.create({
     shadowOffset: theme.shadows.card.shadowOffset,
     elevation: theme.shadows.card.elevation,
   },
+  cardAccent: {
+    backgroundColor: "#F1FBF5",
+    borderColor: "#CFEBDD",
+  },
+  cardSubtle: {
+    shadowOpacity: 0.02,
+    elevation: 1,
+  },
   listCardHeader: { flexDirection: "row", justifyContent: "space-between", gap: theme.spacing[12], alignItems: "flex-start" },
   listCardHeaderRtl: { flexDirection: "row-reverse" },
   listCardText: { flex: 1, gap: theme.spacing[4] },
@@ -347,7 +397,7 @@ const styles = StyleSheet.create({
   buttonTextGhost: { color: theme.colors.primaryDark, fontSize: theme.typography.body.md },
   statCard: {
     flex: 1,
-    minWidth: 150,
+    minWidth: 128,
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
     padding: theme.spacing[20],
@@ -374,7 +424,7 @@ const styles = StyleSheet.create({
   badgeSuccess: { backgroundColor: theme.status.success.background },
   badgeDanger: { backgroundColor: theme.status.danger.background },
   badgeInfo: { backgroundColor: theme.status.info.background },
-  badgeText: { fontWeight: "800", fontSize: theme.typography.caption.sm, color: theme.status.neutral.text, textTransform: "capitalize" },
+  badgeText: { fontWeight: "800", fontSize: theme.typography.caption.sm, color: theme.status.neutral.text },
   badgeTextWarning: { color: theme.status.warning.text },
   badgeTextSuccess: { color: theme.status.success.text },
   badgeTextDanger: { color: theme.status.danger.text },
@@ -391,6 +441,51 @@ const styles = StyleSheet.create({
   rowValue: { color: theme.colors.text, flex: 1.3, textAlign: "right", fontSize: theme.typography.body.sm, lineHeight: theme.typography.lineHeight.compact, minWidth: 0 },
   rowValueMuted: { color: theme.colors.muted },
   rowValueRtl: { textAlign: "right" },
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing[12],
+  },
+  routeBlock: {
+    gap: theme.spacing[8],
+    paddingVertical: theme.spacing[4],
+  },
+  routeRow: {
+    flexDirection: "row",
+    gap: theme.spacing[12],
+    alignItems: "flex-start",
+  },
+  routeRowRtl: { flexDirection: "row-reverse" },
+  routeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: theme.colors.primaryDark,
+    marginTop: theme.spacing[4],
+  },
+  routeDotDropoff: {
+    backgroundColor: theme.colors.info,
+  },
+  routeLine: {
+    width: 1,
+    height: theme.spacing[12],
+    backgroundColor: theme.colors.border,
+    marginHorizontal: 5.5,
+  },
+  routeText: {
+    flex: 1,
+    gap: 2,
+  },
+  routeLabel: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.sm,
+    fontWeight: "800",
+  },
+  routeValue: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body.sm,
+    lineHeight: theme.typography.lineHeight.compact,
+  },
   stateIcon: { fontSize: theme.typography.heading.lg, fontWeight: "800", color: theme.colors.primaryDark, textAlign: "center" },
   stateTitle: { fontSize: theme.typography.heading.md, fontWeight: "800", color: theme.colors.text, textAlign: "center" },
   stateMessage: { fontSize: theme.typography.body.sm, lineHeight: theme.typography.lineHeight.body, color: theme.colors.muted, textAlign: "center" },

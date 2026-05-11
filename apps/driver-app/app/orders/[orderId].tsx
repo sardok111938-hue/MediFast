@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
-import { DriverBadge, DriverButton, DriverCard, DriverEmptyCard, DriverErrorCard, DriverHelper, DriverListCard, DriverLoadingCard, DriverRow, DriverScreen, DriverSectionTitle } from "../../src/components/DriverUI";
+import { DriverBadge, DriverButton, DriverCard, DriverEmptyCard, DriverErrorCard, DriverHelper, DriverListCard, DriverLoadingCard, DriverRouteBlock, DriverRow, DriverScreen, DriverSectionTitle } from "../../src/components/DriverUI";
 import { useDriverI18n } from "../../src/lib/i18n";
 import { theme } from "@medifast/ui";
 import {
@@ -101,7 +101,7 @@ export default function DriverOrderDetailScreen() {
   const actions = order ? getDriverNextActions(order.orderStatus) : [];
 
   return (
-    <DriverScreen title="Order Detail" subtitle="Review pickup, dropoff, items, and delivery status updates." scroll={false}>
+    <DriverScreen title="Order Detail" subtitle="Review route, products, and the next delivery action." scroll={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <DriverButton label="Back to Orders" onPress={() => router.push("/orders")} variant="ghost" />
 
@@ -116,15 +116,13 @@ export default function DriverOrderDetailScreen() {
         ) : (
           <>
             <DriverListCard
-              title={`${t("Orders")} ${order.id}`}
-              subtitle={order.vendorName}
+              title={order.vendorName}
+              subtitle={`${t("Orders")} ${order.id} • ${formatDate(order.createdAt)}`}
               badge={<DriverBadge label={getStatusLabel(order.orderStatus)} tone={statusTone(order.orderStatus)} />}
             >
+              <DriverRouteBlock pickup={order.pickupAddress} dropoff={order.dropoffAddress} />
               <DriverRow label="Customer" value={order.customerName} />
-              <DriverRow label="Payment Status" value={getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} />
-              <DriverRow label="Created" value={formatDate(order.createdAt)} valueTone="muted" />
-              <DriverRow label="Pickup" value={order.pickupAddress} />
-              <DriverRow label="Dropoff" value={order.dropoffAddress} />
+              <DriverRow label="Payment Status" value={getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} valueTone="muted" />
               <DriverRow label="Total" value={formatCurrency(order.total)} />
             </DriverListCard>
 

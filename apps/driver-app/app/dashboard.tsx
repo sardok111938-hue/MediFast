@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import { DriverBadge, DriverButton, DriverCard, DriverErrorCard, DriverHelper, DriverListCard, DriverLoadingCard, DriverScreen, DriverSectionTitle, DriverStatCard } from "../src/components/DriverUI";
+import { DriverBadge, DriverButton, DriverCard, DriverErrorCard, DriverHelper, DriverLoadingCard, DriverRouteBlock, DriverScreen, DriverSectionTitle, DriverStatCard, DriverSummaryGrid } from "../src/components/DriverUI";
 import { theme } from "@medifast/ui";
-import { formatDate, listCurrentDriverOrders, normalizeError, statusTone } from "../src/lib/driver-data";
+import { formatDate, getStatusLabel, listAvailablePickupOrders, listCurrentDriverOrders, normalizeError, statusTone, type DriverOrder } from "../src/lib/driver-data";
 import { useDriverI18n } from "../src/lib/i18n";
 import { useDriverSession } from "../src/hooks/use-driver-session";
 import { signOutDriver } from "../src/lib/supabase";
@@ -12,28 +12,34 @@ export default function DriverDashboardScreen() {
   const router = useRouter();
   const { t, isRTL } = useDriverI18n();
   const { driver, loading, error, refresh } = useDriverSession();
-  const [counts, setCounts] = useState({ todayAssigned: 0, active: 0, completed: 0, latestAssignedAt: "" });
+  const [summary, setSummary] = useState<{
+    availablePickups: number;
+    activeDeliveries: number;
+    latestAssignedAt: string;
+    nextDelivery: DriverOrder | null;
+  }>({
+    availablePickups: 0,
+    activeDeliveries: 0,
+    latestAssignedAt: "",
+    nextDelivery: null,
+  });
   const [countsLoading, setCountsLoading] = useState(false);
-  const [availabilityEnabled, setAvailabilityEnabled] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
-
-  useEffect(() => {
-    if (driver) {
-      setAvailabilityEnabled(driver.isAvailable);
-    }
-  }, [driver]);
 
   async function loadDashboardCounts(driverId: string) {
     setCountsLoading(true);
 
     try {
-      const orders = await listCurrentDriverOrders(driverId);
-      const todayKey = new Date().toDateString();
-      setCounts({
-        todayAssigned: orders.filter((order) => new Date(order.createdAt).toDateString() === todayKey).length,
-        active: orders.filter((order) => order.orderStatus === "assigned" || order.orderStatus === "accepted" || order.orderStatus === "on_the_way").length,
-        completed: orders.filter((order) => order.orderStatus === "delivered").length,
+      const [orders, availablePickups] = await Promise.all([
+        listCurrentDriverOrders(driverId),
+        listAvailablePickupOrders(),
+      ]);
+
+      setSummary({
+        availablePickups: availablePickups.length,
+        activeDeliveries: orders.filter((order) => order.orderStatus === "assigned" || order.orderStatus === "on_the_way").length,
         latestAssignedAt: orders[0]?.createdAt ?? "",
+        nextDelivery: orders[0] ?? null,
       });
     } finally {
       setCountsLoading(false);
@@ -60,10 +66,12 @@ export default function DriverDashboardScreen() {
     router.replace("/");
   }
 
+  const nextDelivery = summary.nextDelivery;
+
   return (
       <DriverScreen
       title={driver?.fullName ? `${t("Hi")} ${driver.fullName.split(" ")[0]}` : "Driver Dashboard"}
-      subtitle="Stay on top of today's assigned deliveries, active drop-offs, and completion progress."
+      subtitle="Pickup-ready orders and your active deliveries in one calm workspace."
       action={<DriverButton label={loggingOut ? "Logging out..." : "Logout"} onPress={() => void handleLogout()} disabled={loggingOut} variant="secondary" />}
     >
       {loading ? (
@@ -72,43 +80,60 @@ export default function DriverDashboardScreen() {
         <DriverErrorCard message={error} onRetry={() => void handleRefresh()} />
       ) : (
         <>
-          <DriverCard>
+          <DriverCard variant="accent">
             <View style={styles.accountHeader}>
               <View style={styles.accountMeta}>
                 <Text style={[styles.accountName, isRTL ? styles.textRight : null]}>{driver?.fullName ?? "السائق"}</Text>
-                <DriverBadge label={driver?.approvalStatus ?? "unknown"} tone={statusTone(driver?.approvalStatus ?? "")} />
+                <View style={styles.badgeRow}>
+                  <DriverBadge label={driver?.approvalStatus ?? "unknown"} tone={statusTone(driver?.approvalStatus ?? "")} />
+                  <DriverBadge label={driver?.isAvailable ? "متاح للاستلام" : "مشغول بتوصيل"} tone={driver?.isAvailable ? "success" : "info"} />
+                </View>
               </View>
-              <DriverButton
-                label={availabilityEnabled ? "Online" : "Offline"}
-                onPress={() => setAvailabilityEnabled((current) => !current)}
-                variant={availabilityEnabled ? "primary" : "secondary"}
-              />
+              <DriverButton label="View Orders" onPress={() => router.push("/orders")} />
             </View>
-            <DriverHelper>Availability toggle is UI-only for now.</DriverHelper>
+            <DriverHelper>
+              {driver?.isAvailable ? "أنت جاهز لقبول طلبات الاستلام المتاحة." : "سيعود توفر السائق تلقائيًا بعد تسليم الطلب الحالي."}
+            </DriverHelper>
           </DriverCard>
 
-          <View style={styles.statsGrid}>
+          <DriverSummaryGrid>
             <DriverStatCard
-              label="Today's Assigned"
-              value={countsLoading ? "..." : String(counts.todayAssigned)}
-              hint="Orders assigned with today's created date."
+              label="Available pickups"
+              value={countsLoading ? "..." : String(summary.availablePickups)}
+              hint="Ready orders without a driver."
             />
             <DriverStatCard
-              label="Active Deliveries"
-              value={countsLoading ? "..." : String(counts.active)}
-              hint="Assigned, accepted, or out-for-delivery orders."
+              label="Assigned deliveries"
+              value={countsLoading ? "..." : String(summary.activeDeliveries)}
+              hint="Orders currently linked to you."
             />
             <DriverStatCard
-              label="Completed"
-              value={countsLoading ? "..." : String(counts.completed)}
-              hint={counts.latestAssignedAt ? `${t("Latest assignment")} ${formatDate(counts.latestAssignedAt)}` : "Delivered orders linked to you."}
+              label="Driver availability"
+              value={driver?.isAvailable ? "متاح" : "مشغول"}
+              hint={summary.latestAssignedAt ? `${t("Latest assignment")} ${formatDate(summary.latestAssignedAt)}` : "Synced from driver profile."}
             />
-          </View>
+          </DriverSummaryGrid>
 
           <DriverCard>
-            <DriverSectionTitle>Ready to work</DriverSectionTitle>
-            <DriverHelper>Open your delivery queue to review order details, launch maps, and update statuses.</DriverHelper>
-            <DriverButton label="View Orders" onPress={() => router.push("/orders")} />
+            <DriverSectionTitle>{nextDelivery ? "التوصيلة التالية" : "جاهز للعمل"}</DriverSectionTitle>
+            {nextDelivery ? (
+              <>
+                <View style={styles.orderHeader}>
+                  <View style={styles.orderHeaderText}>
+                    <Text style={[styles.orderVendor, isRTL ? styles.textRight : null]}>{nextDelivery.vendorName}</Text>
+                    <Text style={[styles.orderMeta, isRTL ? styles.textRight : null]}>{`${t("Orders")} ${nextDelivery.id}`}</Text>
+                  </View>
+                  <DriverBadge label={getStatusLabel(nextDelivery.orderStatus)} tone={statusTone(nextDelivery.orderStatus)} />
+                </View>
+                <DriverRouteBlock pickup={nextDelivery.pickupAddress} dropoff={nextDelivery.dropoffAddress} />
+                <DriverButton label="Open Delivery" onPress={() => router.push({ pathname: "/orders/[orderId]", params: { orderId: nextDelivery.id } })} />
+              </>
+            ) : (
+              <>
+                <DriverHelper>افتح قائمة الطلبات لقبول طلب استلام أو متابعة التوصيلات المسندة.</DriverHelper>
+                <DriverButton label="View Orders" onPress={() => router.push("/orders")} />
+              </>
+            )}
           </DriverCard>
 
           <DriverButton label="Refresh Dashboard" onPress={() => void handleRefresh()} variant="ghost" />
@@ -134,10 +159,29 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: theme.colors.text,
   },
-  statsGrid: {
+  badgeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: theme.spacing[8],
+  },
+  orderHeader: {
+    flexDirection: "row",
     gap: theme.spacing[12],
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  orderHeaderText: {
+    flex: 1,
+    gap: theme.spacing[4],
+  },
+  orderVendor: {
+    fontSize: theme.typography.heading.md,
+    fontWeight: "800",
+    color: theme.colors.text,
+  },
+  orderMeta: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.body.sm,
   },
   textRight: {
     textAlign: "right",

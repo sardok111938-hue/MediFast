@@ -158,6 +158,13 @@ export function getDriverNextActions(status: string) {
   return [];
 }
 
+function isDriverNextStatusAllowed(currentStatus: string | undefined, nextStatus: string) {
+  return (
+    (currentStatus === "assigned" && nextStatus === "on_the_way") ||
+    (currentStatus === "on_the_way" && nextStatus === "delivered")
+  );
+}
+
 export async function getCurrentDriverProfile(): Promise<DriverProfile> {
   const session = await getActiveSession();
   if (!session) {
@@ -229,6 +236,50 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
   };
 }
 
+export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`
+      id,
+      total,
+      payment_method,
+      payment_status,
+      order_status,
+      created_at,
+      vendor:vendors(
+        name,
+        address_line_1,
+        address_line_2,
+        city,
+        area
+      ),
+      customer:customers(
+        profile:profiles(full_name)
+      ),
+      address:addresses(
+        line_1,
+        lat,
+        lng
+      ),
+      items:order_items(
+        id,
+        quantity,
+        unit_price,
+        total_price,
+        product:products(name)
+      )
+    `)
+    .eq("order_status", "ready_for_pickup")
+    .is("driver_id", null)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as DriverOrderQueryRow[]).map((order) => mapOrder(order));
+}
+
 export async function listCurrentDriverOrders(driverId: string): Promise<DriverOrder[]> {
   const { data, error } = await supabase
     .from("orders")
@@ -250,10 +301,10 @@ export async function listCurrentDriverOrders(driverId: string): Promise<DriverO
         profile:profiles(full_name)
       ),
       address:addresses(
-  line_1,
-  lat,
-  lng
-),
+        line_1,
+        lat,
+        lng
+      ),
       items:order_items(
         id,
         quantity,
@@ -263,6 +314,7 @@ export async function listCurrentDriverOrders(driverId: string): Promise<DriverO
       )
     `)
     .eq("driver_id", driverId)
+    .in("order_status", ["assigned", "on_the_way"])
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -270,6 +322,28 @@ export async function listCurrentDriverOrders(driverId: string): Promise<DriverO
   }
 
   return ((data ?? []) as DriverOrderQueryRow[]).map((order) => mapOrder(order));
+}
+
+export async function claimAvailableOrder(orderId: string) {
+  const { data, error } = await supabase
+    .rpc("driver_claim_order", {
+      p_order_id: orderId,
+    })
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("تعذر قبول الطلب. قد يكون تم إسناده لسائق آخر.");
+  }
+
+  return {
+    id: String((data as { order_id: string }).order_id),
+    driverId: String((data as { driver_id: string }).driver_id),
+    orderStatus: String((data as { order_status: string }).order_status),
+  };
 }
 
 export async function getDriverOrderDetail(driverId: string, orderId: string): Promise<DriverOrder | null> {
@@ -322,17 +396,16 @@ export async function updateDriverOrderStatus(input: {
   nextStatus: string;
   currentStatus?: string;
 }) {
-  let query = supabase
-    .from("orders")
-    .update({ order_status: input.nextStatus })
-    .eq("id", input.orderId)
-    .eq("driver_id", input.driverId);
-
-  if (input.currentStatus) {
-    query = query.eq("order_status", input.currentStatus);
+  if (!isDriverNextStatusAllowed(input.currentStatus, input.nextStatus)) {
+    throw new Error("حالة الطلب المطلوبة غير مسموحة للسائق.");
   }
 
-  const { data, error } = await query.select("id, order_status").maybeSingle();
+  const { data, error } = await supabase
+    .rpc("driver_update_order_status", {
+      p_order_id: input.orderId,
+      p_next_status: input.nextStatus,
+    })
+    .single();
 
   if (error) {
     throw error;
@@ -343,7 +416,7 @@ export async function updateDriverOrderStatus(input: {
   }
 
   return {
-    id: String(data.id),
-    orderStatus: String(data.order_status),
+    id: String((data as { order_id: string }).order_id),
+    orderStatus: String((data as { order_status: string }).order_status),
   };
 }

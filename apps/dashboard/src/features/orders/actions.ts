@@ -8,10 +8,35 @@ type OrderActionResult = {
   error: string | null;
 };
 
+const adminOrderStatuses = new Set([
+  "placed",
+  "accepted",
+  "preparing",
+  "rejected",
+  "ready_for_pickup",
+  "assigned",
+  "on_the_way",
+  "delivered",
+  "cancelled",
+]);
+const vendorOrderStatuses = new Set(["accepted", "preparing", "ready_for_pickup", "rejected"]);
+const driverOrderStatuses = new Set(["on_the_way", "delivered"]);
+
+function invalidStatusResult(): OrderActionResult {
+  return {
+    success: false,
+    error: "حالة الطلب المطلوبة غير مسموحة لهذا الدور.",
+  };
+}
+
 export async function updateVendorOrderStatusAction(input: {
   orderId: string;
   nextStatus: string;
 }): Promise<OrderActionResult> {
+  if (!vendorOrderStatuses.has(input.nextStatus)) {
+    return invalidStatusResult();
+  }
+
   const result = await updateVendorOrderStatus(input.orderId, input.nextStatus);
 
   if (result.error) {
@@ -35,6 +60,10 @@ export async function updateAdminOrderStatusAction(input: {
   orderId: string;
   nextStatus: string;
 }): Promise<OrderActionResult> {
+  if (!adminOrderStatuses.has(input.nextStatus)) {
+    return invalidStatusResult();
+  }
+
   const result = await updateAdminOrderStatus(input.orderId, input.nextStatus);
 
   if (result.error) {
@@ -60,6 +89,10 @@ export async function updateDriverOrderStatusAction(input: {
   orderId: string;
   nextStatus: string;
 }): Promise<OrderActionResult> {
+  if (!driverOrderStatuses.has(input.nextStatus)) {
+    return invalidStatusResult();
+  }
+
   const result = await updateDriverOrderStatus(input.orderId, input.nextStatus);
 
   if (result.error) {
@@ -84,6 +117,13 @@ export async function assignDriverAction(input: {
   orderId: string;
   driverId: string;
 }): Promise<OrderActionResult> {
+  if (!input.orderId || !input.driverId) {
+    return {
+      success: false,
+      error: "يرجى اختيار طلب وسائق صالحين قبل الإسناد.",
+    };
+  }
+
   const result = await assignDriver(input.orderId, input.driverId);
 
   if (result.error) {

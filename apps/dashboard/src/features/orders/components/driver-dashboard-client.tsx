@@ -9,10 +9,15 @@ import { ErrorState } from "../../../components/ui/error-state";
 import { LoadingState } from "../../../components/ui/loading-state";
 import { Table } from "../../../components/ui/table";
 import { OrderStatusBadge } from "./order-status-badge";
-import { loadDriverOrdersData, normalizeError, type DriverOrdersData } from "../driver-orders";
 import { formatCurrency } from "../../../lib/utils/format-currency";
 import { formatDate } from "../../../lib/utils/format-date";
 import { useLocale } from "../../../lib/i18n/locale-context";
+import {
+  claimDriverOrder,
+  loadDriverOrdersData,
+  normalizeError,
+  type DriverOrdersData,
+} from "../driver-orders";
 
 function countOrdersByStatus(data: DriverOrdersData | null, statuses: string[]) {
   if (!data) {
@@ -28,6 +33,7 @@ export function DriverDashboardClient() {
   const [data, setData] = useState<DriverOrdersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
 
   async function loadSummary() {
     setLoading(true);
@@ -40,6 +46,20 @@ export function DriverDashboardClient() {
       setData(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleClaimOrder(orderId: string) {
+    setClaimingOrderId(orderId);
+    setError(null);
+
+    try {
+      await claimDriverOrder(orderId);
+      await loadSummary();
+    } catch (nextError) {
+      setError(normalizeError(nextError));
+    } finally {
+      setClaimingOrderId(null);
     }
   }
 
@@ -93,9 +113,31 @@ export function DriverDashboardClient() {
         </Card>
       </section>
 
+      {data.availableOrders.length > 0 ? (
+        <Table
+          title="طلبات متاحة للاستلام"
+          headers={["معرّف الطلب", "المتجر", "العميل", "الإجمالي", "العنوان", "الإجراء"]}
+          rows={data.availableOrders.map((order) => [
+            order.id,
+            order.vendorName,
+            order.customerName,
+            formatCurrency(order.total, intlLocale),
+            order.deliveryAddress,
+            <Button
+              key={`${order.id}-claim`}
+              disabled={claimingOrderId === order.id}
+              onClick={() => void handleClaimOrder(order.id)}
+            >
+              {claimingOrderId === order.id ? "جارٍ القبول..." : "قبول التوصيل"}
+            </Button>,
+          ])}
+          emptyMessage="لا توجد طلبات جاهزة للاستلام الآن."
+        />
+      ) : null}
+
       {currentOrders.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="لا توجد شحنات نشطة" message="ستظهر الشحنات المعيّنة الجديدة هنا بمجرد أن تصبح جاهزة للتحرك." />
+          <EmptyState title="لا توجد شحنات نشطة" message="ستظهر الشحنات المعيّنة الجديدة هنا بمجرد أن تقبل طلب توصيل." />
           <Button onClick={() => router.push("/driver/orders")}>فتح الطلبات</Button>
         </Card>
       ) : (

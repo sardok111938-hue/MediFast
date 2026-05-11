@@ -510,39 +510,29 @@ export function AdminVendorsManager() {
         p_approval_status: approvalStatus,
         p_is_active: getVendorActivationForApproval(approvalStatus),
       };
-      console.log("[admin_update_vendor] outgoing payload", payload);
 
       const response = await supabase.rpc("admin_update_vendor", payload);
-      console.log("[admin_update_vendor] rpc response", response);
 
       const { error } = response;
 
       if (error) {
-  console.error("[admin_update_vendor] rpc error raw", error);
-  console.error(
-    "[admin_update_vendor] rpc error json",
-    JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
-  );
-
-  throw new Error(
-    [
-      error.message,
-      error.details,
-      error.hint,
-      error.code,
-    ]
-      .filter(Boolean)
-      .join(" | ") || "admin_update_vendor failed"
-  );
-}
+        throw new Error(
+          [
+            error.message,
+            error.details,
+            error.hint,
+            error.code,
+          ]
+            .filter(Boolean)
+            .join(" | ") || "admin_update_vendor failed"
+        );
+      }
 
       const { data: updatedVendor, error: verifyError } = await supabase
         .from("vendors")
         .select("id, approval_status, is_active")
         .eq("id", vendor.vendorId)
         .maybeSingle();
-
-      console.log("[admin_update_vendor] verification result", { updatedVendor, verifyError });
 
       if (verifyError) {
         throw verifyError;

@@ -493,6 +493,82 @@ html[dir="rtl"] .inventory-actions {
   align-items: center;
 }
 
+.vendor-profile-card {
+  overflow: hidden;
+}
+
+.vendor-profile-hero {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) minmax(220px, auto);
+  gap: var(--space-24);
+  align-items: center;
+}
+
+.vendor-profile-media {
+  inline-size: 112px;
+  block-size: 112px;
+  border-radius: var(--radius-lg);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #e9f6ef;
+  border: 1px solid var(--border);
+  color: var(--success);
+  font-size: var(--font-size-heading-lg);
+  font-weight: 800;
+}
+
+.vendor-profile-media img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.vendor-profile-content {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.vendor-profile-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.vendor-profile-content h2 {
+  margin: 0;
+  font-size: var(--font-size-heading-xl);
+  line-height: 1.25;
+}
+
+.vendor-profile-content p {
+  margin: 0;
+  max-width: 64ch;
+  line-height: var(--line-height-relaxed);
+}
+
+.vendor-profile-address {
+  font-size: var(--font-size-body-sm);
+}
+
+.vendor-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.section-heading {
+  margin-block-end: var(--space-16);
+}
+
+.vendor-action-panel {
+  display: flex;
+  gap: var(--space-16);
+}
+
 .assignment-summary {
   gap: var(--space-16);
 }
@@ -654,6 +730,20 @@ html[dir="rtl"] .inventory-actions {
   .table-row {
     grid-template-columns: 1fr 1fr;
   }
+
+  .vendor-profile-hero {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .vendor-profile-media {
+    inline-size: 88px;
+    block-size: 88px;
+  }
+
+  .vendor-profile-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 700px) {
@@ -676,6 +766,19 @@ html[dir="rtl"] .inventory-actions {
 
   .language-toggle .button {
     flex: 1 1 0;
+  }
+
+  .vendor-profile-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .vendor-profile-media {
+    inline-size: 96px;
+    block-size: 96px;
+  }
+
+  .vendor-profile-actions .button {
+    flex: 1 1 100%;
   }
 
   .two-column-form {

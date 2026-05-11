@@ -13,7 +13,7 @@ function readDriverName(profile: DriverProfile) {
 
 export async function listDrivers(): Promise<DriverRow[]> {
   const supabase = await getSupabaseServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("drivers")
     .select(`
       id,
@@ -25,6 +25,10 @@ export async function listDrivers(): Promise<DriverRow[]> {
       profile:profiles(full_name)
     `)
     .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
 
   return (data ?? []).map((driver) => ({
     id: String(driver.id),

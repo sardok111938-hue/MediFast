@@ -26,7 +26,7 @@ function readProductName(value: ProductNameContainer, fallback: string) {
 
 export async function listOrdersForAdmin(): Promise<AdminOrderRow[]> {
   const supabase = await getSupabaseServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .select(`
       id,
@@ -42,6 +42,10 @@ export async function listOrdersForAdmin(): Promise<AdminOrderRow[]> {
     `)
     .order("created_at", { ascending: false });
 
+  if (error) {
+    throw error;
+  }
+
   return (data ?? []).map((order) => ({
     id: String(order.id),
     payment_method: String(order.payment_method),
@@ -56,7 +60,7 @@ export async function listOrdersForAdmin(): Promise<AdminOrderRow[]> {
 
 export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
   const supabase = await getSupabaseServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .select(`
       id,
@@ -90,6 +94,10 @@ export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
       )
     `)
     .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
 
   return (data ?? []).map((order) => {
     const address = order.address as
@@ -165,7 +173,11 @@ export async function listOrdersForVendor(vendorId?: string): Promise<VendorOrde
     query = query.eq("vendor_id", vendorId);
   }
 
-  const { data } = await query;
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
 
   return (data ?? []).map((order) => ({
     id: String(order.id),
@@ -217,7 +229,11 @@ export async function listVendorOrderDetails(vendorId?: string): Promise<VendorO
     query = query.eq("vendor_id", vendorId);
   }
 
-  const { data } = await query;
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
 
   return (data ?? []).map((order) => {
     const address = order.address as

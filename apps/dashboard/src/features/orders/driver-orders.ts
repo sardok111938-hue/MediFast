@@ -14,6 +14,7 @@ export type DriverOrder = {
 
 export type DriverOrdersData = {
   driverId: string;
+  availableOrders: DriverOrder[];
   orders: DriverOrder[];
 };
 
@@ -57,7 +58,26 @@ export function getDriverNextActions(status: string) {
 
   return [];
 }
-
+function mapDriverOrder(order: Record<string, unknown>): DriverOrder {
+  return {
+    id: String(order.id),
+    vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "المتجر"),
+    customerName: readName(
+      (order.customer as { profile?: SingleRecord<{ full_name?: string }> } | null)?.profile,
+      "العميل"
+    ),
+    total: Number(order.total ?? 0),
+    orderStatus: String(order.order_status ?? ""),
+    createdAt: String(order.created_at ?? ""),
+    deliveryAddress: formatDeliveryAddress(
+      order.address as SingleRecord<{
+        line_1?: string | null;
+        lat?: number | string | null;
+        lng?: number | string | null;
+      }>
+    ),
+  };
+}
 export async function loadDriverOrdersData(): Promise<DriverOrdersData> {
   const supabase = getSupabaseBrowserClient();
   const { data: driverId, error: driverError } = await supabase.rpc("get_driver_id");
@@ -70,42 +90,64 @@ export async function loadDriverOrdersData(): Promise<DriverOrdersData> {
     throw new Error("حساب السائق غير مرتبط بشكل صحيح.");
   }
 
+  const orderSelect = `
+    id,
+    total,
+    order_status,
+    created_at,
+    vendor:vendors(name),
+    customer:customers(
+      profile:profiles(full_name)
+    ),
+    address:addresses(
+      line_1,
+      lat,
+      lng
+    )
+  `;
+
+  const [assignedResult, availableResult] = await Promise.all([
+    supabase
+      .from("orders")
+      .select(orderSelect)
+      .eq("driver_id", driverId)
+      .order("created_at", { ascending: false }),
+
+    supabase
+      .from("orders")
+      .select(orderSelect)
+      .eq("order_status", "ready_for_pickup")
+      .is("driver_id", null)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (assignedResult.error) {
+    throw assignedResult.error;
+  }
+
+  if (availableResult.error) {
+    throw availableResult.error;
+  }
+
+  return {
+    driverId: String(driverId),
+    orders: (assignedResult.data ?? []).map((order) => mapDriverOrder(order as Record<string, unknown>)),
+    availableOrders: (availableResult.data ?? []).map((order) => mapDriverOrder(order as Record<string, unknown>)),
+  };
+}
+
+export async function claimDriverOrder(orderId: string) {
+  const supabase = getSupabaseBrowserClient();
+
   const { data, error } = await supabase
-    .from("orders")
-    .select(`
-      id,
-      total,
-      order_status,
-      created_at,
-      vendor:vendors(name),
-      customer:customers(
-        profile:profiles(full_name)
-      ),
-      address:addresses(
-        line_1,
-        lat,
-        lng
-      )
-    `)
-    .eq("driver_id", driverId)
-    .order("created_at", { ascending: false });
+    .rpc("driver_claim_order", {
+      p_order_id: orderId,
+    })
+    .single();
 
   if (error) {
     throw error;
   }
 
-  return {
-    driverId: String(driverId),
-    orders: (data ?? []).map((order) => ({
-      id: String(order.id),
-      vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "المتجر"),
-      customerName: readName((order.customer as { profile?: SingleRecord<{ full_name?: string }> } | null)?.profile, "العميل"),
-      total: Number(order.total ?? 0),
-      orderStatus: String(order.order_status ?? ""),
-      createdAt: String(order.created_at ?? ""),
-      deliveryAddress: formatDeliveryAddress(
-        order.address as SingleRecord<{ line_1?: string | null; lat?: number | string | null; lng?: number | string | null }>
-      ),
-    })),
-  };
+  return data;
 }

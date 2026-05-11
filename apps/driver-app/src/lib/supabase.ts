@@ -106,6 +106,29 @@ export async function signInDriver(email: string, password: string) {
     };
   }
 
+  const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_id");
+  if (driverIdError || !driverId) {
+    await signOutDriver();
+    return {
+      ...authResponse,
+      error: driverIdError ?? new Error("هذا الحساب غير مرتبط بملف سائق."),
+    };
+  }
+
+  const { data: driver, error: driverError } = await supabase
+    .from("drivers")
+    .select("approval_status")
+    .eq("id", driverId)
+    .maybeSingle();
+
+  if (driverError || driver?.approval_status !== "approved") {
+    await signOutDriver();
+    return {
+      ...authResponse,
+      error: driverError ?? new Error("حساب السائق بانتظار الاعتماد من الإدارة."),
+    };
+  }
+
   return authResponse;
 }
 
@@ -115,6 +138,17 @@ export function subscribeToAssignedOrders(driverId: string, onChange: (payload: 
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "orders", filter: `driver_id=eq.${driverId}` },
+      onChange
+    )
+    .subscribe();
+}
+
+export function subscribeToAvailablePickupOrders(onChange: (payload: unknown) => void) {
+  return supabase
+    .channel("driver-available-pickups")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "orders", filter: "order_status=eq.ready_for_pickup" },
       onChange
     )
     .subscribe();

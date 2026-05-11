@@ -143,6 +143,30 @@ const emptyCategoryFormValues: CategoryFormValues = {
   parentId: "",
 };
 
+function getAdminStatusOptions(currentStatus: string) {
+  if (currentStatus === "placed") {
+    return ["placed", "accepted", "rejected", "cancelled"];
+  }
+
+  if (currentStatus === "accepted") {
+    return ["accepted", "preparing", "cancelled"];
+  }
+
+  if (currentStatus === "preparing") {
+    return ["preparing", "ready_for_pickup", "cancelled"];
+  }
+
+  if (currentStatus === "ready_for_pickup") {
+    return ["ready_for_pickup", "cancelled"];
+  }
+
+  if (currentStatus === "assigned" || currentStatus === "on_the_way") {
+    return [currentStatus, "cancelled"];
+  }
+
+  return [currentStatus];
+}
+
 function getCategoryLabel(category: Pick<AdminCategoryRow, "name" | "nameAr">) {
   return category.nameAr ?? category.name;
 }
@@ -203,18 +227,6 @@ function getCategoryTree(categories: AdminCategoryRow[]) {
       children: categories.filter((category) => category.parentId === parent.id).sort(sortAdminCategories),
     }));
 }
-
-const orderStatusOptions = [
-  "placed",
-  "accepted",
-  "preparing",
-  "rejected",
-  "ready_for_pickup",
-  "assigned",
-  "on_the_way",
-  "delivered",
-  "cancelled",
-] as const;
 
 function readSingle<T extends Record<string, unknown>>(value: T | T[] | null | undefined) {
   if (Array.isArray(value)) {
@@ -2373,11 +2385,11 @@ function AdminOrdersManager() {
             disabled={updatingOrderId === order.id}
             onChange={(event) => void handleStatusChange(order.id, event.target.value)}
           >
-            {orderStatusOptions.map((status) => (
-              <option key={status} value={status}>
-                {t(status.replaceAll("_", " "))}
-              </option>
-            ))}
+            {getAdminStatusOptions(order.orderStatus).map((status) => (
+  <option key={status} value={status}>
+    {t(status.replaceAll("_", " "))}
+  </option>
+))}
           </select>,
           <select
   key={`${order.id}-driver`}

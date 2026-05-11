@@ -20,6 +20,12 @@ type VendorOverviewProductRow = {
 
 export type VendorOverviewData = {
   hasVendor: boolean;
+  vendorName: string;
+  imageUrl: string | null;
+  description: string | null;
+  address: string;
+  approvalStatus: string | null;
+  isActive: boolean;
   orderCounts: {
     today: number;
     placed: number;
@@ -64,17 +70,14 @@ function buildAddress(address: { line_1?: string | null; lat?: number | string |
   return address?.line_1 || "عنوان التوصيل غير متاح";
 }
 
+function buildVendorAddress(vendor: { address_line_1?: string | null; area?: string | null; city?: string | null } | null) {
+  return [vendor?.address_line_1, vendor?.area, vendor?.city].filter(Boolean).join("، ");
+}
+
 export async function getVendorOverviewData(): Promise<VendorOverviewData> {
   const supabase = await getSupabaseServerClient();
 
-  const {
-  data: { user },
-} = await supabase.auth.getUser();
-
-console.log("SERVER USER", user?.id);
-
   const { data: vendorId, error: vendorError } = await supabase.rpc("get_vendor_id");
-  console.log("VENDOR ID", vendorId);
 
   if (vendorError) {
     throw vendorError;
@@ -83,6 +86,12 @@ console.log("SERVER USER", user?.id);
   if (!vendorId) {
     return {
       hasVendor: false,
+      vendorName: "المتجر",
+      imageUrl: null,
+      description: null,
+      address: "",
+      approvalStatus: null,
+      isActive: false,
       orderCounts: {
         today: 0,
         placed: 0,
@@ -103,7 +112,16 @@ console.log("SERVER USER", user?.id);
     };
   }
 
-  const [{ data: ordersData, error: ordersError }, { data: productsData, error: productsError }] = await Promise.all([
+  const [
+    { data: vendorData, error: vendorProfileError },
+    { data: ordersData, error: ordersError },
+    { data: productsData, error: productsError },
+  ] = await Promise.all([
+    supabase
+      .from("vendors")
+      .select("id, name, description, address_line_1, area, city, image_url, approval_status, is_active")
+      .eq("id", vendorId)
+      .maybeSingle(),
     supabase
       .from("orders")
       .select(`
@@ -130,6 +148,10 @@ console.log("SERVER USER", user?.id);
       .eq("vendor_id", vendorId)
       .order("created_at", { ascending: false }),
   ]);
+
+  if (vendorProfileError) {
+    throw vendorProfileError;
+  }
 
   if (ordersError) {
     throw ordersError;
@@ -168,6 +190,12 @@ console.log("SERVER USER", user?.id);
 
   return {
     hasVendor: true,
+    vendorName: String(vendorData?.name ?? "صيدلية"),
+    imageUrl: vendorData?.image_url ? String(vendorData.image_url) : null,
+    description: vendorData?.description ? String(vendorData.description) : null,
+    address: buildVendorAddress(vendorData) || "لم يتم ضبط عنوان المتجر بعد",
+    approvalStatus: vendorData?.approval_status ? String(vendorData.approval_status) : null,
+    isActive: Boolean(vendorData?.is_active),
     orderCounts: {
       today: recentOrders.filter((order) => isToday(order.created_at)).length,
       placed: recentOrders.filter((order) => order.order_status === "placed" || order.order_status === "pending").length,

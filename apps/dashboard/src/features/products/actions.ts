@@ -16,13 +16,11 @@ async function callProductRpc<TParams extends Record<string, unknown>>(
   const { error } = await supabase.rpc(fn, params);
 
   if (error) {
-  console.error("RPC ERROR:", error);
-
-  return {
-    success: false,
-    error: error.message ?? "RPC failed",
-  };
-}
+    return {
+      success: false,
+      error: error.message ?? "RPC failed",
+    };
+  }
 
   return {
     success: true,
@@ -39,13 +37,13 @@ export async function vendorCreateProductAction(input: {
   stockQuantity: number;
 }): Promise<ProductActionResult> {
   const result = await callProductRpc("vendor_create_product", {
-  p_category_id: input.categoryId,
-  p_description: input.description,
-  p_image_url: input.imageUrl,
-  p_name: input.name,
-  p_price: input.price,
-  p_stock_quantity: input.stockQuantity,
-});
+    p_category_id: input.categoryId,
+    p_description: input.description,
+    p_image_url: input.imageUrl,
+    p_name: input.name,
+    p_price: input.price,
+    p_stock_quantity: input.stockQuantity,
+  });
 
   if (result.success) {
     revalidatePath("/vendor/products");

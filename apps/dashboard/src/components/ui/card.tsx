@@ -1,5 +1,11 @@
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef } from "react";
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`panel ${className}`.trim()}>{children}</section>;
+type CardProps = ComponentPropsWithoutRef<"section">;
+
+export function Card({ children, className = "", ...props }: CardProps) {
+  return (
+    <section className={`panel ${className}`.trim()} {...props}>
+      {children}
+    </section>
+  );
 }
