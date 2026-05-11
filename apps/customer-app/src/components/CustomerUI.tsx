@@ -23,7 +23,7 @@ const tabItems: TabItem[] = [
     label: "الرئيسية",
     icon: "home-outline",
     href: "/home",
-    matches: (pathname) => pathname === "/home" || pathname === "/categories",
+    matches: (pathname) => pathname === "/home" || pathname.startsWith("/categories") || pathname.startsWith("/pharmacies/"),
   },
   {
     key: "search",

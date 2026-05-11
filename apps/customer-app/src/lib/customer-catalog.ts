@@ -15,6 +15,11 @@ type QueryCategory = {
   name: string;
   name_ar?: string | null;
   icon?: string | null;
+  parent_id?: string | null;
+  slug?: string | null;
+  sort_order?: number | null;
+  image_url?: string | null;
+  is_active?: boolean | null;
 };
 
 type QueryVendor = {
@@ -24,6 +29,7 @@ type QueryVendor = {
   address_line_2?: string | null;
   city?: string | null;
   area?: string | null;
+  image_url?: string | null;
   is_active?: boolean | null;
   approval_status?: string | null;
 };
@@ -54,6 +60,25 @@ type QueryCustomerAddressState = {
   default_address_id?: string | null;
 };
 
+export type PharmacySubcategory = {
+  id: string;
+  label: string;
+  icon: string;
+  imageUrl: string | null;
+  sortOrder: number;
+  category: Category;
+};
+
+export type PharmacyParentCategory = {
+  id: string;
+  label: string;
+  icon: string;
+  imageUrl: string | null;
+  sortOrder: number;
+  category: Category;
+  subcategories: PharmacySubcategory[];
+};
+
 function normalizeQuery(value: string) {
   return value.trim().toLocaleLowerCase();
 }
@@ -76,6 +101,7 @@ function mapVendor(vendor: QueryVendor): Vendor {
     rating: 0,
     eta_minutes: 0,
     is_open: Boolean(vendor.is_active),
+    image_url: vendor.image_url ?? null,
   };
 }
 
@@ -100,6 +126,11 @@ function mapCategory(category: QueryCategory): Category {
     name: category.name,
     name_ar: category.name_ar ?? null,
     icon: category.icon ?? "grid",
+    parent_id: category.parent_id ?? null,
+    slug: category.slug ?? null,
+    sort_order: Number(category.sort_order ?? 0),
+    image_url: category.image_url ?? null,
+    is_active: category.is_active ?? true,
   };
 }
 
@@ -157,10 +188,15 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
   }
 
   const [categoriesResult, vendorsResult, addressData] = await Promise.all([
-    supabase.from("categories").select("id, name, name_ar, icon").order("name", { ascending: true }),
+    supabase
+      .from("categories")
+      .select("id, name, name_ar, icon, parent_id, slug, sort_order, image_url, is_active")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
     supabase
       .from("vendors")
-      .select("id, name, address_line_1, address_line_2, city, area, is_active, approval_status")
+      .select("id, name, address_line_1, address_line_2, city, area, image_url, is_active, approval_status")
       .eq("is_active", true)
       .eq("approval_status", "approved"),
     loadCustomerAddresses(),
@@ -292,6 +328,129 @@ export function getProductById(products: Product[], productId?: string | null) {
   }
 
   return products.find((product) => product.id === productId) ?? null;
+}
+
+function getCategoryLabel(category: Category) {
+  return category.name_ar || category.name;
+}
+
+function getCategorySortOrder(category: Category) {
+  return Number(category.sort_order ?? 0);
+}
+
+function toPharmacySubcategory(category: Category): PharmacySubcategory {
+  return {
+    id: category.id,
+    label: getCategoryLabel(category),
+    icon: category.icon || "grid",
+    imageUrl: category.image_url ?? null,
+    sortOrder: getCategorySortOrder(category),
+    category,
+  };
+}
+
+function toPharmacyParentCategory(category: Category, categories: Category[]): PharmacyParentCategory {
+  return {
+    id: category.id,
+    label: getCategoryLabel(category),
+    icon: category.icon || "grid",
+    imageUrl: category.image_url ?? null,
+    sortOrder: getCategorySortOrder(category),
+    category,
+    subcategories: getSubcategoriesForParent(categories, category.id).map(toPharmacySubcategory),
+  };
+}
+
+function sortCategoriesByDisplayOrder(left: Category, right: Category) {
+  return getCategorySortOrder(left) - getCategorySortOrder(right) || getCategoryLabel(left).localeCompare(getCategoryLabel(right), "ar");
+}
+
+export function getParentCategories(categories: Category[]) {
+  const activeCategories = categories.filter((category) => category.is_active !== false);
+  const parentCategories = activeCategories.filter((category) => !category.parent_id);
+
+  return (parentCategories.length > 0 ? parentCategories : activeCategories).sort(sortCategoriesByDisplayOrder);
+}
+
+export function getSubcategoriesForParent(categories: Category[], parentCategoryId?: string | null) {
+  if (!parentCategoryId) {
+    return [];
+  }
+
+  return categories
+    .filter((category) => category.is_active !== false && category.parent_id === parentCategoryId)
+    .sort(sortCategoriesByDisplayOrder);
+}
+
+export function getPharmacyParentCategoryById(categories: Category[], categoryId?: string | null) {
+  if (!categoryId) {
+    return null;
+  }
+
+  const category = categories.find((nextCategory) => nextCategory.id === categoryId) ?? null;
+
+  if (!category) {
+    return null;
+  }
+
+  const parentCategory = category.parent_id ? getCategoryById(categories, category.parent_id) : category;
+
+  return parentCategory ? toPharmacyParentCategory(parentCategory, categories) : null;
+}
+
+export function getPharmacySubcategoryById(parentCategory: PharmacyParentCategory, subcategoryId?: string | null) {
+  if (!subcategoryId) {
+    return null;
+  }
+
+  return parentCategory.subcategories.find((subcategory) => subcategory.id === subcategoryId) ?? null;
+}
+
+export function productMatchesPharmacyParentCategory(product: Product, categories: Category[], parentCategory: PharmacyParentCategory) {
+  const categoryIds = new Set([parentCategory.id, ...parentCategory.subcategories.map((subcategory) => subcategory.id)]);
+  return categoryIds.has(product.category_id);
+}
+
+export function productMatchesPharmacySubcategory(product: Product, categories: Category[], subcategory: PharmacySubcategory) {
+  void categories;
+  return product.category_id === subcategory.id;
+}
+
+export function getProductsForPharmacyParentCategory(
+  products: Product[],
+  categories: Category[],
+  parentCategoryId?: string | null,
+  subcategoryId?: string | null,
+) {
+  const parentCategory = getPharmacyParentCategoryById(categories, parentCategoryId);
+
+  if (!parentCategory) {
+    return [];
+  }
+
+  const parentProducts = products.filter((product) => productMatchesPharmacyParentCategory(product, categories, parentCategory));
+  const subcategory = getPharmacySubcategoryById(parentCategory, subcategoryId);
+
+  if (!subcategory) {
+    return parentProducts;
+  }
+
+  return parentProducts.filter((product) => productMatchesPharmacySubcategory(product, categories, subcategory));
+}
+
+export function getPharmacyParentCategoriesForProducts(products: Product[], categories: Category[]) {
+  return getParentCategories(categories)
+    .map((category) => toPharmacyParentCategory(category, categories))
+    .filter((parentCategory) => products.some((product) => productMatchesPharmacyParentCategory(product, categories, parentCategory)));
+}
+
+export function getPharmacyCategoryProductCount(products: Product[], categories: Category[], parentCategoryId: string) {
+  return getProductsForPharmacyParentCategory(products, categories, parentCategoryId).length;
+}
+
+export function getPharmacyCategoryImage(products: Product[], categories: Category[], parentCategoryId: string) {
+  const category = getCategoryById(categories, parentCategoryId);
+  return category?.image_url ?? getProductsForPharmacyParentCategory(products, categories, parentCategoryId).find((product) => product.image_url)?.image_url ?? null;
 }
 
 export function filterProducts(products: Product[], input: { categoryId?: string | null; query?: string | null }) {

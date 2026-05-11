@@ -250,11 +250,10 @@ export async function listCurrentDriverOrders(driverId: string): Promise<DriverO
         profile:profiles(full_name)
       ),
       address:addresses(
-        line_1,
-        line_2,
-        city,
-        area
-      ),
+  line_1,
+  lat,
+  lng
+),
       items:order_items(
         id,
         quantity,
@@ -294,11 +293,10 @@ export async function getDriverOrderDetail(driverId: string, orderId: string): P
         profile:profiles(full_name)
       ),
       address:addresses(
-        line_1,
-        line_2,
-        city,
-        area
-      ),
+  line_1,
+  lat,
+  lng
+),
       items:order_items(
         id,
         quantity,

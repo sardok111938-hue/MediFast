@@ -43,6 +43,11 @@ export interface Category {
   name: string;
   name_ar?: string | null;
   icon: string;
+  parent_id?: string | null;
+  slug?: string | null;
+  sort_order?: number | null;
+  image_url?: string | null;
+  is_active?: boolean;
 }
 
 export interface Vendor {
@@ -52,6 +57,7 @@ export interface Vendor {
   rating: number;
   eta_minutes: number;
   is_open: boolean;
+  image_url?: string | null;
 }
 
 export interface Product {

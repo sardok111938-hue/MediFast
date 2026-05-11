@@ -77,12 +77,10 @@ export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
         profile:profiles(full_name)
       ),
       address:addresses(
-        label,
-        line_1,
-        line_2,
-        city,
-        area
-      ),
+  line_1,
+  lat,
+  lng
+),
       items:order_items(
         id,
         quantity,
@@ -127,9 +125,9 @@ export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
       customer_name: readName((order.customer as { profile?: NameContainer } | null)?.profile, "Customer"),
       vendor_name: (order.vendor as { name?: string } | null)?.name ?? "-",
       driver_name: readName((order.driver as { profile?: NameContainer } | null)?.profile, "Unassigned"),
-      address_label: normalizedAddress?.label ?? "Address",
+      address_label: "Address",
       address_line_1: normalizedAddress?.line_1 ?? "",
-      address_line_2: normalizedAddress?.line_2 ?? null,
+      address_line_2: null,
       city: normalizedAddress?.city ?? "",
       area: normalizedAddress?.area ?? null,
       items: items.map((item) => ({
@@ -201,12 +199,10 @@ export async function listVendorOrderDetails(vendorId?: string): Promise<VendorO
         profile:profiles(full_name)
       ),
       address:addresses(
-        label,
-        line_1,
-        line_2,
-        city,
-        area
-      ),
+  line_1,
+  lat,
+  lng
+),
       items:order_items(
         id,
         quantity,

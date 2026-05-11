@@ -33,10 +33,17 @@ export async function adminUpdateVendorAction(input: {
   approvalStatus?: string;
   isActive?: boolean;
 }): Promise<AdminActionResult> {
+  const managedIsActive =
+    input.approvalStatus === "approved"
+      ? true
+      : input.approvalStatus === "rejected"
+        ? false
+        : input.isActive;
+
   const result = await callAdminRpc("admin_update_vendor", {
     p_vendor_id: input.vendorId,
     p_approval_status: input.approvalStatus ?? null,
-    p_is_active: input.isActive ?? null,
+    p_is_active: managedIsActive ?? null,
   });
 
   if (result.success) {
@@ -67,10 +74,22 @@ export async function adminUpdateDriverAction(input: {
 export async function adminCreateCategoryAction(input: {
   name: string;
   nameAr: string | null;
+  slug?: string | null;
+  icon?: string | null;
+  imageUrl?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  parentId?: string | null;
 }): Promise<AdminActionResult> {
   const result = await callAdminRpc("admin_create_category", {
     p_name: input.name,
     p_name_ar: input.nameAr,
+    p_slug: input.slug ?? null,
+    p_icon: input.icon ?? null,
+    p_image_url: input.imageUrl ?? null,
+    p_sort_order: input.sortOrder ?? 0,
+    p_is_active: input.isActive ?? true,
+    p_parent_id: input.parentId ?? null,
   });
 
   if (result.success) {
@@ -85,11 +104,23 @@ export async function adminUpdateCategoryAction(input: {
   categoryId: string;
   name: string;
   nameAr: string | null;
+  slug?: string | null;
+  icon?: string | null;
+  imageUrl?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  parentId?: string | null;
 }): Promise<AdminActionResult> {
   const result = await callAdminRpc("admin_update_category", {
     p_category_id: input.categoryId,
     p_name: input.name,
     p_name_ar: input.nameAr,
+    p_slug: input.slug ?? null,
+    p_icon: input.icon ?? null,
+    p_image_url: input.imageUrl ?? null,
+    p_sort_order: input.sortOrder ?? 0,
+    p_is_active: input.isActive ?? true,
+    p_parent_id: input.parentId ?? null,
   });
 
   if (result.success) {

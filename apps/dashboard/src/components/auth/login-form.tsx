@@ -3,8 +3,9 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ROUTES } from "../../lib/config/routes";
-import { signInDashboardUser, isDashboardSupabaseConfigured } from "../../features/auth/api";
+import { signInDashboardUser, isDashboardSupabaseConfigured, signOutDashboardUser } from "../../features/auth/api";
 import { useLocale } from "../../lib/i18n/locale-context";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -28,7 +29,7 @@ export function LoginForm({ initialMessage = "" }: { initialMessage?: string | n
     setLoading(true);
     setMessage("");
     try {
-      const { authResponse, role, profileError } = await signInDashboardUser(email.trim(), password);
+      const { authResponse, role, profileError, vendorAccess } = await signInDashboardUser(email.trim(), password);
 
       if (authResponse.error) {
         setMessage(authResponse.error.message);
@@ -51,6 +52,30 @@ export function LoginForm({ initialMessage = "" }: { initialMessage?: string | n
       }
 
       if (role === "vendor") {
+        if (vendorAccess?.error) {
+          setMessage(vendorAccess.error.message);
+          await signOutDashboardUser();
+          return;
+        }
+
+        if (vendorAccess?.approvalStatus === "pending") {
+          setMessage("حساب المتجر قيد مراجعة الإدارة. سنفعّله بعد الموافقة.");
+          await signOutDashboardUser();
+          return;
+        }
+
+        if (vendorAccess?.approvalStatus === "rejected") {
+          setMessage("تم رفض حساب المتجر. يرجى التواصل مع الإدارة لمراجعة الطلب.");
+          await signOutDashboardUser();
+          return;
+        }
+
+        if (vendorAccess?.approvalStatus !== "approved" || !vendorAccess.isActive) {
+          setMessage("حساب المتجر غير مفعّل حالياً. يرجى التواصل مع الإدارة.");
+          await signOutDashboardUser();
+          return;
+        }
+
         router.replace(ROUTES.vendor);
         return;
       }
@@ -71,6 +96,14 @@ export function LoginForm({ initialMessage = "" }: { initialMessage?: string | n
       <Button type="submit" disabled={loading}>
         {loading ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"}
       </Button>
+      <div className="stack compact-stack">
+        <Link className="button secondary-button" href="/register/vendor">
+          إنشاء حساب متجر جديد
+        </Link>
+        <p className="muted">
+          حسابات الإدارة لا تُنشأ من التسجيل العام. يجب أن يضيفها مسؤول موجود أو عملية إعداد يدوية آمنة.
+        </p>
+      </div>
     </form>
   );
 }

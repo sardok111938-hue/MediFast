@@ -15,7 +15,7 @@ export function NavLink({ href, label }: { href: string; label: string }) {
       href={href as never}
       className={isActive ? "active" : ""}
     >
-      {t(label)}
+      {t(label) || label}
     </Link>
   );
 }

@@ -91,6 +91,12 @@ export interface ProductCategoryOption {
   id: string;
   name: string;
   name_ar: string | null;
+  slug: string | null;
+  icon: string | null;
+  image_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+  parent_id: string | null;
   display_name: string;
 }
 

@@ -38,7 +38,6 @@ type VendorRow = {
   lat: number | null;
   lng: number | null;
   approvalStatus: ApprovalStatus;
-  isActive: boolean;
 };
 
 type ProfileSearchResult = {
@@ -93,7 +92,6 @@ type VendorFormValues = {
   lat: string;
   lng: string;
   approvalStatus: ApprovalStatus;
-  isActive: boolean;
 };
 
 const initialVendorFormValues: VendorFormValues = {
@@ -108,7 +106,6 @@ const initialVendorFormValues: VendorFormValues = {
   lat: "",
   lng: "",
   approvalStatus: "pending",
-  isActive: false,
 };
 
 function normalizeError(error: unknown) {
@@ -129,6 +126,10 @@ function parseOptionalNumber(value: string) {
   return { value: parsed, provided: true };
 }
 
+function getVendorActivationForApproval(approvalStatus: ApprovalStatus) {
+  return approvalStatus === "approved";
+}
+
 function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
   if (!vendor) {
     return initialVendorFormValues;
@@ -146,7 +147,6 @@ function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
     lat: vendor.lat == null ? "" : String(vendor.lat),
     lng: vendor.lng == null ? "" : String(vendor.lng),
     approvalStatus: vendor.approvalStatus,
-    isActive: vendor.isActive,
   };
 }
 
@@ -185,7 +185,7 @@ function validateVendorForm(values: VendorFormValues) {
       setLat: lat.provided,
       setLng: lng.provided,
       approvalStatus: values.approvalStatus,
-      isActive: values.isActive,
+      isActive: getVendorActivationForApproval(values.approvalStatus),
     },
   };
 }
@@ -208,7 +208,6 @@ function mapVendorRow(row: VendorRpcRow): VendorRow {
     lat: row.lat == null ? null : Number(row.lat),
     lng: row.lng == null ? null : Number(row.lng),
     approvalStatus: row.approval_status,
-    isActive: Boolean(row.is_active),
   };
 }
 
@@ -495,20 +494,62 @@ export function AdminVendorsManager() {
     }
   }
 
-  async function handleQuickVendorAction(vendorId: string, updates: { approvalStatus?: ApprovalStatus; isActive?: boolean }, successMessage: string) {
+  async function handleQuickVendorAction(vendor: VendorRow, approvalStatus: ApprovalStatus, successMessage: string) {
     const supabase = getSupabaseBrowserClient();
-    setActingVendorId(vendorId);
+    setActingVendorId(vendor.vendorId);
     setFeedback(null);
 
     try {
-      const { error } = await supabase.rpc("admin_update_vendor", {
-        p_vendor_id: vendorId,
-        p_approval_status: updates.approvalStatus ?? null,
-        p_is_active: updates.isActive ?? null,
-      });
+      if (!vendor.profileId) {
+        throw new Error("لا يمكن اعتماد متجر غير مرتبط بملف مستخدم. اربط المتجر بملف أولاً ثم أعد المحاولة.");
+      }
+
+      const payload = {
+        p_vendor_id: vendor.vendorId,
+        p_profile_id: vendor.profileId,
+        p_approval_status: approvalStatus,
+        p_is_active: getVendorActivationForApproval(approvalStatus),
+      };
+      console.log("[admin_update_vendor] outgoing payload", payload);
+
+      const response = await supabase.rpc("admin_update_vendor", payload);
+      console.log("[admin_update_vendor] rpc response", response);
+
+      const { error } = response;
 
       if (error) {
-        throw error;
+  console.error("[admin_update_vendor] rpc error raw", error);
+  console.error(
+    "[admin_update_vendor] rpc error json",
+    JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+  );
+
+  throw new Error(
+    [
+      error.message,
+      error.details,
+      error.hint,
+      error.code,
+    ]
+      .filter(Boolean)
+      .join(" | ") || "admin_update_vendor failed"
+  );
+}
+
+      const { data: updatedVendor, error: verifyError } = await supabase
+        .from("vendors")
+        .select("id, approval_status, is_active")
+        .eq("id", vendor.vendorId)
+        .maybeSingle();
+
+      console.log("[admin_update_vendor] verification result", { updatedVendor, verifyError });
+
+      if (verifyError) {
+        throw verifyError;
+      }
+
+      if (updatedVendor?.approval_status !== approvalStatus || Boolean(updatedVendor?.is_active) !== getVendorActivationForApproval(approvalStatus)) {
+        throw new Error("لم يتم حفظ حالة اعتماد المتجر في قاعدة البيانات.");
       }
 
       setFeedback({
@@ -551,7 +592,7 @@ export function AdminVendorsManager() {
         <p className="muted">
           {t(
             editingVendorId
-              ? "Update vendor details, relink the profile if needed, and control approval or storefront activity."
+              ? "Update vendor details, relink the profile if needed, and control approval state."
               : "Link an existing profile to a vendor record without creating a new auth user."
           )}
         </p>
@@ -728,19 +769,6 @@ export function AdminVendorsManager() {
               <option value="rejected">{t("rejected")}</option>
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="vendor-active">{t("Storefront Status")}</label>
-            <label className="muted" htmlFor="vendor-active">
-              <input
-                id="vendor-active"
-                type="checkbox"
-                checked={formValues.isActive}
-                onChange={(event) => setFormValues((current) => ({ ...current, isActive: event.target.checked }))}
-              />{" "}
-              {t("Vendor is active")}
-            </label>
-          </div>
-
           {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{t(feedback.message)}</p> : null}
           {selectedProfileLinkedElsewhere ? <p className="danger">{t("This profile is already linked to another vendor.")}</p> : null}
 
@@ -764,7 +792,7 @@ export function AdminVendorsManager() {
       ) : (
         <Table
           title="المتاجر"
-          headers={["معرّف المتجر", "اسم المتجر", "الملف المرتبط", "الهاتف", "المدينة / المنطقة", "الموافقة", "الحالة", "الإجراءات"]}
+          headers={["معرّف المتجر", "اسم المتجر", "الملف المرتبط", "الهاتف", "المدينة / المنطقة", "الموافقة", "الإجراءات"]}
           rows={vendors.map((vendor) => [
             vendor.vendorId,
             `${vendor.vendorName}${vendor.slug ? ` • ${vendor.slug}` : ""}`,
@@ -772,7 +800,6 @@ export function AdminVendorsManager() {
             vendor.phone ?? "-",
             [vendor.city, vendor.area].filter(Boolean).join(" / ") || "-",
             vendor.approvalStatus,
-            vendor.isActive ? "نشط" : "غير نشط",
             <div key={`${vendor.vendorId}-actions`} className="table-actions">
               <Button type="button" variant="secondary" onClick={() => startEditingVendor(vendor)} disabled={saving || actingVendorId === vendor.vendorId}>
                 تعديل
@@ -781,7 +808,7 @@ export function AdminVendorsManager() {
                 type="button"
                 variant="secondary"
                 onClick={() =>
-                  void handleQuickVendorAction(vendor.vendorId, { approvalStatus: "approved" }, "تم اعتماد المتجر بنجاح.")
+                  void handleQuickVendorAction(vendor, "approved", "تم اعتماد المتجر وتفعيله بنجاح.")
                 }
                 disabled={saving || actingVendorId === vendor.vendorId}
               >
@@ -789,17 +816,13 @@ export function AdminVendorsManager() {
               </Button>
               <Button
                 type="button"
-                variant={vendor.isActive ? "danger" : "primary"}
+                variant="danger"
                 onClick={() =>
-                  void handleQuickVendorAction(
-                    vendor.vendorId,
-                    { isActive: !vendor.isActive },
-                    "تم تحديث حالة واجهة المتجر بنجاح."
-                  )
+                  void handleQuickVendorAction(vendor, "rejected", "تم رفض المتجر وتعطيله بنجاح.")
                 }
                 disabled={saving || actingVendorId === vendor.vendorId}
               >
-                {actingVendorId === vendor.vendorId ? "جارٍ الحفظ..." : vendor.isActive ? "تعطيل" : "تفعيل"}
+                {actingVendorId === vendor.vendorId ? "جارٍ الحفظ..." : "رفض"}
               </Button>
             </div>,
           ])}

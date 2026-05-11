@@ -35,13 +35,11 @@ function readVendorName(value: SingleRecord<{ name?: string }>, fallback: string
   return readSingle(value)?.name ?? fallback;
 }
 
-function formatDeliveryAddress(value: SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>) {
-  const address = readSingle(value);
-  if (!address) {
-    return "عنوان التوصيل غير متاح";
-  }
-
-  return [address.line_1, address.line_2, address.area, address.city].filter(Boolean).join("، ") || "عنوان التوصيل غير متاح";
+function formatDeliveryAddress(
+  value: SingleRecord<{ line_1?: string | null; lat?: number | string | null; lng?: number | string | null }>
+) {
+  const address = Array.isArray(value) ? value[0] : value;
+  return address?.line_1 || "عنوان التوصيل غير متاح";
 }
 
 export function normalizeError(error: unknown) {
@@ -85,9 +83,8 @@ export async function loadDriverOrdersData(): Promise<DriverOrdersData> {
       ),
       address:addresses(
         line_1,
-        line_2,
-        city,
-        area
+        lat,
+        lng
       )
     `)
     .eq("driver_id", driverId)
@@ -106,7 +103,9 @@ export async function loadDriverOrdersData(): Promise<DriverOrdersData> {
       total: Number(order.total ?? 0),
       orderStatus: String(order.order_status ?? ""),
       createdAt: String(order.created_at ?? ""),
-      deliveryAddress: formatDeliveryAddress(order.address as SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>),
+      deliveryAddress: formatDeliveryAddress(
+        order.address as SingleRecord<{ line_1?: string | null; lat?: number | string | null; lng?: number | string | null }>
+      ),
     })),
   };
 }

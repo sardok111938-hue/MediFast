@@ -6,24 +6,28 @@ grant select on public.categories to authenticated;
 grant select on public.vendors to authenticated;
 grant select on public.products to authenticated;
 
+drop policy if exists "authenticated users can select categories" on public.categories;
 create policy "authenticated users can select categories"
 on public.categories
 for select
 to authenticated
 using (true);
 
+drop policy if exists "admins can select all vendors" on public.vendors;
 create policy "admins can select all vendors"
 on public.vendors
 for select
 to authenticated
-using (public.is_current_user_admin());
+using (public.is_admin());
 
+drop policy if exists "vendors can select own vendor profile" on public.vendors;
 create policy "vendors can select own vendor profile"
 on public.vendors
 for select
 to authenticated
 using (id = public.get_vendor_id());
 
+drop policy if exists "drivers can select vendors for assigned orders" on public.vendors;
 create policy "drivers can select vendors for assigned orders"
 on public.vendors
 for select
@@ -37,6 +41,7 @@ using (
   )
 );
 
+drop policy if exists "authenticated users can select active approved vendors" on public.vendors;
 create policy "authenticated users can select active approved vendors"
 on public.vendors
 for select
@@ -46,18 +51,21 @@ using (
   and approval_status = 'approved'
 );
 
+drop policy if exists "admins can select all products" on public.products;
 create policy "admins can select all products"
 on public.products
 for select
 to authenticated
-using (public.is_current_user_admin());
+using (public.is_admin());
 
+drop policy if exists "vendors can select own products" on public.products;
 create policy "vendors can select own products"
 on public.products
 for select
 to authenticated
 using (vendor_id = public.get_vendor_id());
 
+drop policy if exists "authenticated users can select sellable products" on public.products;
 create policy "authenticated users can select sellable products"
 on public.products
 for select

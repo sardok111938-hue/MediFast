@@ -62,18 +62,14 @@ function readProductName(value: { name?: string } | { name?: string }[] | null |
 
 function formatDeliveryAddress(
   value:
-    | { label?: string; line_1?: string; line_2?: string | null; area?: string | null; city?: string }
-    | { label?: string; line_1?: string; line_2?: string | null; area?: string | null; city?: string }[]
+    | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }
+    | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }[]
     | null
     | undefined
 ) {
   const address = readSingle(value);
 
-  if (!address) {
-    return "عنوان التوصيل غير متاح";
-  }
-
-  return [address.label, address.line_1, address.line_2, address.area, address.city].filter(Boolean).join("، ") || "عنوان التوصيل غير متاح";
+  return address?.line_1 || "عنوان التوصيل غير متاح";
 }
 
 function normalizeError(error: unknown) {
@@ -127,12 +123,10 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
         profile:profiles(full_name)
       ),
       address:addresses(
-        label,
-        line_1,
-        line_2,
-        area,
-        city
-      ),
+  line_1,
+  lat,
+  lng
+),
       items:order_items(
         id,
         quantity,
@@ -164,8 +158,8 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
         createdAt: String(order.created_at ?? ""),
         deliveryAddress: formatDeliveryAddress(
           order.address as
-            | { label?: string; line_1?: string; line_2?: string | null; area?: string | null; city?: string }
-            | { label?: string; line_1?: string; line_2?: string | null; area?: string | null; city?: string }[]
+            | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }
+            | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }[]
             | null
         ),
         items: items.map((item) => ({

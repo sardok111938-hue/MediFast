@@ -60,19 +60,21 @@ function isToday(value: string) {
   return date >= startOfToday;
 }
 
-function buildAddress(address: {
-  label?: string;
-  line_1?: string;
-  line_2?: string | null;
-  area?: string | null;
-  city?: string;
-} | null) {
-  return [address?.label, address?.line_1, address?.line_2, address?.area, address?.city].filter(Boolean).join("، ");
+function buildAddress(address: { line_1?: string | null; lat?: number | string | null; lng?: number | string | null } | null) {
+  return address?.line_1 || "عنوان التوصيل غير متاح";
 }
 
 export async function getVendorOverviewData(): Promise<VendorOverviewData> {
   const supabase = await getSupabaseServerClient();
+
+  const {
+  data: { user },
+} = await supabase.auth.getUser();
+
+console.log("SERVER USER", user?.id);
+
   const { data: vendorId, error: vendorError } = await supabase.rpc("get_vendor_id");
+  console.log("VENDOR ID", vendorId);
 
   if (vendorError) {
     throw vendorError;
@@ -115,12 +117,10 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
           profile:profiles(full_name)
         ),
         address:addresses(
-          label,
-          line_1,
-          line_2,
-          area,
-          city
-        )
+  line_1,
+  lat,
+  lng
+)
       `)
       .eq("vendor_id", vendorId)
       .order("created_at", { ascending: false }),
@@ -150,14 +150,13 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
       readSingle((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile)?.full_name ?? "Customer"
     ),
     address: buildAddress(
-      readSingle(order.address as {
-        label?: string;
-        line_1?: string;
-        line_2?: string | null;
-        area?: string | null;
-        city?: string;
-      })
-    ),
+  readSingle(
+    order.address as
+      | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }
+      | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }[]
+      | null
+  )
+),
   }));
 
   const products = (productsData ?? []).map((product) => ({

@@ -30,7 +30,8 @@ type ProductFormValues = {
   name: string;
   description: string;
   price: string;
-  category_id: string;
+  parent_category_id: string;
+  child_category_id: string;
   stock_quantity: string;
 };
 
@@ -38,7 +39,8 @@ const emptyFormValues: ProductFormValues = {
   name: "",
   description: "",
   price: "",
-  category_id: "",
+  parent_category_id: "",
+  child_category_id: "",
   stock_quantity: "0",
 };
 
@@ -61,26 +63,89 @@ function normalizeError(error: unknown) {
   return error instanceof Error ? error.message : "تعذر إكمال طلب المنتج الآن.";
 }
 
-function buildFormValues(product?: ProductRow | null): ProductFormValues {
+function getCategoryChildren(categories: ProductCategoryOption[], parentCategoryId: string) {
+  return categories.filter((category) => category.parent_id === parentCategoryId);
+}
+
+function getTopLevelCategories(categories: ProductCategoryOption[]) {
+  return categories.filter((category) => !category.parent_id);
+}
+
+function getProductCategorySelection(categories: ProductCategoryOption[], categoryId?: string | null) {
+  const category = categories.find((nextCategory) => nextCategory.id === categoryId);
+
+  if (!category) {
+    return {
+      parentCategoryId: "",
+      childCategoryId: "",
+    };
+  }
+
+  if (category.parent_id) {
+    return {
+      parentCategoryId: category.parent_id,
+      childCategoryId: category.id,
+    };
+  }
+
+  return {
+    parentCategoryId: category.id,
+    childCategoryId: "",
+  };
+}
+
+function getSubmittedCategoryId(values: ProductFormValues, categories: ProductCategoryOption[]) {
+  const childCategories = values.parent_category_id ? getCategoryChildren(categories, values.parent_category_id) : [];
+
+  if (childCategories.length > 0) {
+    return values.child_category_id.trim();
+  }
+
+  return values.parent_category_id.trim();
+}
+
+function getCategoryDisplayName(categories: ProductCategoryOption[], categoryId?: string | null) {
+  const category = categories.find((nextCategory) => nextCategory.id === categoryId);
+
+  if (!category) {
+    return "-";
+  }
+
+  if (!category.parent_id) {
+    return category.display_name;
+  }
+
+  const parentCategory = categories.find((nextCategory) => nextCategory.id === category.parent_id);
+  return parentCategory ? `${parentCategory.display_name} / ${category.display_name}` : category.display_name;
+}
+
+function buildFormValues(product: ProductRow | null | undefined, categories: ProductCategoryOption[]): ProductFormValues {
+  const selection = getProductCategorySelection(categories, product?.category_id);
+
   if (!product) {
-    return emptyFormValues;
+    return {
+      ...emptyFormValues,
+      parent_category_id: selection.parentCategoryId,
+      child_category_id: selection.childCategoryId,
+    };
   }
 
   return {
     name: product.name,
     description: product.description ?? "",
     price: String(product.price),
-    category_id: product.category_id ?? "",
+    parent_category_id: selection.parentCategoryId,
+    child_category_id: selection.childCategoryId,
     stock_quantity: String(product.stock_quantity),
   };
 }
 
-function validateProductForm(values: ProductFormValues) {
+function validateProductForm(values: ProductFormValues, categories: ProductCategoryOption[]) {
   const name = values.name.trim();
   const description = values.description.trim();
   const price = Number(values.price);
   const stockQuantity = values.stock_quantity.trim() ? Number(values.stock_quantity) : 0;
-  const categoryId = values.category_id.trim();
+  const categoryId = getSubmittedCategoryId(values, categories);
 
   if (!name || !description || !values.price || !categoryId) {
     return { error: "يرجى إكمال جميع الحقول المطلوبة." };
@@ -126,7 +191,12 @@ async function uploadProductImage(file: File) {
 
 async function loadVendorCategories(): Promise<ProductCategoryOption[]> {
   const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase.from("categories").select("id, name, name_ar, icon").order("name", { ascending: true });
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, name_ar, slug, icon, image_url, sort_order, is_active, parent_id, created_at")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
 
   if (error) {
     throw error;
@@ -136,6 +206,12 @@ async function loadVendorCategories(): Promise<ProductCategoryOption[]> {
     id: String(category.id),
     name: String(category.name),
     name_ar: category.name_ar ? String(category.name_ar) : null,
+    slug: category.slug ? String(category.slug) : null,
+    icon: category.icon ? String(category.icon) : null,
+    image_url: category.image_url ? String(category.image_url) : null,
+    sort_order: Number(category.sort_order ?? 0),
+    is_active: Boolean(category.is_active),
+    parent_id: category.parent_id ? String(category.parent_id) : null,
     display_name: formatCategoryLabel({
       name: String(category.name),
       name_ar: category.name_ar ? String(category.name_ar) : null,
@@ -187,17 +263,20 @@ function VendorProductForm({
   onCancel?: () => void;
 }) {
   const { t } = useLocale();
-  const [values, setValues] = useState<ProductFormValues>(buildFormValues(product));
+  const [values, setValues] = useState<ProductFormValues>(buildFormValues(product, categories));
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
-    setValues(buildFormValues(product));
+    setValues(buildFormValues(product, categories));
     setImageFile(null);
     setMessage(null);
     setMessageType(null);
-  }, [product, mode]);
+  }, [categories, product, mode]);
+
+  const topLevelCategories = useMemo(() => getTopLevelCategories(categories), [categories]);
+  const childCategories = useMemo(() => getCategoryChildren(categories, values.parent_category_id), [categories, values.parent_category_id]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -207,13 +286,14 @@ function VendorProductForm({
       name: String(formData.get("name") ?? ""),
       description: String(formData.get("description") ?? ""),
       price: String(formData.get("price") ?? ""),
-      category_id: String(formData.get("category_id") ?? ""),
+      parent_category_id: String(formData.get("parent_category_id") ?? ""),
+      child_category_id: String(formData.get("child_category_id") ?? ""),
       stock_quantity: String(formData.get("stock_quantity") ?? "0"),
     };
 
     setValues(nextValues);
 
-    const validation = validateProductForm(nextValues);
+    const validation = validateProductForm(nextValues, categories);
     if (validation.error) {
       setMessage(validation.error);
       setMessageType("error");
@@ -280,14 +360,14 @@ function VendorProductForm({
         <label htmlFor={`${mode}-category`}>{t("Category")}</label>
         <select
           id={`${mode}-category`}
-          name="category_id"
+          name="parent_category_id"
           className="input"
-          value={values.category_id}
-          onChange={(event) => setValues((current) => ({ ...current, category_id: event.target.value }))}
+          value={values.parent_category_id}
+          onChange={(event) => setValues((current) => ({ ...current, parent_category_id: event.target.value, child_category_id: "" }))}
           required
         >
             <option value="">{t("Select category")}</option>
-            {categories.map((category) => (
+            {topLevelCategories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.display_name}
               </option>
@@ -295,6 +375,26 @@ function VendorProductForm({
         </select>
         {categories.length === 0 ? <p className="danger">{t("No categories are currently available yet.")}</p> : null}
       </div>
+      {childCategories.length > 0 ? (
+        <div className="field">
+          <label htmlFor={`${mode}-subcategory`}>الفئة الفرعية</label>
+          <select
+            id={`${mode}-subcategory`}
+            name="child_category_id"
+            className="input"
+            value={values.child_category_id}
+            onChange={(event) => setValues((current) => ({ ...current, child_category_id: event.target.value }))}
+            required
+          >
+            <option value="">اختر الفئة الفرعية</option>
+            {childCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.display_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       <div className="field">
         <label htmlFor={`${mode}-stock`}>{t("Stock Quantity")}</label>
         <Input
@@ -459,10 +559,11 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         name: String(formData.get("name") ?? ""),
         description: String(formData.get("description") ?? ""),
         price: String(formData.get("price") ?? ""),
-        category_id: String(formData.get("category_id") ?? ""),
+        parent_category_id: String(formData.get("parent_category_id") ?? ""),
+        child_category_id: String(formData.get("child_category_id") ?? ""),
         stock_quantity: String(formData.get("stock_quantity") ?? "0"),
       };
-      const validation = validateProductForm(values);
+      const validation = validateProductForm(values, categories);
 
       if (validation.error || !validation.payload) {
         throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
@@ -515,10 +616,11 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         name: String(formData.get("name") ?? ""),
         description: String(formData.get("description") ?? ""),
         price: String(formData.get("price") ?? ""),
-        category_id: String(formData.get("category_id") ?? ""),
+        parent_category_id: String(formData.get("parent_category_id") ?? ""),
+        child_category_id: String(formData.get("child_category_id") ?? ""),
         stock_quantity: String(formData.get("stock_quantity") ?? "0"),
       };
-      const validation = validateProductForm(values);
+      const validation = validateProductForm(values, categories);
 
       if (validation.error || !validation.payload) {
         throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
@@ -751,7 +853,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
               <strong>{product.name}</strong>
               {product.description ? <span className="muted">{product.description}</span> : null}
             </div>,
-            categories.find((category) => category.id === product.category_id)?.display_name ?? "-",
+            getCategoryDisplayName(categories, product.category_id),
             formatCurrency(product.price),
             `${product.stock_quantity}`,
             <Badge key={`${product.id}-status`} className={product.is_active ? "status-delivered" : "status-cancelled"}>

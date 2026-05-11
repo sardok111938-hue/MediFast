@@ -128,7 +128,9 @@ export async function listProductCategories(): Promise<ProductCategoryOption[]> 
 
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, name_ar, icon")
+    .select("id, name, name_ar, slug, icon, image_url, sort_order, is_active, parent_id, created_at")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
   if (error) throw error;
@@ -137,6 +139,12 @@ export async function listProductCategories(): Promise<ProductCategoryOption[]> 
     id: String(category.id),
     name: String(category.name),
     name_ar: category.name_ar ? String(category.name_ar) : null,
+    slug: category.slug ? String(category.slug) : null,
+    icon: category.icon ? String(category.icon) : null,
+    image_url: category.image_url ? String(category.image_url) : null,
+    sort_order: Number(category.sort_order ?? 0),
+    is_active: Boolean(category.is_active),
+    parent_id: category.parent_id ? String(category.parent_id) : null,
     display_name: formatCategoryLabel({
       name: String(category.name),
       name_ar: category.name_ar ? String(category.name_ar) : null,

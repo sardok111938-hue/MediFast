@@ -29,7 +29,16 @@ export default async function VendorDashboardPage() {
         title="Dashboard"
         description="Keep order fulfillment, cash collection visibility, and catalog health in one practical operations view."
       />
-
+<Card className="medical-panel">
+  <div className="inline-actions">
+    <Link href="/vendor/settings" className="button">
+      إعدادات المتجر
+    </Link>
+    <Link href="/vendor/products/new" className="button secondary-button">
+      إضافة منتج
+    </Link>
+  </div>
+</Card>
       {!overview.hasVendor ? (
         <Card className="medical-panel">
           <EmptyState title="Vendor not ready" message="This account is not linked to a vendor record yet." />
@@ -82,21 +91,21 @@ export default async function VendorDashboardPage() {
         </Card>
 
         <Card className="medical-panel">
-          <div className="inline-actions">
-            <Link href="/vendor/orders?status=placed" className="button">
-              مراجعة الطلبات الجديدة
-            </Link>
-            <Link href="/vendor/orders?status=ready_for_pickup" className="button secondary-button">
-              فتح قائمة الاستلام
-            </Link>
-            <Link href="/vendor/products" className="button secondary-button">
-              إدارة المنتجات
-            </Link>
-            <Link href="/vendor/inventory" className="button secondary-button">
-              مراجعة المخزون
-            </Link>
-          </div>
-        </Card>
+  <div className="inline-actions">
+    <Link href="/vendor/orders?status=placed" className="button">
+      مراجعة الطلبات الجديدة
+    </Link>
+    <Link href="/vendor/orders?status=ready_for_pickup" className="button secondary-button">
+      فتح قائمة الاستلام
+    </Link>
+    <Link href="/vendor/products" className="button secondary-button">
+      إدارة المنتجات
+    </Link>
+    <Link href="/vendor/inventory" className="button secondary-button">
+      مراجعة المخزون
+    </Link>
+  </div>
+</Card>
       </section>
 
       <section className="detail-grid">

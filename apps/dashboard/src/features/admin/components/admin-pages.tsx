@@ -57,7 +57,8 @@ type ProductFormValues = {
   name: string;
   description: string;
   price: string;
-  category_id: string;
+  parent_category_id: string;
+  child_category_id: string;
 };
 
 type AdminProductManagerData = {
@@ -87,7 +88,6 @@ type AdminVendorRow = {
   id: string;
   name: string;
   approvalStatus: string;
-  isActive: boolean;
   address: string;
 };
 
@@ -111,6 +111,12 @@ type AdminCategoryRow = {
   id: string;
   name: string;
   nameAr: string | null;
+  slug: string | null;
+  icon: string | null;
+  imageUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  parentId: string | null;
   displayName: string;
   createdAt: string;
 };
@@ -118,7 +124,85 @@ type AdminCategoryRow = {
 type CategoryFormValues = {
   name: string;
   nameAr: string;
+  slug: string;
+  icon: string;
+  imageUrl: string;
+  sortOrder: string;
+  isActive: boolean;
+  parentId: string;
 };
+
+const emptyCategoryFormValues: CategoryFormValues = {
+  name: "",
+  nameAr: "",
+  slug: "",
+  icon: "",
+  imageUrl: "",
+  sortOrder: "0",
+  isActive: true,
+  parentId: "",
+};
+
+function getCategoryLabel(category: Pick<AdminCategoryRow, "name" | "nameAr">) {
+  return category.nameAr ?? category.name;
+}
+
+function buildCategoryFormValues(category?: AdminCategoryRow | null): CategoryFormValues {
+  return {
+    name: category?.name ?? "",
+    nameAr: category?.nameAr ?? "",
+    slug: category?.slug ?? "",
+    icon: category?.icon ?? "",
+    imageUrl: category?.imageUrl ?? "",
+    sortOrder: category ? String(category.sortOrder) : "0",
+    isActive: category?.isActive ?? true,
+    parentId: category?.parentId ?? "",
+  };
+}
+
+function validateCategoryForm(values: CategoryFormValues, editingCategoryId?: string | null) {
+  const sortOrder = Number(values.sortOrder || 0);
+
+  if (!values.name.trim()) {
+    return { error: "اسم الفئة مطلوب." };
+  }
+
+  if (Number.isNaN(sortOrder)) {
+    return { error: "ترتيب العرض يجب أن يكون رقمًا." };
+  }
+
+  if (values.parentId && values.parentId === editingCategoryId) {
+    return { error: "لا يمكن جعل الفئة تابعة لنفسها." };
+  }
+
+  return {
+    error: null,
+    payload: {
+      name: values.name.trim(),
+      nameAr: values.nameAr.trim() || null,
+      slug: values.slug.trim() || null,
+      icon: values.icon.trim() || null,
+      imageUrl: values.imageUrl.trim() || null,
+      sortOrder,
+      isActive: values.isActive,
+      parentId: values.parentId.trim() || null,
+    },
+  };
+}
+
+function sortAdminCategories(left: AdminCategoryRow, right: AdminCategoryRow) {
+  return left.sortOrder - right.sortOrder || getCategoryLabel(left).localeCompare(getCategoryLabel(right), "ar");
+}
+
+function getCategoryTree(categories: AdminCategoryRow[]) {
+  return categories
+    .filter((category) => !category.parentId)
+    .sort(sortAdminCategories)
+    .map((parent) => ({
+      parent,
+      children: categories.filter((category) => category.parentId === parent.id).sort(sortAdminCategories),
+    }));
+}
 
 const orderStatusOptions = [
   "placed",
@@ -247,7 +331,7 @@ async function loadVendorsTable(): Promise<TableModel> {
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("vendors")
-    .select("id, name, address_line_1, area, city, approval_status, is_active")
+    .select("id, name, address_line_1, area, city, approval_status")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -256,12 +340,11 @@ async function loadVendorsTable(): Promise<TableModel> {
 
   return {
     title: "المتاجر",
-    headers: ["الاسم", "العنوان", "الموافقة", "الحالة"],
+    headers: ["الاسم", "العنوان", "الموافقة"],
     rows: (data ?? []).map((vendor) => [
       String(vendor.name),
       [vendor.address_line_1, vendor.area, vendor.city].filter(Boolean).join("، ") || "-",
       String(vendor.approval_status),
-      vendor.is_active ? "نشط" : "مغلق",
     ]),
   };
 }
@@ -331,7 +414,8 @@ async function loadCategoriesTable(): Promise<TableModel> {
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, name_ar, icon, created_at")
+    .select("id, name, name_ar, slug, icon, image_url, sort_order, is_active, parent_id, created_at")
+    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
   if (error) {
@@ -340,15 +424,15 @@ async function loadCategoriesTable(): Promise<TableModel> {
 
   return {
     title: "الفئات",
-    headers: ["الاسم العربي", "الاسم الداخلي", "تاريخ الإنشاء", "حالة الكتالوج"],
+    headers: ["الفئة", "Slug", "النوع", "الحالة"],
     rows: (data ?? []).map((category) => [
       formatCategoryLabel({
         name: String(category.name),
         name_ar: category.name_ar ? String(category.name_ar) : null,
       }) || "-",
-      String(category.name),
-      category.created_at ? formatDate(String(category.created_at)) : "-",
-      "نشط",
+      category.slug ? String(category.slug) : "-",
+      category.parent_id ? "فرعية" : "رئيسية",
+      category.is_active ? "نشطة" : "غير نشطة",
     ]),
   };
 }
@@ -388,7 +472,7 @@ async function loadAdminVendorsData(): Promise<AdminVendorRow[]> {
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("vendors")
-    .select("id, name, approval_status, is_active, address_line_1, area, city")
+    .select("id, name, approval_status, address_line_1, area, city")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -399,7 +483,6 @@ async function loadAdminVendorsData(): Promise<AdminVendorRow[]> {
     id: String(vendor.id),
     name: String(vendor.name),
     approvalStatus: String(vendor.approval_status),
-    isActive: Boolean(vendor.is_active),
     address: [vendor.address_line_1, vendor.area, vendor.city].filter(Boolean).join("، ") || "-",
   }));
 }
@@ -463,7 +546,8 @@ async function loadAdminCategoriesData(): Promise<AdminCategoryRow[]> {
   const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, name_ar, icon, created_at")
+    .select("id, name, name_ar, slug, icon, image_url, sort_order, is_active, parent_id, created_at")
+    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
   if (error) {
@@ -474,6 +558,12 @@ async function loadAdminCategoriesData(): Promise<AdminCategoryRow[]> {
     id: String(category.id),
     name: String(category.name),
     nameAr: category.name_ar ? String(category.name_ar) : null,
+    slug: category.slug ? String(category.slug) : null,
+    icon: category.icon ? String(category.icon) : null,
+    imageUrl: category.image_url ? String(category.image_url) : null,
+    sortOrder: Number(category.sort_order ?? 0),
+    isActive: Boolean(category.is_active),
+    parentId: category.parent_id ? String(category.parent_id) : null,
     displayName: formatCategoryLabel({
       name: String(category.name),
       name_ar: category.name_ar ? String(category.name_ar) : null,
@@ -501,7 +591,12 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
   const supabase = getSupabaseBrowserClient();
 
   const [categoriesResult, productsResult] = await Promise.all([
-    supabase.from("categories").select("id, name, name_ar, icon").order("name", { ascending: true }),
+    supabase
+      .from("categories")
+      .select("id, name, name_ar, slug, icon, image_url, sort_order, is_active, parent_id, created_at")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
     supabase
       .from("products")
       .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
@@ -522,6 +617,12 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
       id: String(category.id),
       name: String(category.name),
       name_ar: category.name_ar ? String(category.name_ar) : null,
+      slug: category.slug ? String(category.slug) : null,
+      icon: category.icon ? String(category.icon) : null,
+      image_url: category.image_url ? String(category.image_url) : null,
+      sort_order: Number(category.sort_order ?? 0),
+      is_active: Boolean(category.is_active),
+      parent_id: category.parent_id ? String(category.parent_id) : null,
       display_name: formatCategoryLabel({
         name: String(category.name),
         name_ar: category.name_ar ? String(category.name_ar) : null,
@@ -544,20 +645,74 @@ async function resolveDefaultVendorId() {
   return data?.id ? String(data.id) : null;
 }
 
-function buildInitialProductFormValues(product?: ProductRow | null): ProductFormValues {
+function getCategoryChildren(categories: ProductCategoryOption[], parentCategoryId: string) {
+  return categories.filter((category) => category.parent_id === parentCategoryId);
+}
+
+function getTopLevelCategories(categories: ProductCategoryOption[]) {
+  return categories.filter((category) => !category.parent_id);
+}
+
+function getProductCategorySelection(categories: ProductCategoryOption[], categoryId?: string | null) {
+  const category = categories.find((nextCategory) => nextCategory.id === categoryId);
+
+  if (!category) {
+    return {
+      parentCategoryId: categoryId ?? "",
+      childCategoryId: "",
+    };
+  }
+
+  if (category.parent_id) {
+    return {
+      parentCategoryId: category.parent_id,
+      childCategoryId: category.id,
+    };
+  }
+
+  return {
+    parentCategoryId: category.id,
+    childCategoryId: "",
+  };
+}
+
+function getSubmittedProductCategoryId(values: ProductFormValues, categories: ProductCategoryOption[]) {
+  const childCategories = values.parent_category_id ? getCategoryChildren(categories, values.parent_category_id) : [];
+  return childCategories.length > 0 ? values.child_category_id.trim() : values.parent_category_id.trim();
+}
+
+function getCategoryDisplayName(categories: ProductCategoryOption[], categoryId?: string | null) {
+  const category = categories.find((nextCategory) => nextCategory.id === categoryId);
+
+  if (!category) {
+    return "-";
+  }
+
+  if (!category.parent_id) {
+    return category.display_name;
+  }
+
+  const parentCategory = categories.find((nextCategory) => nextCategory.id === category.parent_id);
+  return parentCategory ? `${parentCategory.display_name} / ${category.display_name}` : category.display_name;
+}
+
+function buildInitialProductFormValuesWithCategories(product: ProductRow | null | undefined, categories: ProductCategoryOption[]): ProductFormValues {
+  const selection = getProductCategorySelection(categories, product?.category_id);
+
   return {
     name: product?.name ?? "",
     description: product?.description ?? "",
     price: product ? String(product.price) : "",
-    category_id: product?.category_id ?? "",
+    parent_category_id: selection.parentCategoryId,
+    child_category_id: selection.childCategoryId,
   };
 }
 
-function validateProductForm(values: ProductFormValues) {
+function validateProductForm(values: ProductFormValues, categories: ProductCategoryOption[]) {
   const name = values.name.trim();
   const description = values.description.trim();
   const price = Number(values.price);
-  const categoryId = values.category_id.trim();
+  const categoryId = getSubmittedProductCategoryId(values, categories);
 
   if (!name || !description || !values.price || !categoryId) {
     return { error: "يرجى إكمال جميع الحقول المطلوبة." };
@@ -613,13 +768,16 @@ function AdminProductForm({
   const { t } = useLocale();
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
-  const [values, setValues] = useState<ProductFormValues>(buildInitialProductFormValues(product));
+  const [values, setValues] = useState<ProductFormValues>(buildInitialProductFormValuesWithCategories(product, categories));
 
   useEffect(() => {
-    setValues(buildInitialProductFormValues(product));
+    setValues(buildInitialProductFormValuesWithCategories(product, categories));
     setMessage(null);
     setMessageType(null);
-  }, [product, mode]);
+  }, [categories, product, mode]);
+
+  const topLevelCategories = getTopLevelCategories(categories);
+  const childCategories = values.parent_category_id ? getCategoryChildren(categories, values.parent_category_id) : [];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -628,12 +786,13 @@ function AdminProductForm({
       name: String(formData.get("name") ?? ""),
       description: String(formData.get("description") ?? ""),
       price: String(formData.get("price") ?? ""),
-      category_id: String(formData.get("category_id") ?? ""),
+      parent_category_id: String(formData.get("parent_category_id") ?? ""),
+      child_category_id: String(formData.get("child_category_id") ?? ""),
     };
 
     setValues(nextValues);
 
-    const validation = validateProductForm(nextValues);
+    const validation = validateProductForm(nextValues, categories);
     if (validation.error) {
       setMessage(validation.error);
       setMessageType("error");
@@ -646,7 +805,7 @@ function AdminProductForm({
       setMessageType("success");
 
       if (mode === "create") {
-        setValues(buildInitialProductFormValues());
+        setValues(buildInitialProductFormValuesWithCategories(null, categories));
         event.currentTarget.reset();
       }
     } catch (error) {
@@ -700,20 +859,40 @@ function AdminProductForm({
           <label htmlFor={`${mode}-category`}>{t("Category")}</label>
           <select
             id={`${mode}-category`}
-            name="category_id"
+            name="parent_category_id"
             className="input"
-            value={values.category_id}
-            onChange={(event) => setValues((current) => ({ ...current, category_id: event.target.value }))}
+            value={values.parent_category_id}
+            onChange={(event) => setValues((current) => ({ ...current, parent_category_id: event.target.value, child_category_id: "" }))}
             required
           >
             <option value="">{t("Select category")}</option>
-            {categories.map((category) => (
+            {topLevelCategories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.display_name}
               </option>
             ))}
           </select>
         </div>
+        {childCategories.length > 0 ? (
+          <div className="field">
+            <label htmlFor={`${mode}-subcategory`}>الفئة الفرعية</label>
+            <select
+              id={`${mode}-subcategory`}
+              name="child_category_id"
+              className="input"
+              value={values.child_category_id}
+              onChange={(event) => setValues((current) => ({ ...current, child_category_id: event.target.value }))}
+              required
+            >
+              <option value="">اختر الفئة الفرعية</option>
+              {childCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.display_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div className="field">
           <label htmlFor={`${mode}-image`}>{t("Image Upload")}</label>
           <input id={`${mode}-image`} name="image" type="file" accept="image/*" className="input" />
@@ -782,9 +961,10 @@ function AdminProductsManager() {
         name: String(formData.get("name") ?? ""),
         description: String(formData.get("description") ?? ""),
         price: String(formData.get("price") ?? ""),
-        category_id: String(formData.get("category_id") ?? ""),
+        parent_category_id: String(formData.get("parent_category_id") ?? ""),
+        child_category_id: String(formData.get("child_category_id") ?? ""),
       };
-      const validation = validateProductForm(values);
+      const validation = validateProductForm(values, state.data?.categories ?? []);
 
       if (validation.error || !validation.payload) {
         throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
@@ -838,9 +1018,10 @@ function AdminProductsManager() {
         name: String(formData.get("name") ?? ""),
         description: String(formData.get("description") ?? ""),
         price: String(formData.get("price") ?? ""),
-        category_id: String(formData.get("category_id") ?? ""),
+        parent_category_id: String(formData.get("parent_category_id") ?? ""),
+        child_category_id: String(formData.get("child_category_id") ?? ""),
       };
-      const validation = validateProductForm(values);
+      const validation = validateProductForm(values, state.data?.categories ?? []);
 
       if (validation.error || !validation.payload) {
         throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
@@ -957,7 +1138,7 @@ function AdminProductsManager() {
           headers={["الاسم", "الفئة", "السعر", "الإجراءات"]}
           rows={products.map((product) => [
             product.name,
-            categories.find((category) => category.id === product.category_id)?.display_name ?? "-",
+            getCategoryDisplayName(categories, product.category_id),
             `${formatCurrency(product.price)}${product.image_url ? " • الصورة جاهزة" : " • لا توجد صورة"}`,
             <div key={`${product.id}-actions`} className="table-actions">
               <Button className="secondary-button" onClick={() => setEditingProductId(product.id)} disabled={saving || deletingId === product.id}>
@@ -1313,15 +1494,14 @@ function AdminVendorsManager() {
     void load();
   }, []);
 
-  async function updateVendor(vendorId: string, updates: { approval_status?: string; is_active?: boolean }, message: string) {
+  async function updateVendor(vendorId: string, approvalStatus: "approved" | "rejected", message: string) {
     setUpdatingVendorId(vendorId);
     setFeedback(null);
 
     try {
       const result = await adminUpdateVendorAction({
         vendorId,
-        approvalStatus: updates.approval_status,
-        isActive: updates.is_active,
+        approvalStatus,
       });
 
       if (!result.success) {
@@ -1371,12 +1551,11 @@ function AdminVendorsManager() {
       ) : (
         <Table
           title="المتاجر"
-          headers={["الاسم", "العنوان", "الموافقة", "الحالة", "الإجراءات"]}
+          headers={["الاسم", "العنوان", "الموافقة", "الإجراءات"]}
           rows={vendors.map((vendor) => [
             vendor.name,
             vendor.address,
             vendor.approvalStatus,
-            vendor.isActive ? "نشط" : "غير نشط",
             <div key={`${vendor.id}-actions`} className="table-actions">
               <Button
                 className="secondary-button"
@@ -1384,8 +1563,8 @@ function AdminVendorsManager() {
                 onClick={() =>
                   void updateVendor(
                     vendor.id,
-                    { approval_status: "approved" },
-                    `تم اعتماد ${vendor.name} بنجاح.`
+                    "approved",
+                    `تم اعتماد ${vendor.name} وتفعيله بنجاح.`
                   )
                 }
               >
@@ -1397,24 +1576,12 @@ function AdminVendorsManager() {
                 onClick={() =>
                   void updateVendor(
                     vendor.id,
-                    { approval_status: "rejected" },
-                    `تم رفض ${vendor.name} بنجاح.`
+                    "rejected",
+                    `تم رفض ${vendor.name} وتعطيله بنجاح.`
                   )
                 }
               >
                 رفض
-              </Button>
-              <Button
-                disabled={updatingVendorId === vendor.id}
-                onClick={() =>
-                  void updateVendor(
-                    vendor.id,
-                    { is_active: !vendor.isActive },
-                    `${vendor.isActive ? "تم تعطيل" : "تم تفعيل"} ${vendor.name} بنجاح.`
-                  )
-                }
-              >
-                {updatingVendorId === vendor.id ? "جارٍ الحفظ..." : vendor.isActive ? "تعطيل" : "تفعيل"}
               </Button>
             </div>,
           ])}
@@ -1662,11 +1829,9 @@ function AdminCategoriesManager() {
     error: null,
     loading: true,
   });
-  const [categoryName, setCategoryName] = useState("");
-  const [categoryArabicName, setCategoryArabicName] = useState("");
+  const [categoryForm, setCategoryForm] = useState<CategoryFormValues>(emptyCategoryFormValues);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [editingArabicName, setEditingArabicName] = useState("");
+  const [editingForm, setEditingForm] = useState<CategoryFormValues>(emptyCategoryFormValues);
   const [saving, setSaving] = useState(false);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -1700,13 +1865,10 @@ function AdminCategoriesManager() {
 
   async function createCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const name = categoryName.trim();
 
-    if (!name) {
-      setFeedback({
-        type: "error",
-        message: "اسم الفئة مطلوب.",
-      });
+    const validation = validateCategoryForm(categoryForm);
+    if (validation.error || !validation.payload) {
+      setFeedback({ type: "error", message: validation.error ?? "يرجى مراجعة بيانات الفئة." });
       return;
     }
 
@@ -1714,14 +1876,13 @@ function AdminCategoriesManager() {
     setFeedback(null);
 
     try {
-      const result = await adminCreateCategoryAction({ name, nameAr: categoryArabicName.trim() || null });
+      const result = await adminCreateCategoryAction(validation.payload);
 
       if (!result.success) {
         throw new Error(result.error ?? "تعذر إنشاء الفئة.");
       }
 
-      setCategoryName("");
-      setCategoryArabicName("");
+      setCategoryForm(emptyCategoryFormValues);
       setFeedback({
         type: "success",
         message: "تم إنشاء الفئة بنجاح.",
@@ -1738,13 +1899,9 @@ function AdminCategoriesManager() {
   }
 
   async function saveCategory(categoryId: string) {
-    const name = editingName.trim();
-
-    if (!name) {
-      setFeedback({
-        type: "error",
-        message: "اسم الفئة مطلوب.",
-      });
+    const validation = validateCategoryForm(editingForm, categoryId);
+    if (validation.error || !validation.payload) {
+      setFeedback({ type: "error", message: validation.error ?? "يرجى مراجعة بيانات الفئة." });
       return;
     }
 
@@ -1754,8 +1911,7 @@ function AdminCategoriesManager() {
     try {
       const result = await adminUpdateCategoryAction({
         categoryId,
-        name,
-        nameAr: editingArabicName.trim() || null,
+        ...validation.payload,
       });
 
       if (!result.success) {
@@ -1763,8 +1919,7 @@ function AdminCategoriesManager() {
       }
 
       setEditingCategoryId(null);
-      setEditingName("");
-      setEditingArabicName("");
+      setEditingForm(emptyCategoryFormValues);
       setFeedback({
         type: "success",
         message: "تم تحديث الفئة بنجاح.",
@@ -1795,8 +1950,7 @@ function AdminCategoriesManager() {
 
       if (editingCategoryId === categoryId) {
         setEditingCategoryId(null);
-        setEditingName("");
-        setEditingArabicName("");
+        setEditingForm(emptyCategoryFormValues);
       }
 
       setFeedback({
@@ -1831,6 +1985,19 @@ function AdminCategoriesManager() {
   }
 
   const categories = state.data ?? [];
+  const displayCategories = categories
+    .filter((category) => category.parentId === null)
+    .sort((left, right) => {
+      const leftSortOrder = left.sortOrder ?? 9999;
+      const rightSortOrder = right.sortOrder ?? 9999;
+
+      if (leftSortOrder !== rightSortOrder) {
+        return leftSortOrder - rightSortOrder;
+      }
+
+      return (left.nameAr ?? left.name).localeCompare(right.nameAr ?? right.name, "ar");
+    });
+  const parentCategories = displayCategories;
 
   return (
     <div className="stack">
@@ -1840,8 +2007,8 @@ function AdminCategoriesManager() {
             <label htmlFor="admin-category-name">الاسم الداخلي</label>
             <Input
               id="admin-category-name"
-              value={categoryName}
-              onChange={(event) => setCategoryName(event.target.value)}
+              value={categoryForm.name}
+              onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))}
               placeholder="Medicine"
             />
           </div>
@@ -1849,10 +2016,42 @@ function AdminCategoriesManager() {
             <label htmlFor="admin-category-name-ar">الاسم العربي</label>
             <Input
               id="admin-category-name-ar"
-              value={categoryArabicName}
-              onChange={(event) => setCategoryArabicName(event.target.value)}
+              value={categoryForm.nameAr}
+              onChange={(event) => setCategoryForm((current) => ({ ...current, nameAr: event.target.value }))}
               placeholder="الأدوية"
             />
+          </div>
+          <div className="field">
+            <label htmlFor="admin-category-slug">Slug</label>
+            <Input id="admin-category-slug" value={categoryForm.slug} onChange={(event) => setCategoryForm((current) => ({ ...current, slug: event.target.value }))} placeholder="medicine" />
+          </div>
+          <div className="field">
+            <label htmlFor="admin-category-parent">الفئة الأم</label>
+            <select id="admin-category-parent" className="input" value={categoryForm.parentId} onChange={(event) => setCategoryForm((current) => ({ ...current, parentId: event.target.value }))}>
+              <option value="">فئة رئيسية</option>
+              {parentCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {getCategoryLabel(category)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="admin-category-icon">Icon</label>
+            <Input id="admin-category-icon" value={categoryForm.icon} onChange={(event) => setCategoryForm((current) => ({ ...current, icon: event.target.value }))} placeholder="medkit-outline" />
+          </div>
+          <div className="field">
+            <label htmlFor="admin-category-image">Image URL</label>
+            <Input id="admin-category-image" value={categoryForm.imageUrl} onChange={(event) => setCategoryForm((current) => ({ ...current, imageUrl: event.target.value }))} placeholder="https://..." />
+          </div>
+          <div className="field">
+            <label htmlFor="admin-category-sort">ترتيب العرض</label>
+            <Input id="admin-category-sort" type="number" value={categoryForm.sortOrder} onChange={(event) => setCategoryForm((current) => ({ ...current, sortOrder: event.target.value }))} />
+          </div>
+          <div className="field">
+            <label className="muted" htmlFor="admin-category-active">
+              <input id="admin-category-active" type="checkbox" checked={categoryForm.isActive} onChange={(event) => setCategoryForm((current) => ({ ...current, isActive: event.target.checked }))} /> نشطة
+            </label>
           </div>
           <div className="actions">
             <Button type="submit" disabled={saving}>
@@ -1871,20 +2070,49 @@ function AdminCategoriesManager() {
       ) : (
         <Table
           title="الفئات"
-          headers={["الاسم العربي", "الاسم الداخلي", "تاريخ الإنشاء", "الحالة", "الإجراءات"]}
-          rows={categories.map((category) => [
+          headers={["الفئة", "Slug", "الأيقونة", "الترتيب", "الحالة", "الإجراءات"]}
+          rows={displayCategories.map((category) => [
             editingCategoryId === category.id ? (
-              <Input key={`${category.id}-name-ar-input`} value={editingArabicName} onChange={(event) => setEditingArabicName(event.target.value)} />
+              <div key={`${category.id}-edit-fields`} className="form-grid">
+                <Input value={editingForm.nameAr} onChange={(event) => setEditingForm((current) => ({ ...current, nameAr: event.target.value }))} placeholder="الاسم العربي" />
+                <Input value={editingForm.name} onChange={(event) => setEditingForm((current) => ({ ...current, name: event.target.value }))} placeholder="الاسم الداخلي" />
+                <Input value={editingForm.imageUrl} onChange={(event) => setEditingForm((current) => ({ ...current, imageUrl: event.target.value }))} placeholder="Image URL" />
+                <select className="input" value={editingForm.parentId} onChange={(event) => setEditingForm((current) => ({ ...current, parentId: event.target.value }))}>
+                  <option value="">فئة رئيسية</option>
+                  {parentCategories
+                    .filter((parentCategory) => parentCategory.id !== category.id)
+                    .map((parentCategory) => (
+                      <option key={parentCategory.id} value={parentCategory.id}>
+                        {getCategoryLabel(parentCategory)}
+                      </option>
+                    ))}
+                </select>
+              </div>
             ) : (
-              category.displayName || "-"
+              `${category.parentId ? "↳ " : ""}${category.displayName || "-"}`
             ),
             editingCategoryId === category.id ? (
-              <Input key={`${category.id}-name-input`} value={editingName} onChange={(event) => setEditingName(event.target.value)} />
+              <Input key={`${category.id}-slug-input`} value={editingForm.slug} onChange={(event) => setEditingForm((current) => ({ ...current, slug: event.target.value }))} />
             ) : (
-              category.name
+              category.slug ?? "-"
             ),
-            category.createdAt ? formatDate(category.createdAt) : "-",
-            "نشط",
+            editingCategoryId === category.id ? (
+              <Input key={`${category.id}-icon-input`} value={editingForm.icon} onChange={(event) => setEditingForm((current) => ({ ...current, icon: event.target.value }))} />
+            ) : (
+              category.icon ?? "-"
+            ),
+            editingCategoryId === category.id ? (
+              <Input key={`${category.id}-sort-input`} type="number" value={editingForm.sortOrder} onChange={(event) => setEditingForm((current) => ({ ...current, sortOrder: event.target.value }))} />
+            ) : (
+              String(category.sortOrder)
+            ),
+            editingCategoryId === category.id ? (
+              <label key={`${category.id}-active-input`} className="muted">
+                <input type="checkbox" checked={editingForm.isActive} onChange={(event) => setEditingForm((current) => ({ ...current, isActive: event.target.checked }))} /> نشطة
+              </label>
+            ) : (
+              category.isActive ? "نشطة" : "غير نشطة"
+            ),
             <div key={`${category.id}-actions`} className="table-actions">
               {editingCategoryId === category.id ? (
                 <>
@@ -1896,8 +2124,7 @@ function AdminCategoriesManager() {
                     disabled={saving}
                     onClick={() => {
                     setEditingCategoryId(null);
-                    setEditingName("");
-                    setEditingArabicName("");
+                    setEditingForm(emptyCategoryFormValues);
                   }}
                 >
                   إلغاء
@@ -1909,8 +2136,7 @@ function AdminCategoriesManager() {
                   disabled={deletingCategoryId === category.id}
                   onClick={() => {
                     setEditingCategoryId(category.id);
-                    setEditingName(category.name);
-                    setEditingArabicName(category.nameAr ?? "");
+                    setEditingForm(buildCategoryFormValues(category));
                   }}
                 >
                   تعديل
