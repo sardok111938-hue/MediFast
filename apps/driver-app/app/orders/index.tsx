@@ -1,25 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
-  DriverBadge,
   DriverButton,
   DriverEmptyCard,
   DriverErrorCard,
-  DriverHelper,
-  DriverListCard,
   DriverLoadingCard,
-  DriverRouteBlock,
+  DriverMetricTile,
+  DriverOrderCard,
+  DriverQuickAction,
   DriverScreen,
   DriverSectionTitle,
-  DriverStatCard,
   DriverSummaryGrid,
+  DriverUtilityRow,
+  shortOrderRef,
 } from "../../src/components/DriverUI";
-import { useDriverI18n } from "../../src/lib/i18n";
 import {
   claimAvailableOrder,
   formatCurrency,
-  formatDate,
   getCurrentDriverProfile,
   getPaymentStatusLabel,
   getStatusLabel,
@@ -32,9 +30,62 @@ import {
 import { signOutDriver, subscribeToAssignedOrders, subscribeToAvailablePickupOrders, supabase } from "../../src/lib/supabase";
 import { theme } from "@medifast/ui";
 
+function OrderFooter({ order, showTotal = true }: { order: DriverOrder; showTotal?: boolean }) {
+  return (
+    <>
+      {showTotal ? <Text style={styles.footerText}>{formatCurrency(order.total)}</Text> : null}
+      <Text style={styles.footerText}>{getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)}</Text>
+    </>
+  );
+}
+
+function buildGoogleMapsUrl(input: { address: string; lat?: number | null; lng?: number | null }) {
+  const hasCoordinates = typeof input.lat === "number" && Number.isFinite(input.lat) && typeof input.lng === "number" && Number.isFinite(input.lng);
+  const query = hasCoordinates ? `${input.lat},${input.lng}` : input.address;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function normalizePhoneForTel(phone?: string | null) {
+  if (!phone) {
+    return null;
+  }
+
+  const compact = phone.trim().replace(/[^\d+]/g, "");
+  const normalized = compact.startsWith("00") ? `+${compact.slice(2)}` : compact;
+  const digitCount = normalized.replace(/[^\d]/g, "").length;
+
+  return digitCount >= 6 ? normalized : null;
+}
+
+function buildPhoneUrl(phone: string) {
+  return `tel:${phone}`;
+}
+
+async function openMap(input: { address: string; lat?: number | null; lng?: number | null }) {
+  await Linking.openURL(buildGoogleMapsUrl(input));
+}
+
+async function callCustomer(phone: string) {
+  await Linking.openURL(buildPhoneUrl(phone));
+}
+
+function OrderUtilities({ order, mapTarget = "dropoff" }: { order: DriverOrder; mapTarget?: "pickup" | "dropoff" }) {
+  const mapInput =
+    mapTarget === "pickup"
+      ? { address: order.pickupAddress, lat: order.pickupLat, lng: order.pickupLng }
+      : { address: order.dropoffAddress, lat: order.dropoffLat, lng: order.dropoffLng };
+  const customerPhone = normalizePhoneForTel(order.customerPhone);
+
+  return (
+    <DriverUtilityRow>
+      <DriverQuickAction label="اتصال" onPress={customerPhone ? () => void callCustomer(customerPhone) : undefined} disabled={!customerPhone} />
+      <DriverQuickAction label="خرائط" onPress={() => void openMap(mapInput)} tone="primary" />
+    </DriverUtilityRow>
+  );
+}
+
 export default function DriverOrdersListScreen() {
   const router = useRouter();
-  const { t } = useDriverI18n();
   const [driverId, setDriverId] = useState<string | null>(null);
   const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [availableOrders, setAvailableOrders] = useState<DriverOrder[]>([]);
@@ -44,12 +95,15 @@ export default function DriverOrdersListScreen() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
 
+  const activeOrder = useMemo(() => orders[0] ?? null, [orders]);
+
   const loadOrders = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (mode === "refresh") {
       setRefreshing(true);
     } else {
       setLoading(true);
     }
+
     setError(null);
 
     try {
@@ -85,6 +139,7 @@ export default function DriverOrdersListScreen() {
     const assignedChannel = subscribeToAssignedOrders(driverId, () => {
       void loadOrders("refresh");
     });
+
     const availableChannel = subscribeToAvailablePickupOrders(() => {
       void loadOrders("refresh");
     });
@@ -118,9 +173,9 @@ export default function DriverOrdersListScreen() {
 
   return (
     <DriverScreen
-      title="Orders"
-      subtitle="Pickup queue first, then your active deliveries."
-      action={<DriverButton label={loggingOut ? "Logging out..." : "Logout"} onPress={() => void handleLogout()} disabled={loggingOut} variant="secondary" />}
+      title="الطلبات"
+      subtitle="طلبات متاحة أولًا، ثم توصيلاتك النشطة."
+      action={<DriverButton label={loggingOut ? "جارٍ الخروج..." : "خروج"} onPress={() => void handleLogout()} disabled={loggingOut} variant="secondary" size="sm" />}
       scroll={false}
     >
       <ScrollView
@@ -128,73 +183,81 @@ export default function DriverOrdersListScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadOrders("refresh")} />}
         contentContainerStyle={styles.scrollContent}
       >
-        <DriverButton label="Back to Dashboard" onPress={() => router.push("/dashboard")} variant="ghost" />
+        <View style={styles.topAction}>
+          <DriverButton label="العودة للرئيسية" onPress={() => router.push("/dashboard")} variant="ghost" size="sm" />
+        </View>
 
         {loading ? (
-          <DriverLoadingCard message="Loading driver orders..." />
+          <DriverLoadingCard message="جارٍ تحميل الطلبات..." />
         ) : error ? (
           <DriverErrorCard message={error} onRetry={() => void loadOrders("refresh")} />
         ) : (
           <>
             <DriverSummaryGrid>
-              <DriverStatCard label="Available pickups" value={String(availableOrders.length)} hint="Ready orders without a driver." />
-              <DriverStatCard label="Assigned deliveries" value={String(orders.length)} hint="Deliveries currently linked to you." />
-              <DriverStatCard label="Driver availability" value={availableOrders.length > 0 ? "جاهز" : "هادئ"} hint="Pull to refresh for latest queue." />
+              <DriverMetricTile label="طلبات متاحة" value={String(availableOrders.length)} hint="جاهزة للاستلام" />
+              <DriverMetricTile label="توصيلاتي" value={String(orders.length)} hint="مسندة لك" />
+              <DriverMetricTile label="التالية" value={activeOrder ? shortOrderRef(activeOrder.id) : "—"} hint={activeOrder ? activeOrder.vendorName : "لا توجد توصيلات"} />
             </DriverSummaryGrid>
 
-            <DriverSectionTitle>Available pickup orders</DriverSectionTitle>
+            <DriverSectionTitle>طلبات متاحة</DriverSectionTitle>
 
             {availableOrders.length === 0 ? (
-              <DriverEmptyCard title="No pickup orders" message="No ready-for-pickup orders are available right now." />
+              <DriverEmptyCard title="لا توجد طلبات متاحة" message="لا توجد طلبات جاهزة للاستلام الآن." />
             ) : (
               availableOrders.map((order) => (
-                <DriverListCard
+                <DriverOrderCard
                   key={`available-${order.id}`}
-                  title={order.vendorName}
-                  subtitle={`${t("Orders")} ${order.id} • ${formatDate(order.createdAt)}`}
-                  badge={<DriverBadge label={getStatusLabel(order.orderStatus)} tone={statusTone(order.orderStatus)} />}
-                >
-                  <DriverRouteBlock pickup={order.pickupAddress} dropoff={order.dropoffAddress} />
-                  <DriverHelper>
-                    {`${t("Customer")}: ${order.customerName} • ${getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} • ${formatCurrency(order.total)}`}
-                  </DriverHelper>
-
-                  <DriverButton
-                    label={claimingOrderId === order.id ? "Accepting..." : "Accept Delivery"}
-                    onPress={() => void handleClaimOrder(order.id)}
-                    disabled={Boolean(claimingOrderId)}
-                  />
-                </DriverListCard>
+                  vendorName={order.vendorName}
+                  customerName={order.customerName}
+                  orderRef={`طلب ${shortOrderRef(order.id)}`}
+                  statusLabel={getStatusLabel(order.orderStatus)}
+                  statusTone={statusTone(order.orderStatus)}
+                  pickupAddress={order.pickupAddress}
+                  dropoffAddress={order.dropoffAddress}
+                  action={
+                    <DriverButton
+                      label={claimingOrderId === order.id ? "جارٍ القبول..." : "قبول التوصيلة"}
+                      onPress={() => void handleClaimOrder(order.id)}
+                      disabled={Boolean(claimingOrderId)}
+                    />
+                  }
+                  utilities={<OrderUtilities order={order} mapTarget="pickup" />}
+                  footer={<OrderFooter order={order} />}
+                  compact
+                />
               ))
             )}
 
-            <DriverSectionTitle>My assigned deliveries</DriverSectionTitle>
+            <DriverSectionTitle>توصيلاتي</DriverSectionTitle>
 
             {orders.length === 0 ? (
-              <DriverEmptyCard title="No assigned orders" message="Accepted deliveries will appear here." />
+              <DriverEmptyCard title="لا توجد توصيلات" message="ستظهر التوصيلات المقبولة أو المسندة لك هنا." />
             ) : (
               orders.map((order) => (
-                <DriverListCard
+                <DriverOrderCard
                   key={order.id}
-                  title={order.vendorName}
-                  subtitle={`${t("Orders")} ${order.id} • ${formatDate(order.createdAt)}`}
-                  badge={<DriverBadge label={getStatusLabel(order.orderStatus)} tone={statusTone(order.orderStatus)} />}
-                >
-                  <DriverRouteBlock pickup={order.pickupAddress} dropoff={order.dropoffAddress} />
-                  <DriverHelper>
-                    {`${t("Customer")}: ${order.customerName} • ${getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)}`}
-                  </DriverHelper>
-
-                  <DriverButton
-                    label="View Details"
-                    onPress={() =>
-                      router.push({
-                        pathname: "/orders/[orderId]",
-                        params: { orderId: order.id },
-                      })
-                    }
-                  />
-                </DriverListCard>
+                  vendorName={order.vendorName}
+                  customerName={order.customerName}
+                  orderRef={`طلب ${shortOrderRef(order.id)}`}
+                  statusLabel={getStatusLabel(order.orderStatus)}
+                  statusTone={statusTone(order.orderStatus)}
+                  pickupAddress={order.pickupAddress}
+                  dropoffAddress={order.dropoffAddress}
+                  action={
+                    <DriverButton
+                      label="عرض التفاصيل"
+                      onPress={() =>
+                        router.push({
+                          pathname: "/orders/[orderId]",
+                          params: { orderId: order.id },
+                        })
+                      }
+                    />
+                  }
+                  utilities={<OrderUtilities order={order} />}
+                  footer={<OrderFooter order={order} showTotal={false} />}
+                  compact
+                />
               ))
             )}
           </>
@@ -208,5 +271,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: theme.spacing[16],
     paddingBottom: theme.spacing[24],
+  },
+  topAction: {
+    alignItems: "flex-end",
+    marginBottom: -theme.spacing[4],
+  },
+  footerText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "600",
+    lineHeight: 18,
   },
 });

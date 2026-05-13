@@ -1,7 +1,20 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import { DriverBadge, DriverButton, DriverCard, DriverErrorCard, DriverHelper, DriverLoadingCard, DriverRouteBlock, DriverScreen, DriverSectionTitle, DriverStatCard, DriverSummaryGrid } from "../src/components/DriverUI";
+import {
+  DriverBadge,
+  DriverButton,
+  DriverCard,
+  DriverErrorCard,
+  DriverHelper,
+  DriverLoadingCard,
+  DriverMetricTile,
+  DriverOrderCard,
+  DriverScreen,
+  DriverSectionTitle,
+  DriverSummaryGrid,
+  shortOrderRef,
+} from "../src/components/DriverUI";
 import { theme } from "@medifast/ui";
 import { formatDate, getStatusLabel, listAvailablePickupOrders, listCurrentDriverOrders, normalizeError, statusTone, type DriverOrder } from "../src/lib/driver-data";
 import { useDriverI18n } from "../src/lib/i18n";
@@ -10,7 +23,7 @@ import { signOutDriver } from "../src/lib/supabase";
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
-  const { t, isRTL } = useDriverI18n();
+  const { isRTL } = useDriverI18n();
   const { driver, loading, error, refresh } = useDriverSession();
   const [summary, setSummary] = useState<{
     availablePickups: number;
@@ -54,6 +67,7 @@ export default function DriverDashboardScreen() {
 
   async function handleRefresh() {
     const nextDriver = await refresh();
+
     if (nextDriver?.driverId) {
       await loadDashboardCounts(nextDriver.driverId);
     }
@@ -67,76 +81,94 @@ export default function DriverDashboardScreen() {
   }
 
   const nextDelivery = summary.nextDelivery;
+  const firstName = driver?.fullName?.split(" ")[0];
 
   return (
-      <DriverScreen
-      title={driver?.fullName ? `${t("Hi")} ${driver.fullName.split(" ")[0]}` : "Driver Dashboard"}
-      subtitle="Pickup-ready orders and your active deliveries in one calm workspace."
-      action={<DriverButton label={loggingOut ? "Logging out..." : "Logout"} onPress={() => void handleLogout()} disabled={loggingOut} variant="secondary" />}
+    <DriverScreen
+      title={firstName ? `مرحبًا ${firstName}` : "لوحة السائق"}
+      subtitle="طلبات الاستلام والتوصيلات النشطة في مكان واحد."
+      action={<DriverButton label={loggingOut ? "جارٍ الخروج..." : "خروج"} onPress={() => void handleLogout()} disabled={loggingOut} variant="secondary" size="sm" />}
     >
       {loading ? (
-        <DriverLoadingCard message="Loading your driver dashboard..." />
+        <DriverLoadingCard message="جارٍ تحميل لوحة السائق..." />
       ) : error ? (
         <DriverErrorCard message={error} onRetry={() => void handleRefresh()} />
       ) : (
         <>
-          <DriverCard variant="accent">
-            <View style={styles.accountHeader}>
+          <DriverCard variant="accent" compact>
+            <View style={[styles.accountHeader, isRTL ? styles.rowReverse : null]}>
               <View style={styles.accountMeta}>
-                <Text style={[styles.accountName, isRTL ? styles.textRight : null]}>{driver?.fullName ?? "السائق"}</Text>
-                <View style={styles.badgeRow}>
-                  <DriverBadge label={driver?.approvalStatus ?? "unknown"} tone={statusTone(driver?.approvalStatus ?? "")} />
+                <Text style={[styles.accountLabel, isRTL ? styles.textRight : null]}>حالة السائق</Text>
+                <Text style={[styles.accountName, isRTL ? styles.textRight : null]} numberOfLines={2}>
+                  {driver?.fullName ?? "السائق"}
+                </Text>
+
+                <View style={[styles.badgeRow, isRTL ? styles.rowReverse : null]}>
+                  <DriverBadge label={driver?.approvalStatus ?? "غير معروف"} tone={statusTone(driver?.approvalStatus ?? "")} />
                   <DriverBadge label={driver?.isAvailable ? "متاح للاستلام" : "مشغول بتوصيل"} tone={driver?.isAvailable ? "success" : "info"} />
                 </View>
               </View>
-              <DriverButton label="View Orders" onPress={() => router.push("/orders")} />
+
+              <View style={styles.accountAction}>
+                <DriverButton label="عرض الطلبات" onPress={() => router.push("/orders")} size="sm" />
+              </View>
             </View>
+
             <DriverHelper>
               {driver?.isAvailable ? "أنت جاهز لقبول طلبات الاستلام المتاحة." : "سيعود توفر السائق تلقائيًا بعد تسليم الطلب الحالي."}
             </DriverHelper>
           </DriverCard>
 
           <DriverSummaryGrid>
-            <DriverStatCard
-              label="Available pickups"
-              value={countsLoading ? "..." : String(summary.availablePickups)}
-              hint="Ready orders without a driver."
-            />
-            <DriverStatCard
-              label="Assigned deliveries"
-              value={countsLoading ? "..." : String(summary.activeDeliveries)}
-              hint="Orders currently linked to you."
-            />
-            <DriverStatCard
-              label="Driver availability"
+            <DriverMetricTile label="طلبات متاحة" value={countsLoading ? "…" : String(summary.availablePickups)} hint="جاهزة للاستلام" />
+            <DriverMetricTile label="توصيلاتي" value={countsLoading ? "…" : String(summary.activeDeliveries)} hint="نشطة الآن" />
+            <DriverMetricTile
+              label="التوفر"
               value={driver?.isAvailable ? "متاح" : "مشغول"}
-              hint={summary.latestAssignedAt ? `${t("Latest assignment")} ${formatDate(summary.latestAssignedAt)}` : "Synced from driver profile."}
+              hint={summary.latestAssignedAt ? `آخر تحديث ${formatDate(summary.latestAssignedAt)}` : "محدّث الآن"}
             />
           </DriverSummaryGrid>
 
-          <DriverCard>
-            <DriverSectionTitle>{nextDelivery ? "التوصيلة التالية" : "جاهز للعمل"}</DriverSectionTitle>
-            {nextDelivery ? (
-              <>
-                <View style={styles.orderHeader}>
-                  <View style={styles.orderHeaderText}>
-                    <Text style={[styles.orderVendor, isRTL ? styles.textRight : null]}>{nextDelivery.vendorName}</Text>
-                    <Text style={[styles.orderMeta, isRTL ? styles.textRight : null]}>{`${t("Orders")} ${nextDelivery.id}`}</Text>
-                  </View>
-                  <DriverBadge label={getStatusLabel(nextDelivery.orderStatus)} tone={statusTone(nextDelivery.orderStatus)} />
-                </View>
-                <DriverRouteBlock pickup={nextDelivery.pickupAddress} dropoff={nextDelivery.dropoffAddress} />
-                <DriverButton label="Open Delivery" onPress={() => router.push({ pathname: "/orders/[orderId]", params: { orderId: nextDelivery.id } })} />
-              </>
-            ) : (
-              <>
-                <DriverHelper>افتح قائمة الطلبات لقبول طلب استلام أو متابعة التوصيلات المسندة.</DriverHelper>
-                <DriverButton label="View Orders" onPress={() => router.push("/orders")} />
-              </>
-            )}
-          </DriverCard>
+          <DriverSectionTitle>{nextDelivery ? "التوصيلة التالية" : "جاهز للعمل"}</DriverSectionTitle>
 
-          <DriverButton label="Refresh Dashboard" onPress={() => void handleRefresh()} variant="ghost" />
+          {nextDelivery ? (
+            <DriverOrderCard
+              vendorName={nextDelivery.vendorName}
+              customerName={nextDelivery.customerName}
+              orderRef={`طلب ${shortOrderRef(nextDelivery.id)}`}
+              statusLabel={getStatusLabel(nextDelivery.orderStatus)}
+              statusTone={statusTone(nextDelivery.orderStatus)}
+              pickupAddress={nextDelivery.pickupAddress}
+              dropoffAddress={nextDelivery.dropoffAddress}
+              action={
+                <DriverButton
+                  label="فتح التوصيلة"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/orders/[orderId]",
+                      params: { orderId: nextDelivery.id },
+                    })
+                  }
+                />
+              }
+              compact
+            />
+          ) : (
+            <DriverCard compact>
+              <View style={styles.readyBlock}>
+                <Text style={[styles.readyTitle, isRTL ? styles.textRight : null]}>لا توجد توصيلات نشطة</Text>
+                <Text style={[styles.readyText, isRTL ? styles.textRight : null]}>
+                  افتح شاشة الطلبات لقبول طلب استلام أو متابعة التوصيلات المسندة.
+                </Text>
+              </View>
+
+              <DriverButton label="عرض الطلبات" onPress={() => router.push("/orders")} />
+            </DriverCard>
+          )}
+
+          <View style={styles.refreshAction}>
+            <DriverButton label="تحديث" onPress={() => void handleRefresh()} variant="ghost" size="sm" />
+          </View>
         </>
       )}
     </DriverScreen>
@@ -147,41 +179,54 @@ const styles = StyleSheet.create({
   accountHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: theme.spacing[12],
   },
   accountMeta: {
     flex: 1,
+    minWidth: 0,
     gap: theme.spacing[8],
+  },
+  accountLabel: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "800",
   },
   accountName: {
     fontSize: theme.typography.heading.md,
+    lineHeight: 28,
     fontWeight: "800",
     color: theme.colors.text,
+  },
+  accountAction: {
+    flexShrink: 0,
+    maxWidth: 118,
   },
   badgeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: theme.spacing[8],
   },
-  orderHeader: {
-    flexDirection: "row",
-    gap: theme.spacing[12],
-    alignItems: "flex-start",
-    justifyContent: "space-between",
+  readyBlock: {
+    gap: theme.spacing[8],
   },
-  orderHeaderText: {
-    flex: 1,
-    gap: theme.spacing[4],
-  },
-  orderVendor: {
+  readyTitle: {
     fontSize: theme.typography.heading.md,
+    lineHeight: 24,
     fontWeight: "800",
     color: theme.colors.text,
   },
-  orderMeta: {
+  readyText: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
+    lineHeight: 21,
+  },
+  refreshAction: {
+    alignItems: "flex-end",
+    marginTop: -theme.spacing[4],
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
   textRight: {
     textAlign: "right",

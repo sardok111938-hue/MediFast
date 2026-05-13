@@ -19,9 +19,22 @@ export type DriverOrderItem = {
 export type DriverOrder = {
   id: string;
   customerName: string;
+  customerPhone: string | null;
   vendorName: string;
+  vendorPhone: string | null;
   pickupAddress: string;
+  pickupLat: number | null;
+  pickupLng: number | null;
   dropoffAddress: string;
+  dropoffLat: number | null;
+  dropoffLng: number | null;
+  estimatedDistanceKm: number | null;
+  estimatedTravelMinutes: number | null;
+  deliveryFee: number;
+  deliveryPayout: number | null;
+  codAmount: number | null;
+  deliveryNotes: string | null;
+  pharmacyInstructions: string | null;
   total: number;
   paymentMethod: string;
   paymentStatus: string;
@@ -33,13 +46,31 @@ export type DriverOrder = {
 type DriverOrderQueryRow = {
   id: unknown;
   total?: unknown;
+  delivery_fee?: unknown;
   payment_method?: unknown;
   payment_status?: unknown;
   order_status?: unknown;
+  notes?: unknown;
   created_at?: unknown;
-  vendor?: SingleRecord<{ name?: string; address_line_1?: string; address_line_2?: string | null; city?: string; area?: string | null }>;
-  customer?: SingleRecord<{ profile?: SingleRecord<{ full_name?: string }> }>;
-  address?: SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>;
+  vendor?: SingleRecord<{
+    name?: string;
+    phone?: string | null;
+    address_line_1?: string;
+    address_line_2?: string | null;
+    city?: string;
+    area?: string | null;
+    lat?: number | string | null;
+    lng?: number | string | null;
+  }>;
+  customer?: SingleRecord<{ profile?: SingleRecord<{ full_name?: string; phone?: string | null }> }>;
+  address?: SingleRecord<{
+    line_1?: string;
+    line_2?: string | null;
+    city?: string;
+    area?: string | null;
+    lat?: number | string | null;
+    lng?: number | string | null;
+  }>;
   items?: Array<{
     id: unknown;
     quantity?: unknown;
@@ -65,6 +96,24 @@ function readName(value: SingleRecord<{ full_name?: string }>, fallback: string)
 
 function readVendorName(value: SingleRecord<{ name?: string }>, fallback: string) {
   return readSingle(value)?.name ?? fallback;
+}
+
+function readOptionalText(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function readOptionalNumber(value: unknown) {
+  if (value == null || value === "") {
+    return null;
+  }
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
 }
 
 function readProductName(value: SingleRecord<{ name?: string }>, fallback: string) {
@@ -98,6 +147,43 @@ function formatAddress(
 
 function readCustomerName(value: SingleRecord<{ profile?: SingleRecord<{ full_name?: string }> }>, fallback: string) {
   return readName(readSingle(value)?.profile, fallback);
+}
+
+function readCustomerPhone(value: SingleRecord<{ profile?: SingleRecord<{ phone?: string | null }> }>) {
+  return readOptionalText(readSingle(readSingle(value)?.profile)?.phone);
+}
+
+function estimateRouteDistanceKm(
+  pickupLat: number | null,
+  pickupLng: number | null,
+  dropoffLat: number | null,
+  dropoffLng: number | null
+) {
+  if (pickupLat == null || pickupLng == null || dropoffLat == null || dropoffLng == null) {
+    return null;
+  }
+
+  const earthRadiusKm = 6371;
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const latDelta = toRadians(dropoffLat - pickupLat);
+  const lngDelta = toRadians(dropoffLng - pickupLng);
+  const pickupLatRadians = toRadians(pickupLat);
+  const dropoffLatRadians = toRadians(dropoffLat);
+  const haversine =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(pickupLatRadians) * Math.cos(dropoffLatRadians) * Math.sin(lngDelta / 2) ** 2;
+
+  const directDistanceKm = earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+  return Math.max(0.5, Math.round(directDistanceKm * 2) / 2);
+}
+
+function estimateRouteTravelMinutes(distanceKm: number | null) {
+  if (distanceKm == null) {
+    return null;
+  }
+
+  const urbanAverageKmPerHour = 24;
+  return Math.max(3, Math.round((distanceKm / urbanAverageKmPerHour) * 60));
 }
 
 export function normalizeError(error: unknown) {
@@ -215,24 +301,48 @@ export async function getCurrentDriverProfile(): Promise<DriverProfile> {
 
 function mapOrder(order: DriverOrderQueryRow): DriverOrder {
   const items = Array.isArray(order.items) ? order.items : [];
+  const vendor = readSingle(order.vendor);
+  const address = readSingle(order.address);
+  const pickupLat = readOptionalNumber(vendor?.lat);
+  const pickupLng = readOptionalNumber(vendor?.lng);
+  const dropoffLat = readOptionalNumber(address?.lat);
+  const dropoffLng = readOptionalNumber(address?.lng);
+  const estimatedDistanceKm = estimateRouteDistanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
+  const deliveryFee = readOptionalNumber(order.delivery_fee) ?? 0;
+  const paymentMethod = String(order.payment_method ?? "");
+  const total = Number(order.total ?? 0);
+
   return {
     id: String(order.id),
     customerName: readCustomerName(order.customer, "العميل"),
+    customerPhone: readCustomerPhone(order.customer),
     vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "المتجر"),
+    vendorPhone: readOptionalText(vendor?.phone),
     pickupAddress: formatAddress(order.vendor as SingleRecord<{ address_line_1?: string; address_line_2?: string | null; city?: string; area?: string | null }>),
+    pickupLat,
+    pickupLng,
     dropoffAddress: formatAddress(order.address as SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>),
-    total: Number(order.total ?? 0),
-    paymentMethod: String(order.payment_method ?? ""),
+    dropoffLat,
+    dropoffLng,
+    estimatedDistanceKm,
+    estimatedTravelMinutes: estimateRouteTravelMinutes(estimatedDistanceKm),
+    deliveryFee,
+    deliveryPayout: deliveryFee > 0 ? deliveryFee : null,
+    codAmount: paymentMethod === "cash_on_delivery" ? total : null,
+    deliveryNotes: readOptionalText(order.notes),
+    pharmacyInstructions: null,
+    total,
+    paymentMethod,
     paymentStatus: String(order.payment_status ?? ""),
     orderStatus: String(order.order_status ?? ""),
-      createdAt: String(order.created_at ?? ""),
-      items: items.map((item) => ({
-        id: String(item.id),
-        productName: readProductName(item.product as SingleRecord<{ name?: string }>, "المنتج"),
-        quantity: Number(item.quantity ?? 0),
-        unitPrice: Number(item.unit_price ?? 0),
-        totalPrice: Number(item.total_price ?? 0),
-      })),
+    createdAt: String(order.created_at ?? ""),
+    items: items.map((item) => ({
+      id: String(item.id),
+      productName: readProductName(item.product as SingleRecord<{ name?: string }>, "المنتج"),
+      quantity: Number(item.quantity ?? 0),
+      unitPrice: Number(item.unit_price ?? 0),
+      totalPrice: Number(item.total_price ?? 0),
+    })),
   };
 }
 
@@ -242,25 +352,30 @@ export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
     .select(`
       id,
       total,
+      delivery_fee,
       payment_method,
       payment_status,
       order_status,
+      notes,
       created_at,
       vendor:vendors(
         name,
+        phone,
         address_line_1,
         address_line_2,
         city,
-        area
-      ),
-      customer:customers(
-        profile:profiles(full_name)
-      ),
-      address:addresses(
-        line_1,
+        area,
         lat,
         lng
       ),
+      customer:customers(
+        profile:profiles(full_name, phone)
+      ),
+      address:addresses(
+  line_1,
+  lat,
+  lng
+),
       items:order_items(
         id,
         quantity,
@@ -286,25 +401,30 @@ export async function listCurrentDriverOrders(driverId: string): Promise<DriverO
     .select(`
       id,
       total,
+      delivery_fee,
       payment_method,
       payment_status,
       order_status,
+      notes,
       created_at,
       vendor:vendors(
         name,
+        phone,
         address_line_1,
         address_line_2,
         city,
-        area
-      ),
-      customer:customers(
-        profile:profiles(full_name)
-      ),
-      address:addresses(
-        line_1,
+        area,
         lat,
         lng
       ),
+      customer:customers(
+        profile:profiles(full_name, phone)
+      ),
+      address:addresses(
+  line_1,
+  lat,
+  lng
+),
       items:order_items(
         id,
         quantity,
@@ -352,19 +472,24 @@ export async function getDriverOrderDetail(driverId: string, orderId: string): P
     .select(`
       id,
       total,
+      delivery_fee,
       payment_method,
       payment_status,
       order_status,
+      notes,
       created_at,
       vendor:vendors(
         name,
+        phone,
         address_line_1,
         address_line_2,
         city,
-        area
+        area,
+        lat,
+        lng
       ),
       customer:customers(
-        profile:profiles(full_name)
+        profile:profiles(full_name, phone)
       ),
       address:addresses(
   line_1,

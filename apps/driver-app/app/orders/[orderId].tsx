@@ -1,7 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Clipboard from "expo-clipboard";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
-import { DriverBadge, DriverButton, DriverCard, DriverEmptyCard, DriverErrorCard, DriverHelper, DriverListCard, DriverLoadingCard, DriverRouteBlock, DriverRow, DriverScreen, DriverSectionTitle } from "../../src/components/DriverUI";
+import {
+  DriverButton,
+  DriverCard,
+  DriverEmptyCard,
+  DriverErrorCard,
+  DriverHelper,
+  DriverLoadingCard,
+  DriverMetricBadge,
+  DriverNoteCard,
+  DriverOrderCard,
+  DriverQuickAction,
+  DriverRow,
+  DriverScreen,
+  DriverSectionTitle,
+  DriverUtilityRow,
+  shortOrderRef,
+} from "../../src/components/DriverUI";
 import { useDriverI18n } from "../../src/lib/i18n";
 import { theme } from "@medifast/ui";
 import {
@@ -18,8 +35,77 @@ import {
   type DriverOrder,
 } from "../../src/lib/driver-data";
 
-function buildGoogleMapsUrl(address: string) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+function buildGoogleMapsUrl(input: { address: string; lat?: number | null; lng?: number | null }) {
+  const hasCoordinates = typeof input.lat === "number" && Number.isFinite(input.lat) && typeof input.lng === "number" && Number.isFinite(input.lng);
+  const query = hasCoordinates ? `${input.lat},${input.lng}` : input.address;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function normalizePhoneForTel(phone?: string | null) {
+  if (!phone) {
+    return null;
+  }
+
+  const compact = phone.trim().replace(/[^\d+]/g, "");
+  const normalized = compact.startsWith("00") ? `+${compact.slice(2)}` : compact;
+  const digitCount = normalized.replace(/[^\d]/g, "").length;
+
+  return digitCount >= 6 ? normalized : null;
+}
+
+function normalizePhoneForWhatsApp(phone?: string | null) {
+  const normalized = normalizePhoneForTel(phone);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.startsWith("+")) {
+    return normalized.replace(/[^\d]/g, "");
+  }
+
+  if (normalized.startsWith("0")) {
+    return null;
+  }
+
+  return normalized.replace(/[^\d]/g, "");
+}
+
+function buildPhoneUrl(phone: string) {
+  return `tel:${phone}`;
+}
+
+function buildWhatsAppUrl(phone: string) {
+  return `https://wa.me/${phone}`;
+}
+
+function formatRouteDistance(order: DriverOrder) {
+  return order.estimatedDistanceKm == null ? "غير متاحة" : `تقريبًا ${order.estimatedDistanceKm} كم`;
+}
+
+function formatRouteDuration(order: DriverOrder) {
+  return order.estimatedTravelMinutes == null ? "غير متاح" : `تقريبًا ${order.estimatedTravelMinutes} د`;
+}
+
+function DetailFooter({ order }: { order: DriverOrder }) {
+  return (
+    <>
+      <Text style={styles.footerText}>{formatCurrency(order.total)}</Text>
+      <Text style={styles.footerText}>{getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)}</Text>
+      <Text style={styles.footerText}>{formatDate(order.createdAt)}</Text>
+    </>
+  );
+}
+
+function DetailMetrics({ order }: { order: DriverOrder }) {
+  return (
+    <DriverUtilityRow>
+      <DriverMetricBadge label="المسافة" value={formatRouteDistance(order)} tone={order.estimatedDistanceKm == null ? "warning" : "info"} />
+      <DriverMetricBadge label="زمن الطريق" value={formatRouteDuration(order)} tone={order.estimatedTravelMinutes == null ? "warning" : "info"} />
+      <DriverMetricBadge label="أجر التوصيل" value={order.deliveryPayout == null ? "غير محدد" : formatCurrency(order.deliveryPayout)} tone="success" />
+      {order.codAmount != null ? <DriverMetricBadge label="تحصيل نقدي" value={formatCurrency(order.codAmount)} tone="warning" /> : null}
+    </DriverUtilityRow>
+  );
 }
 
 export default function DriverOrderDetailScreen() {
@@ -37,7 +123,7 @@ export default function DriverOrderDetailScreen() {
   const loadOrder = useCallback(async () => {
     if (!orderId) {
       setLoading(false);
-      setError("Order ID is missing.");
+      setError("رقم الطلب غير موجود.");
       return;
     }
 
@@ -60,8 +146,43 @@ export default function DriverOrderDetailScreen() {
     void loadOrder();
   }, [loadOrder]);
 
-  async function openMap(address: string) {
-    await Linking.openURL(buildGoogleMapsUrl(address));
+  async function openMap(input: { address: string; lat?: number | null; lng?: number | null }) {
+    await Linking.openURL(buildGoogleMapsUrl(input));
+  }
+
+  async function openCustomerPhone() {
+    const phone = normalizePhoneForTel(order?.customerPhone);
+
+    if (!phone) {
+      setFeedback({ type: "error", message: "رقم العميل غير متاح لهذا الطلب." });
+      return;
+    }
+
+    await Linking.openURL(buildPhoneUrl(phone));
+  }
+
+  async function openCustomerWhatsApp() {
+    const phone = normalizePhoneForWhatsApp(order?.customerPhone);
+
+    if (!phone) {
+      setFeedback({ type: "error", message: "رقم واتساب الدولي غير متاح لهذا الطلب." });
+      return;
+    }
+
+    await Linking.openURL(buildWhatsAppUrl(phone));
+  }
+
+  async function copyDropoffAddress() {
+    if (!order) {
+      return;
+    }
+
+    try {
+      await Clipboard.setStringAsync(order.dropoffAddress);
+      setFeedback({ type: "success", message: "تم نسخ عنوان التسليم." });
+    } catch (nextError) {
+      setFeedback({ type: "error", message: normalizeError(nextError) });
+    }
   }
 
   async function handleStatusUpdate(nextStatus: string) {
@@ -84,7 +205,7 @@ export default function DriverOrderDetailScreen() {
 
       setFeedback({
         type: "success",
-        message: `${t("Order updated to")} ${t(getStatusLabel(nextStatus))}.`,
+        message: `تم تحديث الطلب إلى ${t(getStatusLabel(nextStatus))}.`,
       });
       await loadOrder();
     } catch (nextError) {
@@ -99,70 +220,139 @@ export default function DriverOrderDetailScreen() {
   }
 
   const actions = order ? getDriverNextActions(order.orderStatus) : [];
+  const primaryAction = actions[0] ?? null;
+  const canCallCustomer = Boolean(normalizePhoneForTel(order?.customerPhone));
+  const canWhatsAppCustomer = Boolean(normalizePhoneForWhatsApp(order?.customerPhone));
 
   return (
-    <DriverScreen title="Order Detail" subtitle="Review route, products, and the next delivery action." scroll={false}>
+    <DriverScreen title="تفاصيل الطلب" subtitle="المسار والمنتجات وخطوة التوصيل التالية." scroll={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <DriverButton label="Back to Orders" onPress={() => router.push("/orders")} variant="ghost" />
+        <View style={styles.topAction}>
+          <DriverButton label="العودة للطلبات" onPress={() => router.push("/orders")} variant="ghost" size="sm" />
+        </View>
 
         {feedback ? <DriverHelper tone={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</DriverHelper> : null}
 
         {loading ? (
-          <DriverLoadingCard message="Loading order details..." />
+          <DriverLoadingCard message="جارٍ تحميل تفاصيل الطلب..." />
         ) : error ? (
           <DriverErrorCard message={error} onRetry={() => void loadOrder()} />
         ) : !order ? (
-          <DriverEmptyCard title="Order not found" message="This order is not assigned to you or is no longer available." />
+          <DriverEmptyCard title="الطلب غير متاح" message="هذا الطلب غير مسند لك أو لم يعد متاحًا." />
         ) : (
           <>
-            <DriverListCard
-              title={order.vendorName}
-              subtitle={`${t("Orders")} ${order.id} • ${formatDate(order.createdAt)}`}
-              badge={<DriverBadge label={getStatusLabel(order.orderStatus)} tone={statusTone(order.orderStatus)} />}
-            >
-              <DriverRouteBlock pickup={order.pickupAddress} dropoff={order.dropoffAddress} />
-              <DriverRow label="Customer" value={order.customerName} />
-              <DriverRow label="Payment Status" value={getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} valueTone="muted" />
-              <DriverRow label="Total" value={formatCurrency(order.total)} />
-            </DriverListCard>
-
-            <DriverCard>
-              <DriverSectionTitle>Maps</DriverSectionTitle>
-              <DriverButton label="Open Pickup in Maps" onPress={() => void openMap(order.pickupAddress)} variant="secondary" />
-              <DriverButton label="Open Dropoff in Maps" onPress={() => void openMap(order.dropoffAddress)} />
-            </DriverCard>
-
-            <DriverCard>
-              <DriverSectionTitle>Items</DriverSectionTitle>
-              {order.items.length === 0 ? (
-                <DriverHelper>No products are linked to this order.</DriverHelper>
-              ) : (
-                order.items.map((item) => (
-                  <View key={item.id} style={styles.itemCard}>
-                    <Text style={[styles.itemTitle, isRTL ? styles.textRight : null]}>{item.productName}</Text>
-                    <DriverRow label="Quantity" value={String(item.quantity)} />
-                    <DriverRow label="Unit Price" value={formatCurrency(item.unitPrice)} />
-                    <DriverRow label="Line Total" value={formatCurrency(item.totalPrice)} />
-                  </View>
-                ))
-              )}
-            </DriverCard>
-
-            <DriverCard>
-              <DriverSectionTitle>Status Actions</DriverSectionTitle>
-              {actions.length === 0 ? (
-                <DriverHelper>No driver status actions are available for this order.</DriverHelper>
-              ) : (
-                actions.map((action) => (
+            <DriverOrderCard
+              vendorName={order.vendorName}
+              customerName={order.customerName}
+              orderRef={`طلب ${shortOrderRef(order.id)}`}
+              statusLabel={getStatusLabel(order.orderStatus)}
+              statusTone={statusTone(order.orderStatus)}
+              pickupAddress={order.pickupAddress}
+              dropoffAddress={order.dropoffAddress}
+              utilities={<DetailMetrics order={order} />}
+              action={
+                primaryAction ? (
                   <DriverButton
-                    key={action.nextStatus}
-                    label={updatingStatus === action.nextStatus ? "Updating..." : action.label}
-                    onPress={() => void handleStatusUpdate(action.nextStatus)}
+                    label={updatingStatus === primaryAction.nextStatus ? "جارٍ التحديث..." : primaryAction.label}
+                    onPress={() => void handleStatusUpdate(primaryAction.nextStatus)}
                     disabled={Boolean(updatingStatus)}
                   />
-                ))
+                ) : null
+              }
+              footer={<DetailFooter order={order} />}
+              compact={false}
+            />
+
+            <DriverCard compact>
+              <DriverSectionTitle>أدوات التوصيل</DriverSectionTitle>
+              <DriverUtilityRow>
+                <DriverQuickAction label="اتصال بالعميل" onPress={() => void openCustomerPhone()} disabled={!canCallCustomer} tone="primary" />
+                <DriverQuickAction label="واتساب" onPress={() => void openCustomerWhatsApp()} disabled={!canWhatsAppCustomer} />
+                <DriverQuickAction label="نسخ العنوان" onPress={() => void copyDropoffAddress()} />
+              </DriverUtilityRow>
+            </DriverCard>
+
+            <DriverCard compact>
+              <View style={[styles.mapHeader, isRTL ? styles.rowReverse : null]}>
+                <View style={styles.mapTitleBlock}>
+                  <DriverSectionTitle>الملاحة</DriverSectionTitle>
+                  <Text style={[styles.mapHint, isRTL ? styles.textRight : null]}>
+                    افتح المسار في الخرائط عند التحرك للاستلام أو التسليم.
+                  </Text>
+                </View>
+              </View>
+
+              <DriverUtilityRow>
+                <DriverQuickAction
+                  label="خريطة الاستلام"
+                  onPress={() => void openMap({ address: order.pickupAddress, lat: order.pickupLat, lng: order.pickupLng })}
+                />
+                <DriverQuickAction
+                  label="خريطة التسليم"
+                  onPress={() => void openMap({ address: order.dropoffAddress, lat: order.dropoffLat, lng: order.dropoffLng })}
+                  tone="primary"
+                />
+              </DriverUtilityRow>
+            </DriverCard>
+
+            {order.pharmacyInstructions || order.deliveryNotes ? (
+              <DriverCard compact>
+                <DriverSectionTitle>ملاحظات التشغيل</DriverSectionTitle>
+                {order.pharmacyInstructions ? <DriverNoteCard title="تعليمات الصيدلية">{order.pharmacyInstructions}</DriverNoteCard> : null}
+                {order.deliveryNotes ? <DriverNoteCard title="ملاحظات العميل">{order.deliveryNotes}</DriverNoteCard> : null}
+              </DriverCard>
+            ) : null}
+
+            <DriverCard compact>
+              <DriverSectionTitle>المنتجات</DriverSectionTitle>
+
+              {order.items.length === 0 ? (
+                <DriverHelper>لا توجد منتجات مرتبطة بهذا الطلب.</DriverHelper>
+              ) : (
+                <View style={styles.itemsList}>
+                  {order.items.map((item) => (
+                    <View key={item.id} style={styles.itemCard}>
+                      <View style={[styles.itemHeader, isRTL ? styles.rowReverse : null]}>
+                        <Text style={[styles.itemTitle, isRTL ? styles.textRight : null]} numberOfLines={2}>
+                          {item.productName}
+                        </Text>
+                        <Text style={styles.itemQuantity}>×{item.quantity}</Text>
+                      </View>
+
+                      <View style={[styles.itemMeta, isRTL ? styles.rowReverse : null]}>
+                        <Text style={styles.itemMetaText}>{formatCurrency(item.unitPrice)}</Text>
+                        <Text style={styles.itemMetaTotal}>{formatCurrency(item.totalPrice)}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
               )}
             </DriverCard>
+
+            <DriverCard compact>
+              <DriverSectionTitle>معلومات الطلب</DriverSectionTitle>
+              <DriverRow label="العميل" value={order.customerName} />
+              <DriverRow label="الدفع" value={getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} valueTone="muted" />
+              <DriverRow label="الإجمالي" value={formatCurrency(order.total)} />
+              <DriverRow label="رسوم التوصيل" value={formatCurrency(order.deliveryFee)} valueTone="muted" />
+              <DriverRow label="وقت الإنشاء" value={formatDate(order.createdAt)} valueTone="muted" />
+              <DriverRow label="معرّف الطلب" value={order.id} valueTone="muted" />
+            </DriverCard>
+
+            {actions.length > 1 ? (
+              <DriverCard compact>
+                <DriverSectionTitle>إجراءات أخرى</DriverSectionTitle>
+                {actions.slice(1).map((action) => (
+                  <DriverButton
+                    key={action.nextStatus}
+                    label={updatingStatus === action.nextStatus ? "جارٍ التحديث..." : action.label}
+                    onPress={() => void handleStatusUpdate(action.nextStatus)}
+                    disabled={Boolean(updatingStatus)}
+                    variant="secondary"
+                  />
+                ))}
+              </DriverCard>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -175,18 +365,83 @@ const styles = StyleSheet.create({
     gap: theme.spacing[16],
     paddingBottom: theme.spacing[24],
   },
+  topAction: {
+    alignItems: "flex-end",
+    marginBottom: -theme.spacing[4],
+  },
+  footerText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  mapHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: theme.spacing[12],
+  },
+  mapTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+    gap: theme.spacing[4],
+  },
+  mapHint: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.body.sm,
+    lineHeight: 20,
+  },
+  itemsList: {
+    gap: theme.spacing[8],
+  },
   itemCard: {
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing[16],
+    borderColor: "#E5EEE9",
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing[12],
     gap: theme.spacing[8],
-    backgroundColor: theme.colors.surface,
+    backgroundColor: "#F8FBF9",
+  },
+  itemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: theme.spacing[12],
+    alignItems: "flex-start",
   },
   itemTitle: {
+    flex: 1,
+    minWidth: 0,
     fontWeight: "800",
-    fontSize: theme.typography.body.lg,
+    fontSize: theme.typography.body.md,
+    lineHeight: 22,
     color: theme.colors.text,
+  },
+  itemQuantity: {
+    color: theme.colors.primaryDark,
+    fontWeight: "800",
+    fontSize: theme.typography.body.md,
+    lineHeight: 22,
+  },
+  itemMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: theme.spacing[8],
+    borderTopWidth: 1,
+    borderTopColor: "#EAF1ED",
+    paddingTop: theme.spacing[8],
+  },
+  itemMetaText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.body.sm,
+    fontWeight: "600",
+  },
+  itemMetaTotal: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body.sm,
+    fontWeight: "800",
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
   textRight: {
     textAlign: "right",
