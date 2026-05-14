@@ -126,6 +126,9 @@ export interface Driver {
   current_lat?: number | null;
   current_lng?: number | null;
   approval_status: ApprovalStatus;
+  profile_image_url?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
 }
 
 export interface DeliveryTrackingPoint {

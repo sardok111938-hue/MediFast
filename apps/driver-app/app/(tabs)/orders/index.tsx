@@ -14,7 +14,7 @@ import {
   DriverSummaryGrid,
   DriverUtilityRow,
   shortOrderRef,
-} from "../../src/components/DriverUI";
+} from "../../../src/components/DriverUI";
 import {
   claimAvailableOrder,
   formatCurrency,
@@ -26,8 +26,8 @@ import {
   normalizeError,
   statusTone,
   type DriverOrder,
-} from "../../src/lib/driver-data";
-import { signOutDriver, subscribeToAssignedOrders, subscribeToAvailablePickupOrders, supabase } from "../../src/lib/supabase";
+} from "../../../src/lib/driver-data";
+import { subscribeToAssignedOrders, subscribeToAvailablePickupOrders, supabase } from "../../../src/lib/supabase";
 import { theme } from "@medifast/ui";
 
 function OrderFooter({ order, showTotal = true }: { order: DriverOrder; showTotal?: boolean }) {
@@ -61,12 +61,22 @@ function buildPhoneUrl(phone: string) {
   return `tel:${phone}`;
 }
 
+async function openUrl(url: string) {
+  const canOpen = await Linking.canOpenURL(url);
+
+  if (!canOpen) {
+    return;
+  }
+
+  await Linking.openURL(url);
+}
+
 async function openMap(input: { address: string; lat?: number | null; lng?: number | null }) {
-  await Linking.openURL(buildGoogleMapsUrl(input));
+  await openUrl(buildGoogleMapsUrl(input));
 }
 
 async function callCustomer(phone: string) {
-  await Linking.openURL(buildPhoneUrl(phone));
+  await openUrl(buildPhoneUrl(phone));
 }
 
 function OrderUtilities({ order, mapTarget = "dropoff" }: { order: DriverOrder; mapTarget?: "pickup" | "dropoff" }) {
@@ -92,7 +102,6 @@ export default function DriverOrdersListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
   const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
 
   const activeOrder = useMemo(() => orders[0] ?? null, [orders]);
@@ -164,18 +173,10 @@ export default function DriverOrdersListScreen() {
     }
   }
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    await signOutDriver();
-    setLoggingOut(false);
-    router.replace("/");
-  }
-
   return (
     <DriverScreen
       title="الطلبات"
       subtitle="طلبات متاحة أولًا، ثم توصيلاتك النشطة."
-      action={<DriverButton label={loggingOut ? "جارٍ الخروج..." : "خروج"} onPress={() => void handleLogout()} disabled={loggingOut} variant="secondary" size="sm" />}
       scroll={false}
     >
       <ScrollView
@@ -183,10 +184,6 @@ export default function DriverOrdersListScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadOrders("refresh")} />}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.topAction}>
-          <DriverButton label="العودة للرئيسية" onPress={() => router.push("/dashboard")} variant="ghost" size="sm" />
-        </View>
-
         {loading ? (
           <DriverLoadingCard message="جارٍ تحميل الطلبات..." />
         ) : error ? (
@@ -248,7 +245,7 @@ export default function DriverOrdersListScreen() {
                       label="عرض التفاصيل"
                       onPress={() =>
                         router.push({
-                          pathname: "/orders/[orderId]",
+                          pathname: "/(tabs)/orders/[orderId]",
                           params: { orderId: order.id },
                         })
                       }

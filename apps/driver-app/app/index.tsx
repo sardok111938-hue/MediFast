@@ -8,7 +8,7 @@ import { theme } from "@medifast/ui";
 
 export default function DriverLoginScreen() {
   const router = useRouter();
-  const { t, isRTL } = useDriverI18n();
+  const { isRTL } = useDriverI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,7 @@ export default function DriverLoginScreen() {
   useEffect(() => {
     supabase.auth.getSession().then((response) => {
       if (response.data.session) {
-        router.replace("/dashboard");
+        router.replace("/(tabs)/dashboard");
       }
     });
   }, [router]);
@@ -39,19 +39,41 @@ export default function DriverLoginScreen() {
       return;
     }
 
-    router.replace("/dashboard");
+    router.replace("/(tabs)/dashboard");
   }
 
   return (
-    <DriverScreen title="Driver Login" subtitle="Sign in with your MediFast driver account to view assigned deliveries in real time.">
+    <DriverScreen title="تسجيل دخول السائق" subtitle="سجّل الدخول بحساب السائق لعرض التوصيلات المخصصة لك مباشرة.">
       <DriverCard>
         <Text style={[styles.message, isRTL ? styles.textRight : null]}>
-          {t("Approved drivers can sign in and start receiving assignment updates.")}
+          يمكن للسائقين المعتمدين تسجيل الدخول واستقبال تحديثات التوصيل.
         </Text>
-        <DriverInput value={email} onChangeText={setEmail} placeholder="Driver email" />
-        <DriverInput value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry />
+
+        <DriverInput
+          value={email}
+          onChangeText={setEmail}
+          placeholder="البريد الإلكتروني"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        <DriverInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="كلمة المرور"
+          secureTextEntry
+          autoCapitalize="none"
+        />
+
         {message ? <DriverHelper tone="danger">{message}</DriverHelper> : null}
-        <DriverButton label={loading ? "Signing in..." : "Driver sign in"} onPress={handleDriverLogin} disabled={loading} loading={loading} />
+
+        <DriverButton
+          label={loading ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"}
+          onPress={handleDriverLogin}
+          disabled={loading}
+          loading={loading}
+        />
       </DriverCard>
     </DriverScreen>
   );

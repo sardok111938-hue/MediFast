@@ -6,6 +6,9 @@ export type DriverProfile = {
   fullName: string;
   isAvailable: boolean;
   approvalStatus: string;
+  profileImageUrl: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
 };
 
 export type DriverOrderItem = {
@@ -275,11 +278,14 @@ export async function getCurrentDriverProfile(): Promise<DriverProfile> {
   const { data, error } = await supabase
     .from("drivers")
     .select(`
-      id,
-      is_available,
-      approval_status,
-      profile:profiles!drivers_user_id_fkey(full_name)
-    `)
+  id,
+  is_available,
+  approval_status,
+  profile_image_url,
+  emergency_contact_name,
+  emergency_contact_phone,
+  profile:profiles!drivers_user_id_fkey(full_name)
+`)
     .eq("id", driverId)
     .maybeSingle();
 
@@ -292,11 +298,14 @@ export async function getCurrentDriverProfile(): Promise<DriverProfile> {
   }
 
   return {
-    driverId: String(data.id),
-    fullName: readName((data.profile as { full_name?: string } | { full_name?: string }[] | null) ?? null, "السائق"),
-    isAvailable: Boolean(data.is_available),
-    approvalStatus: String(data.approval_status ?? ""),
-  };
+  driverId: String(data.id),
+  fullName: readName((data.profile as { full_name?: string } | { full_name?: string }[] | null) ?? null, "السائق"),
+  isAvailable: Boolean(data.is_available),
+  approvalStatus: String(data.approval_status ?? ""),
+  profileImageUrl: readOptionalText(data.profile_image_url),
+  emergencyContactName: readOptionalText(data.emergency_contact_name),
+  emergencyContactPhone: readOptionalText(data.emergency_contact_phone),
+};
 }
 
 function mapOrder(order: DriverOrderQueryRow): DriverOrder {

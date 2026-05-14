@@ -1,6 +1,6 @@
 import { theme } from "@medifast/ui";
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, type TextInputProps } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDriverI18n } from "../lib/i18n";
 
@@ -16,21 +16,23 @@ export function DriverTopBar({
   title,
   subtitle,
   action,
+  compact = false,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  compact?: boolean;
 }) {
   const { t, isRTL } = useDriverI18n();
 
   return (
-    <View style={[styles.header, isRTL ? styles.headerRtl : null]}>
+    <View style={[styles.header, compact ? styles.headerCompact : null, isRTL ? styles.headerRtl : null]}>
       <View style={styles.headerText}>
-        <Text style={[styles.title, isRTL ? styles.textRight : null]} numberOfLines={2}>
+        <Text style={[styles.title, compact ? styles.titleCompact : null, isRTL ? styles.textRight : null]} numberOfLines={2}>
           {t(title)}
         </Text>
         {subtitle ? (
-          <Text style={[styles.subtitle, isRTL ? styles.textRight : null]} numberOfLines={2}>
+          <Text style={[styles.subtitle, compact ? styles.subtitleCompact : null, isRTL ? styles.textRight : null]} numberOfLines={2}>
             {t(subtitle)}
           </Text>
         ) : null}
@@ -46,16 +48,18 @@ export function DriverScreen({
   children,
   action,
   scroll = true,
+  compactHeader = false,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   action?: ReactNode;
   scroll?: boolean;
+  compactHeader?: boolean;
 }) {
   const content = (
     <View style={styles.content}>
-      <DriverTopBar title={title} subtitle={subtitle} action={action} />
+      <DriverTopBar title={title} subtitle={subtitle} action={action} compact={compactHeader} />
       {children}
     </View>
   );
@@ -152,12 +156,13 @@ export function DriverInput({
   onChangeText,
   placeholder,
   secureTextEntry,
+  ...textInputProps
 }: {
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
   secureTextEntry?: boolean;
-}) {
+} & Omit<TextInputProps, "value" | "onChangeText" | "placeholder" | "placeholderTextColor" | "secureTextEntry" | "style">) {
   const { t } = useDriverI18n();
 
   return (
@@ -169,6 +174,7 @@ export function DriverInput({
       secureTextEntry={secureTextEntry}
       autoCapitalize="none"
       style={styles.input}
+      {...textInputProps}
     />
   );
 }
@@ -589,6 +595,9 @@ const styles = StyleSheet.create({
   headerRtl: {
     flexDirection: "row-reverse",
   },
+  headerCompact: {
+    paddingBottom: theme.spacing[4],
+  },
   headerText: {
     flex: 1,
     minWidth: 0,
@@ -604,10 +613,18 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     lineHeight: 28,
   },
+  titleCompact: {
+    fontSize: theme.typography.body.lg,
+    lineHeight: 24,
+  },
   subtitle: {
     color: theme.colors.muted,
     lineHeight: 20,
     fontSize: theme.typography.body.sm,
+  },
+  subtitleCompact: {
+    fontSize: theme.typography.caption.md,
+    lineHeight: 18,
   },
   textRight: {
     textAlign: "right",

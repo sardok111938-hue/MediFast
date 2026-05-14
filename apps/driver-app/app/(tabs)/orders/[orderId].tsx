@@ -18,8 +18,8 @@ import {
   DriverSectionTitle,
   DriverUtilityRow,
   shortOrderRef,
-} from "../../src/components/DriverUI";
-import { useDriverI18n } from "../../src/lib/i18n";
+} from "../../../src/components/DriverUI";
+import { useDriverI18n } from "../../../src/lib/i18n";
 import { theme } from "@medifast/ui";
 import {
   formatCurrency,
@@ -33,7 +33,7 @@ import {
   statusTone,
   updateDriverOrderStatus,
   type DriverOrder,
-} from "../../src/lib/driver-data";
+} from "../../../src/lib/driver-data";
 
 function buildGoogleMapsUrl(input: { address: string; lat?: number | null; lng?: number | null }) {
   const hasCoordinates = typeof input.lat === "number" && Number.isFinite(input.lat) && typeof input.lng === "number" && Number.isFinite(input.lng);
@@ -79,6 +79,16 @@ function buildWhatsAppUrl(phone: string) {
   return `https://wa.me/${phone}`;
 }
 
+async function openUrl(url: string) {
+  const canOpen = await Linking.canOpenURL(url);
+
+  if (!canOpen) {
+    throw new Error("تعذر فتح الرابط على هذا الجهاز.");
+  }
+
+  await Linking.openURL(url);
+}
+
 function formatRouteDistance(order: DriverOrder) {
   return order.estimatedDistanceKm == null ? "غير متاحة" : `تقريبًا ${order.estimatedDistanceKm} كم`;
 }
@@ -110,7 +120,7 @@ function DetailMetrics({ order }: { order: DriverOrder }) {
 
 export default function DriverOrderDetailScreen() {
   const router = useRouter();
-  const { t, isRTL } = useDriverI18n();
+  const { isRTL } = useDriverI18n();
   const params = useLocalSearchParams<{ orderId?: string | string[] }>();
   const orderId = Array.isArray(params.orderId) ? params.orderId[0] : params.orderId;
   const [driverId, setDriverId] = useState<string | null>(null);
@@ -147,7 +157,11 @@ export default function DriverOrderDetailScreen() {
   }, [loadOrder]);
 
   async function openMap(input: { address: string; lat?: number | null; lng?: number | null }) {
-    await Linking.openURL(buildGoogleMapsUrl(input));
+    try {
+      await openUrl(buildGoogleMapsUrl(input));
+    } catch (nextError) {
+      setFeedback({ type: "error", message: normalizeError(nextError) });
+    }
   }
 
   async function openCustomerPhone() {
@@ -158,7 +172,11 @@ export default function DriverOrderDetailScreen() {
       return;
     }
 
-    await Linking.openURL(buildPhoneUrl(phone));
+    try {
+      await openUrl(buildPhoneUrl(phone));
+    } catch (nextError) {
+      setFeedback({ type: "error", message: normalizeError(nextError) });
+    }
   }
 
   async function openCustomerWhatsApp() {
@@ -169,7 +187,11 @@ export default function DriverOrderDetailScreen() {
       return;
     }
 
-    await Linking.openURL(buildWhatsAppUrl(phone));
+    try {
+      await openUrl(buildWhatsAppUrl(phone));
+    } catch (nextError) {
+      setFeedback({ type: "error", message: normalizeError(nextError) });
+    }
   }
 
   async function copyDropoffAddress() {
@@ -205,7 +227,7 @@ export default function DriverOrderDetailScreen() {
 
       setFeedback({
         type: "success",
-        message: `تم تحديث الطلب إلى ${t(getStatusLabel(nextStatus))}.`,
+        message: `تم تحديث الطلب إلى ${getStatusLabel(nextStatus)}.`,
       });
       await loadOrder();
     } catch (nextError) {
@@ -228,7 +250,12 @@ export default function DriverOrderDetailScreen() {
     <DriverScreen title="تفاصيل الطلب" subtitle="المسار والمنتجات وخطوة التوصيل التالية." scroll={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.topAction}>
-          <DriverButton label="العودة للطلبات" onPress={() => router.push("/orders")} variant="ghost" size="sm" />
+          <DriverButton
+            label="العودة للطلبات"
+            onPress={() => router.replace("/(tabs)/orders")}
+            variant="ghost"
+            size="sm"
+          />
         </View>
 
         {feedback ? <DriverHelper tone={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</DriverHelper> : null}
@@ -336,7 +363,7 @@ export default function DriverOrderDetailScreen() {
               <DriverRow label="الإجمالي" value={formatCurrency(order.total)} />
               <DriverRow label="رسوم التوصيل" value={formatCurrency(order.deliveryFee)} valueTone="muted" />
               <DriverRow label="وقت الإنشاء" value={formatDate(order.createdAt)} valueTone="muted" />
-              <DriverRow label="معرّف الطلب" value={order.id} valueTone="muted" />
+              <DriverRow label="رقم الطلب" value={shortOrderRef(order.id)} valueTone="muted" />
             </DriverCard>
 
             {actions.length > 1 ? (
