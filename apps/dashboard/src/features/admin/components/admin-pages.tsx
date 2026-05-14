@@ -84,6 +84,11 @@ type DriverOption = {
   fullName: string;
 };
 
+type AdminOrderControlProps = {
+  order: AdminOrderManagerRow;
+  disabled: boolean;
+};
+
 type AdminVendorRow = {
   id: string;
   name: string;
@@ -143,29 +148,7 @@ const emptyCategoryFormValues: CategoryFormValues = {
   parentId: "",
 };
 
-function getAdminStatusOptions(currentStatus: string) {
-  if (currentStatus === "placed") {
-    return ["placed", "accepted", "rejected", "cancelled"];
-  }
-
-  if (currentStatus === "accepted") {
-    return ["accepted", "preparing", "cancelled"];
-  }
-
-  if (currentStatus === "preparing") {
-    return ["preparing", "ready_for_pickup", "cancelled"];
-  }
-
-  if (currentStatus === "ready_for_pickup") {
-    return ["ready_for_pickup", "cancelled"];
-  }
-
-  if (currentStatus === "assigned" || currentStatus === "on_the_way") {
-    return [currentStatus, "cancelled"];
-  }
-
-  return [currentStatus];
-}
+const adminOverrideStatuses = ["placed", "accepted", "preparing", "rejected", "ready_for_pickup", "assigned", "on_the_way", "delivered", "cancelled"];
 
 function getCategoryLabel(category: Pick<AdminCategoryRow, "name" | "nameAr">) {
   return category.nameAr ?? category.name;
@@ -2365,50 +2348,136 @@ function AdminOrdersManager() {
   }
 
   const orders = state.data ?? [];
+  const orderCounts = {
+    new: orders.filter((order) => order.orderStatus === "placed").length,
+    activeVendor: orders.filter((order) => ["accepted", "preparing", "ready_for_pickup"].includes(order.orderStatus)).length,
+    readyForDriver: orders.filter((order) => order.orderStatus === "ready_for_pickup" && !order.driverId).length,
+    delivery: orders.filter((order) => ["assigned", "on_the_way"].includes(order.orderStatus)).length,
+  };
 
   return (
     <div className="stack">
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
+      <section className="detail-grid">
+        <Card className="medical-panel">
+          <div className="detail-meta">
+            <div className="detail-block">
+              <strong>طلبات جديدة لدى الصيدليات</strong>
+              <span>{orderCounts.new}</span>
+            </div>
+            <div className="detail-block">
+              <strong>قيد تشغيل الصيدلية</strong>
+              <span>{orderCounts.activeVendor}</span>
+            </div>
+            <div className="detail-block">
+              <strong>جاهزة لإسناد سائق</strong>
+              <span>{orderCounts.readyForDriver}</span>
+            </div>
+            <div className="detail-block">
+              <strong>توصيل نشط</strong>
+              <span>{orderCounts.delivery}</span>
+            </div>
+          </div>
+        </Card>
+      </section>
       <Table
-        title="الطلبات"
-        headers={["معرّف الطلب", "العميل", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء"]}
+        title="مراقبة الطلبات"
+        headers={["معرّف الطلب", "العميل", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء", "تصحيح يدوي"]}
         rows={orders.map((order) => [
           order.id,
           order.customerName,
           order.vendorName,
           formatCurrency(order.total),
           formatPaymentStatusLabel(order.paymentStatus, order.paymentMethod),
-          <select
-            key={`${order.id}-status`}
-            className="input"
-            value={order.orderStatus}
-            disabled={updatingOrderId === order.id}
-            onChange={(event) => void handleStatusChange(order.id, event.target.value)}
-          >
-            {getAdminStatusOptions(order.orderStatus).map((status) => (
-  <option key={status} value={status}>
-    {t(status.replaceAll("_", " "))}
-  </option>
-))}
-          </select>,
-          <select
-  key={`${order.id}-driver`}
-  className="input"
-  value={order.driverId ?? ""}
-  disabled={updatingOrderId === order.id || (order.orderStatus !== "ready_for_pickup" && !order.driverId)}
-  onChange={(event) => void handleDriverAssign(order.id, event.target.value)}
->
-  <option value="">{t("Select driver")}</option>
-  {drivers.map((driver) => (
-    <option key={driver.id} value={driver.id}>
-      {driver.fullName}
-    </option>
-  ))}
-</select>,
+          <OrderStatusBadge key={`${order.id}-status`} status={order.orderStatus} />,
+          <AdminDriverAssignControl
+            key={`${order.id}-driver`}
+            order={order}
+            drivers={drivers}
+            disabled={updatingOrderId === order.id || (order.orderStatus !== "ready_for_pickup" && !order.driverId)}
+            selectLabel={t("Select driver")}
+            onAssign={handleDriverAssign}
+          />,
           order.createdAt ? formatDate(order.createdAt) : "-",
+          <AdminOrderOverrideControl
+            key={`${order.id}-override`}
+            order={order}
+            statuses={adminOverrideStatuses}
+            disabled={updatingOrderId === order.id}
+            t={t}
+            onStatusChange={handleStatusChange}
+          />,
         ])}
         emptyMessage="لا توجد طلبات متاحة بعد."
       />
+    </div>
+  );
+}
+
+function AdminDriverAssignControl({
+  order,
+  drivers,
+  disabled,
+  selectLabel,
+  onAssign,
+}: AdminOrderControlProps & {
+  drivers: DriverOption[];
+  selectLabel: string;
+  onAssign: (orderId: string, selectedDriverId: string) => void;
+}) {
+  return (
+    <div className="table-actions">
+      <div className="field">
+        <select
+          className="input"
+          value={order.driverId ?? ""}
+          disabled={disabled}
+          aria-label={selectLabel}
+          onChange={(event) => onAssign(order.id, event.target.value)}
+        >
+          <option value="">{selectLabel}</option>
+          {drivers.map((driver) => (
+            <option key={driver.id} value={driver.id}>
+              {driver.fullName}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function AdminOrderOverrideControl({
+  order,
+  statuses,
+  disabled,
+  t,
+  onStatusChange,
+}: AdminOrderControlProps & {
+  statuses: string[];
+  t: (key: string) => string;
+  onStatusChange: (orderId: string, nextStatus: string) => void;
+}) {
+  return (
+    <div className="table-actions">
+      <details>
+        <summary className="secondary-button admin-summary-button">تجاوز</summary>
+        <div className="field">
+          <select
+            className="input"
+            value={order.orderStatus}
+            disabled={disabled}
+            aria-label="تصحيح حالة الطلب يدويًا"
+            onChange={(event) => onStatusChange(order.id, event.target.value)}
+          >
+            {statuses.map((status) => (
+              <option key={status} value={status}>
+                {t(status.replaceAll("_", " "))}
+              </option>
+            ))}
+          </select>
+        </div>
+      </details>
     </div>
   );
 }

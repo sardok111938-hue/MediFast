@@ -1,24 +1,18 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { DriverErrorCard, DriverLoadingCard, DriverOrderCard, DriverScreen, shortOrderRef } from "../../src/components/DriverUI";
 import {
-  DriverBadge,
-  DriverCard,
-  DriverErrorCard,
-  DriverLoadingCard,
-  DriverOrderCard,
-  DriverScreen,
-  shortOrderRef,
-} from "../../src/components/DriverUI";
-import { theme } from "@medifast/ui";
+  DriverHomeDeliveryAction,
+  DriverHomeMetrics,
+  DriverHomeSectionHeader,
+  DriverReadyStateCard,
+  DriverStatusSummaryCard,
+} from "../../src/components/home";
 import { formatDate, getStatusLabel, listAvailablePickupOrders, listCurrentDriverOrders, normalizeError, statusTone, type DriverOrder } from "../../src/lib/driver-data";
-import { useDriverI18n } from "../../src/lib/i18n";
 import { useDriverSession } from "../../src/hooks/use-driver-session";
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
-  const { isRTL } = useDriverI18n();
   const { driver, loading, error, refresh } = useDriverSession();
   const [summary, setSummary] = useState<{
     availablePickups: number;
@@ -82,55 +76,16 @@ export default function DriverDashboardScreen() {
         <DriverErrorCard message={error} onRetry={() => void handleRefresh()} />
       ) : (
         <>
-          <DriverCard variant="accent" compact>
-            <View style={styles.statusPanel}>
-              <View style={[styles.statusTop, isRTL ? styles.rowReverse : null]}>
-                <View style={styles.statusIcon}>
-                  <Ionicons name={driver?.isAvailable ? "bicycle-outline" : "navigate-outline"} size={22} color={theme.colors.primaryDark} />
-                </View>
+          <DriverStatusSummaryCard driver={driver} countsLoading={countsLoading} freshnessText={freshnessText} />
 
-                <View style={styles.accountMeta}>
-                  <View style={[styles.statusLabelRow, isRTL ? styles.rowReverse : null]}>
-                    <Text style={[styles.accountLabel, isRTL ? styles.textRight : null]}>حالة السائق</Text>
-                    <Ionicons name="radio-outline" size={14} color={theme.colors.primaryDark} />
-                  </View>
-                  <Text style={[styles.accountName, isRTL ? styles.textRight : null]} numberOfLines={1}>
-                    {driver?.fullName ?? "السائق"}
-                  </Text>
+          <DriverHomeMetrics
+            availablePickups={summary.availablePickups}
+            activeDeliveries={summary.activeDeliveries}
+            isAvailable={driver?.isAvailable}
+            loading={countsLoading}
+          />
 
-                  <View style={[styles.badgeRow, isRTL ? styles.rowReverse : null]}>
-                    <DriverBadge label={driver?.approvalStatus ?? "غير معروف"} tone={statusTone(driver?.approvalStatus ?? "")} />
-                    <DriverBadge label={driver?.isAvailable ? "متاح" : "في مهمة"} tone={driver?.isAvailable ? "success" : "info"} />
-                  </View>
-                </View>
-              </View>
-
-              <View style={[styles.statusMessageRow, isRTL ? styles.rowReverse : null]}>
-                <Text style={[styles.statusMessage, isRTL ? styles.textRight : null]}>
-                  {driver?.isAvailable ? "جاهز لقبول طلب استلام قريب." : "تابع التوصيلة الحالية حتى الإغلاق."}
-                </Text>
-                <Text style={styles.freshnessText}>{countsLoading ? "جارٍ التحديث..." : freshnessText}</Text>
-              </View>
-
-            </View>
-          </DriverCard>
-
-          <View style={styles.metricRow}>
-            <CompactMetric icon="cube-outline" label="طلبات متاحة" value={countsLoading ? "…" : String(summary.availablePickups)} />
-            <CompactMetric icon="navigate-outline" label="توصيلاتي الحالية" value={countsLoading ? "…" : String(summary.activeDeliveries)} />
-            <CompactMetric icon="time-outline" label="الحالة" value={driver?.isAvailable ? "جاهز" : "مشغول"} />
-          </View>
-
-          <View style={[styles.sectionLine, isRTL ? styles.rowReverse : null]}>
-            <View style={[styles.sectionTitleWrap, isRTL ? styles.rowReverse : null]}>
-              <Ionicons name={nextDelivery ? "trail-sign-outline" : "flash-outline"} size={18} color={theme.colors.primaryDark} />
-              <Text style={styles.sectionText}>{nextDelivery ? "التوصيلة التالية" : "جاهز للعمل"}</Text>
-            </View>
-            <TouchableOpacity activeOpacity={0.75} style={styles.refreshChip} onPress={() => void handleRefresh()}>
-              <Ionicons name="refresh-outline" size={14} color={theme.colors.primaryDark} />
-              <Text style={styles.refreshChipText}>تحديث</Text>
-            </TouchableOpacity>
-          </View>
+          <DriverHomeSectionHeader hasDelivery={Boolean(nextDelivery)} onRefresh={() => void handleRefresh()} />
 
           {nextDelivery ? (
             <DriverOrderCard
@@ -142,267 +97,22 @@ export default function DriverDashboardScreen() {
               pickupAddress={nextDelivery.pickupAddress}
               dropoffAddress={nextDelivery.dropoffAddress}
               action={
-                <TouchableOpacity
-                  activeOpacity={0.76}
-                  style={[styles.deliveryLink, isRTL ? styles.rowReverse : null]}
+                <DriverHomeDeliveryAction
                   onPress={() =>
                     router.push({
                       pathname: "/(tabs)/orders/[orderId]",
                       params: { orderId: nextDelivery.id },
                     })
                   }
-                >
-                  <Ionicons name="chevron-back" size={16} color={theme.colors.primaryDark} />
-                  <Text style={styles.deliveryLinkText}>فتح التوصيلة</Text>
-                </TouchableOpacity>
+                />
               }
               compact
             />
           ) : (
-            <DriverCard variant="elevated" compact>
-              <View style={[styles.readyHeader, isRTL ? styles.rowReverse : null]}>
-                <View style={styles.readyIcon}>
-                  <Ionicons name="checkmark-circle-outline" size={22} color={theme.colors.primaryDark} />
-                </View>
-                <View style={styles.readyBlock}>
-                  <Text style={[styles.readyTitle, isRTL ? styles.textRight : null]}>لا توجد توصيلات نشطة</Text>
-                  <Text style={[styles.readyText, isRTL ? styles.textRight : null]}>
-                    راقب الطلبات المتاحة واقبل أقرب استلام عند ظهوره.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={[styles.readyFooter, isRTL ? styles.rowReverse : null]}>
-                <Text style={[styles.readyText, isRTL ? styles.textRight : null]}>
-                  {summary.availablePickups > 0 ? `${summary.availablePickups} طلب جاهز للاستلام` : "سنحدّث الحالة عند وصول طلب جديد."}
-                </Text>
-              </View>
-            </DriverCard>
+            <DriverReadyStateCard availablePickups={summary.availablePickups} />
           )}
         </>
       )}
     </DriverScreen>
   );
 }
-
-function CompactMetric({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.compactMetric}>
-      <View style={styles.metricIcon}>
-        <Ionicons name={icon} size={17} color={theme.colors.primaryDark} />
-      </View>
-      <Text style={styles.compactMetricValue} numberOfLines={1}>
-        {value}
-      </Text>
-      <Text style={styles.compactMetricLabel} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  statusPanel: {
-    gap: 9,
-  },
-  statusTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 9,
-  },
-  statusIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#EEF7F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  accountMeta: {
-    flex: 1,
-    minWidth: 0,
-    gap: 5,
-  },
-  statusLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[4],
-  },
-  accountLabel: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.caption.sm,
-    fontWeight: "800",
-  },
-  accountName: {
-    fontSize: theme.typography.body.lg,
-    lineHeight: 24,
-    fontWeight: "800",
-    color: theme.colors.text,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  statusMessageRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-    alignItems: "center",
-  },
-  statusMessage: {
-    flex: 1,
-    minWidth: 0,
-    color: theme.colors.text,
-    fontSize: theme.typography.body.sm,
-    fontWeight: "600",
-    lineHeight: 20,
-  },
-  freshnessText: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.caption.sm,
-    fontWeight: "800",
-    lineHeight: 16,
-  },
-  metricRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing[8],
-  },
-  compactMetric: {
-    flexGrow: 1,
-    flexBasis: "31%",
-    minWidth: 105,
-    backgroundColor: theme.colors.surface,
-    borderColor: "#E5EEE9",
-    borderWidth: 1,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: 9,
-    paddingVertical: 9,
-    gap: theme.spacing[4],
-    alignItems: "flex-end",
-  },
-  metricIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#EEF7F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  compactMetricValue: {
-    color: theme.colors.text,
-    fontSize: theme.typography.heading.md,
-    lineHeight: 28,
-    fontWeight: "800",
-    textAlign: "right",
-  },
-  compactMetricLabel: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.caption.sm,
-    lineHeight: 15,
-    fontWeight: "800",
-    textAlign: "right",
-  },
-  deliveryLink: {
-    minHeight: 40,
-    borderRadius: 999,
-    backgroundColor: "#EEF7F2",
-    paddingHorizontal: theme.spacing[12],
-    paddingVertical: theme.spacing[8],
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: theme.spacing[4],
-  },
-  deliveryLinkText: {
-    color: theme.colors.primaryDark,
-    fontSize: theme.typography.body.sm,
-    fontWeight: "800",
-    lineHeight: 18,
-  },
-  sectionLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing[8],
-    marginTop: -theme.spacing[4],
-  },
-  sectionTitleWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  sectionText: {
-    color: theme.colors.text,
-    fontSize: theme.typography.body.lg,
-    lineHeight: 24,
-    fontWeight: "800",
-  },
-  refreshChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[4],
-    borderRadius: 999,
-    backgroundColor: "#EEF7F2",
-    paddingHorizontal: theme.spacing[8],
-    paddingVertical: 6,
-  },
-  refreshChipText: {
-    color: theme.colors.primaryDark,
-    fontSize: theme.typography.caption.sm,
-    fontWeight: "800",
-  },
-  readyHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  readyIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#EEF7F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  readyBlock: {
-    flex: 1,
-    minWidth: 0,
-    gap: theme.spacing[4],
-  },
-  readyTitle: {
-    fontSize: theme.typography.body.lg,
-    lineHeight: 23,
-    fontWeight: "800",
-    color: theme.colors.text,
-  },
-  readyText: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body.sm,
-    lineHeight: 21,
-  },
-  readyFooter: {
-    borderTopWidth: 1,
-    borderTopColor: "#EDF2EF",
-    paddingTop: 9,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 8,
-  },
-  rowReverse: {
-    flexDirection: "row-reverse",
-  },
-  textRight: {
-    textAlign: "right",
-  },
-});

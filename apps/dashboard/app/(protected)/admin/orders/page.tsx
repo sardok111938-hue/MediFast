@@ -5,11 +5,11 @@ import { AdminMedicalCallout, AdminOrdersClient } from "../../../../src/features
 
 export default function AdminOrdersPage() {
   return (
-    <DashboardShell title="الطلبات" subtitle="لوحة تشغيل خفيفة لمراجعة الطلبات." nav={dashboardNavigation.admin}>
-      <PageHeader title="الطلبات" description="قراءات طلبات Supabase لمسار العميل وحالة الدفع والتشغيل." />
+    <DashboardShell title="الطلبات" subtitle="مراقبة الطلبات والتدخل اليدوي عند الحاجة." nav={dashboardNavigation.admin}>
+      <PageHeader title="الطلبات" description="هذه اللوحة للمراقبة العامة، بينما قبول الطلبات وتحضيرها يتم من لوحة الصيدلية." />
       <AdminMedicalCallout
-        title="مسار تشغيل الطلبات"
-        body="استخدم هذه اللوحة للمراجعة العامة، ثم افتح طابور إسناد السائقين للطلبات التي وصلت إلى جاهزة للاستلام."
+        title="دور الإدارة في الطلبات"
+        body="الإدارة تراقب جميع الطلبات، تسند السائقين عند الحاجة، وتستخدم التصحيح اليدوي فقط كاستثناء أو لمعالجة مشكلة تشغيلية."
       />
       <AdminOrdersClient />
     </DashboardShell>

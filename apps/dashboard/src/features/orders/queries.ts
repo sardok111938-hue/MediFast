@@ -325,7 +325,7 @@ export function getVendorOverviewOrdersTableModel(orders: VendorOrderRow[]): Tab
         key: `${order.id}-vendor-overview-status`,
         status: order.order_status,
       }),
-      "Accept / Reject",
+      order.order_status === "placed" ? "Vendor accept/reject" : "Vendor workflow",
     ]),
   };
 }

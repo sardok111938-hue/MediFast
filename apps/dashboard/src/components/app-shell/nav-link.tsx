@@ -14,6 +14,7 @@ export function NavLink({ href, label }: { href: string; label: string }) {
     <Link
       href={href as never}
       className={isActive ? "active" : ""}
+      aria-current={isActive ? "page" : undefined}
     >
       {t(label) || label}
     </Link>
