@@ -5,11 +5,11 @@ import { AdminCustomersClient, AdminMedicalCallout } from "../../../../src/featu
 
 export default function AdminCustomersPage() {
   return (
-    <DashboardShell title="Customers" subtitle="A simple patient-facing customer roster for admin review." nav={dashboardNavigation.admin}>
-      <PageHeader title="Customers" description="Supabase-backed customer reads for name, phone, join date, and account presence." />
+    <DashboardShell title="العملاء" subtitle="قائمة عملاء مبسطة لمراجعة الإدارة." nav={dashboardNavigation.admin}>
+      <PageHeader title="العملاء" description="قراءات عملاء Supabase للاسم والهاتف وتاريخ الانضمام ووجود الحساب." />
       <AdminMedicalCallout
-        title="Customer visibility"
-        body="This read-only table keeps customer activity approachable for support and operations without changing any customer-app behavior."
+        title="رؤية العملاء"
+        body="يحافظ هذا الجدول للقراءة فقط على سهولة متابعة نشاط العملاء للدعم والتشغيل دون تغيير سلوك تطبيق العميل."
       />
       <AdminCustomersClient />
     </DashboardShell>

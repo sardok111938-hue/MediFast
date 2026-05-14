@@ -6,11 +6,11 @@ import { AdminVendorsManager } from "../../../../src/features/admin/vendors/vend
 
 export default function AdminVendorsPage() {
   return (
-    <DashboardShell title="Vendors" subtitle="Admin-managed pharmacy partner setup, approval, and storefront control." nav={dashboardNavigation.admin}>
-      <PageHeader title="Vendors" description="Search existing profiles, create vendor records safely, and manage approval or storefront activity." />
+    <DashboardShell title="الصيدليات" subtitle="إعداد شركاء الصيدليات واعتمادهم وإدارة ظهورهم." nav={dashboardNavigation.admin}>
+      <PageHeader title="الصيدليات" description="ابحث في الملفات الحالية، أنشئ سجلات صيدليات بأمان، وأدر الاعتماد أو نشاط الواجهة." />
       <AdminMedicalCallout
-        title="Partner management"
-        body="Use this page to link approved identities to vendor records, edit storefront details, and control activation without exposing service-role credentials."
+        title="إدارة الشركاء"
+        body="استخدم هذه الصفحة لربط الهويات المعتمدة بسجلات الصيدليات، وتعديل تفاصيل الواجهة، والتحكم في التفعيل دون كشف صلاحيات الخدمة."
       />
       <AdminVendorsManager />
     </DashboardShell>

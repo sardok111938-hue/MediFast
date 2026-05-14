@@ -5,14 +5,14 @@ import { dashboardNavigation } from "../../../../src/lib/config/navigation";
 
 export default function AdminCouponsPage() {
   return (
-    <DashboardShell title="Coupons" subtitle="Promotional controls for growth campaigns." nav={dashboardNavigation.admin}>
-      <PageHeader title="Coupons" description="Promotional controls for growth campaigns." />
+    <DashboardShell title="القسائم" subtitle="ضوابط العروض لحملات النمو." nav={dashboardNavigation.admin}>
+      <PageHeader title="القسائم" description="إدارة القسائم والعروض الترويجية." />
       <Table
-        title="Coupons"
-        headers={["Code", "Discount", "Usage", "Status"]}
+        title="القسائم"
+        headers={["الرمز", "الخصم", "الاستخدام", "الحالة"]}
         rows={[
-          ["WELCOME10", "10%", "34", "active"],
-          ["CARE5", "$5", "12", "active"],
+          ["WELCOME10", "10%", "34", "نشطة"],
+          ["CARE5", "5.00 د.ل", "12", "نشطة"],
         ]}
       />
     </DashboardShell>

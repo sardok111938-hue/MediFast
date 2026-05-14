@@ -5,11 +5,11 @@ import { AdminDriversClient, AdminMedicalCallout } from "../../../../src/feature
 
 export default function AdminDriversPage() {
   return (
-    <DashboardShell title="Drivers" subtitle="Courier coverage with a calm medical operations feel." nav={dashboardNavigation.admin}>
-      <PageHeader title="Drivers" description="Supabase-backed driver reads for approvals, availability, and current location values." />
+    <DashboardShell title="السائقون" subtitle="تغطية التوصيل ومتابعة الجاهزية التشغيلية." nav={dashboardNavigation.admin}>
+      <PageHeader title="السائقون" description="قراءات سائقي Supabase للموافقات والتوفر وقيم الموقع الحالية." />
       <AdminMedicalCallout
-        title="Dispatch visibility"
-        body="This simple table keeps driver availability and approval status easy to scan before any future dispatch tooling is added."
+        title="وضوح التوزيع"
+        body="يسهّل هذا الجدول متابعة توفر السائقين وحالة اعتمادهم قبل إضافة أدوات توزيع أوسع."
       />
       <AdminDriversClient />
     </DashboardShell>

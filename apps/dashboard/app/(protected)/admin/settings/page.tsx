@@ -5,11 +5,11 @@ import { dashboardNavigation } from "../../../../src/lib/config/navigation";
 
 export default function AdminSettingsPage() {
   return (
-    <DashboardShell title="Settings" subtitle="Marketplace-level configuration placeholders." nav={dashboardNavigation.admin}>
-      <PageHeader title="Settings" description="Marketplace-level configuration placeholders." />
+    <DashboardShell title="الإعدادات" subtitle="إعدادات عامة لسوق ميدي فاست." nav={dashboardNavigation.admin}>
+      <PageHeader title="الإعدادات" description="مساحة إعدادات عامة للسوق والتنبيهات والتشغيل." />
       <Card>
-        <h3>Global Settings</h3>
-        <p className="muted">Commission rules, category management, and notification preferences can live here.</p>
+        <h3>إعدادات عامة</h3>
+        <p className="muted">يمكن وضع قواعد العمولة وإدارة الفئات وتفضيلات التنبيهات هنا.</p>
       </Card>
     </DashboardShell>
   );

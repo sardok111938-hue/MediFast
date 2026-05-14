@@ -5,14 +5,14 @@ import { dashboardNavigation } from "../../../../src/lib/config/navigation";
 
 export default function VendorOffersPage() {
   return (
-    <DashboardShell title="Offers / Discounts" subtitle="Store-level promotions and markdowns." nav={dashboardNavigation.vendor}>
-      <PageHeader title="Offers / Discounts" description="Store-level promotions and markdowns." />
+    <DashboardShell title="العروض والخصومات" subtitle="عروض الصيدلية وتخفيضات المنتجات." nav={dashboardNavigation.vendor}>
+      <PageHeader title="العروض والخصومات" description="إدارة عروض الصيدلية والتخفيضات المخصصة للكتالوج." />
       <Table
-        title="Offers"
-        headers={["Offer", "Discount", "Applies To", "Status"]}
+        title="العروض"
+        headers={["العرض", "الخصم", "ينطبق على", "الحالة"]}
         rows={[
-          ["Skin care weekend", "15%", "Category", "scheduled"],
-          ["Vitamin bundle", "$3 off", "Products", "active"],
+          ["نهاية أسبوع العناية بالبشرة", "15%", "فئة", "مجدول"],
+          ["باقة الفيتامينات", "3.00 د.ل خصم", "منتجات", "نشط"],
         ]}
       />
     </DashboardShell>

@@ -2021,7 +2021,7 @@ function AdminCategoriesManager() {
               id="admin-category-name"
               value={categoryForm.name}
               onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Medicine"
+              placeholder="أدوية"
             />
           </div>
           <div className="field">
@@ -2034,7 +2034,7 @@ function AdminCategoriesManager() {
             />
           </div>
           <div className="field">
-            <label htmlFor="admin-category-slug">Slug</label>
+            <label htmlFor="admin-category-slug">المعرّف النصي</label>
             <Input id="admin-category-slug" value={categoryForm.slug} onChange={(event) => setCategoryForm((current) => ({ ...current, slug: event.target.value }))} placeholder="medicine" />
           </div>
           <div className="field">
@@ -2049,11 +2049,11 @@ function AdminCategoriesManager() {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="admin-category-icon">Icon</label>
+            <label htmlFor="admin-category-icon">الأيقونة</label>
             <Input id="admin-category-icon" value={categoryForm.icon} onChange={(event) => setCategoryForm((current) => ({ ...current, icon: event.target.value }))} placeholder="medkit-outline" />
           </div>
           <div className="field">
-            <label htmlFor="admin-category-image">Image URL</label>
+            <label htmlFor="admin-category-image">رابط الصورة</label>
             <Input id="admin-category-image" value={categoryForm.imageUrl} onChange={(event) => setCategoryForm((current) => ({ ...current, imageUrl: event.target.value }))} placeholder="https://..." />
           </div>
           <div className="field">
@@ -2088,7 +2088,7 @@ function AdminCategoriesManager() {
               <div key={`${category.id}-edit-fields`} className="form-grid">
                 <Input value={editingForm.nameAr} onChange={(event) => setEditingForm((current) => ({ ...current, nameAr: event.target.value }))} placeholder="الاسم العربي" />
                 <Input value={editingForm.name} onChange={(event) => setEditingForm((current) => ({ ...current, name: event.target.value }))} placeholder="الاسم الداخلي" />
-                <Input value={editingForm.imageUrl} onChange={(event) => setEditingForm((current) => ({ ...current, imageUrl: event.target.value }))} placeholder="Image URL" />
+                <Input value={editingForm.imageUrl} onChange={(event) => setEditingForm((current) => ({ ...current, imageUrl: event.target.value }))} placeholder="رابط الصورة" />
                 <select className="input" value={editingForm.parentId} onChange={(event) => setEditingForm((current) => ({ ...current, parentId: event.target.value }))}>
                   <option value="">فئة رئيسية</option>
                   {parentCategories

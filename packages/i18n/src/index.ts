@@ -448,6 +448,8 @@ const orderStatusLabels = {
   preparing: "قيد التحضير",
   ready_for_pickup: "جاهز للاستلام",
   assigned: "تم تعيين سائق",
+  arrived_at_pharmacy: "وصل إلى الصيدلية",
+  picked_up: "تم الاستلام",
   on_the_way: "في الطريق",
   delivered: "تم التوصيل",
   rejected: "مرفوض",
@@ -457,6 +459,7 @@ const orderStatusLabels = {
 const paymentStatusLabels = {
   pending: "الدفع نقدًا عند التوصيل",
   collected: "تم تحصيل المبلغ",
+  cash_on_delivery: "الدفع عند الاستلام",
 } as const;
 
 const approvalStatusLabels = {
@@ -496,6 +499,10 @@ export function formatOrderStatusLabel(status: string) {
 }
 
 export function formatPaymentStatusLabel(status: string, paymentMethod?: string | null) {
+  if (status === "cash_on_delivery") {
+    return paymentStatusLabels.cash_on_delivery;
+  }
+
   if (status === "pending") {
     return paymentMethod === "cash_on_delivery" ? paymentStatusLabels.pending : "قيد الانتظار";
   }

@@ -14,17 +14,17 @@ export default async function VendorSettingsPage() {
   try {
     vendor = await getVendorSettingsData();
   } catch (error) {
-    errorMessage = error instanceof Error ? error.message : "Unable to load vendor settings.";
+    errorMessage = error instanceof Error ? error.message : "تعذر تحميل إعدادات الصيدلية.";
   }
 
   return (
     <DashboardShell
-      title="Store Settings"
-      subtitle="Pharmacy profile, branding, and contact settings."
+      title="إعدادات الصيدلية"
+      subtitle="ملف الصيدلية والهوية ومعلومات التواصل."
       nav={dashboardNavigation.vendor}
     >
       <PageHeader
-        title="Store Settings"
+        title="إعدادات الصيدلية"
         description="قم بتعديل ملف الصيدلية، معلومات التواصل، العنوان، وصورة واجهة المتجر."
       />
 
@@ -40,7 +40,7 @@ export default async function VendorSettingsPage() {
   {errorMessage ? (
     <ErrorState message={errorMessage} />
   ) : !vendor ? (
-    <EmptyState title="Vendor not ready" message="This account is not linked to an approved vendor record yet." />
+    <EmptyState title="الصيدلية غير جاهزة" message="هذا الحساب غير مرتبط بسجل صيدلية معتمد حتى الآن." />
   ) : (
     <VendorSettingsForm vendor={vendor} />
   )}

@@ -4,7 +4,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
   DriverBadge,
-  DriverButton,
   DriverCard,
   DriverErrorCard,
   DriverLoadingCard,
@@ -113,13 +112,12 @@ export default function DriverDashboardScreen() {
                 <Text style={styles.freshnessText}>{countsLoading ? "جارٍ التحديث..." : freshnessText}</Text>
               </View>
 
-              <DriverButton label="عرض الطلبات" onPress={() => router.push("/(tabs)/orders")} size="sm" />
             </View>
           </DriverCard>
 
           <View style={styles.metricRow}>
-            <CompactMetric icon="cube-outline" label="متاحة" value={countsLoading ? "…" : String(summary.availablePickups)} />
-            <CompactMetric icon="navigate-outline" label="نشطة" value={countsLoading ? "…" : String(summary.activeDeliveries)} />
+            <CompactMetric icon="cube-outline" label="طلبات متاحة" value={countsLoading ? "…" : String(summary.availablePickups)} />
+            <CompactMetric icon="navigate-outline" label="توصيلاتي الحالية" value={countsLoading ? "…" : String(summary.activeDeliveries)} />
             <CompactMetric icon="time-outline" label="الحالة" value={driver?.isAvailable ? "جاهز" : "مشغول"} />
           </View>
 
@@ -144,15 +142,19 @@ export default function DriverDashboardScreen() {
               pickupAddress={nextDelivery.pickupAddress}
               dropoffAddress={nextDelivery.dropoffAddress}
               action={
-                <DriverButton
-                  label="فتح التوصيلة"
+                <TouchableOpacity
+                  activeOpacity={0.76}
+                  style={[styles.deliveryLink, isRTL ? styles.rowReverse : null]}
                   onPress={() =>
                     router.push({
                       pathname: "/(tabs)/orders/[orderId]",
                       params: { orderId: nextDelivery.id },
                     })
                   }
-                />
+                >
+                  <Ionicons name="chevron-back" size={16} color={theme.colors.primaryDark} />
+                  <Text style={styles.deliveryLinkText}>فتح التوصيلة</Text>
+                </TouchableOpacity>
               }
               compact
             />
@@ -174,7 +176,6 @@ export default function DriverDashboardScreen() {
                 <Text style={[styles.readyText, isRTL ? styles.textRight : null]}>
                   {summary.availablePickups > 0 ? `${summary.availablePickups} طلب جاهز للاستلام` : "سنحدّث الحالة عند وصول طلب جديد."}
                 </Text>
-                <DriverButton label="عرض الطلبات" onPress={() => router.push("/(tabs)/orders")} size="sm" />
               </View>
             </DriverCard>
           )}
@@ -210,25 +211,25 @@ function CompactMetric({
 
 const styles = StyleSheet.create({
   statusPanel: {
-    gap: 10,
+    gap: 9,
   },
   statusTop: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: 9,
   },
   statusIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#DFF4E8",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#EEF7F2",
     alignItems: "center",
     justifyContent: "center",
   },
   accountMeta: {
     flex: 1,
     minWidth: 0,
-    gap: 6,
+    gap: 5,
   },
   statusLabelRow: {
     flexDirection: "row",
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
   statusMessageRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
     alignItems: "center",
   },
   statusMessage: {
@@ -272,20 +273,20 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   metricRow: {
-  flexDirection: "row",
-  flexWrap: "wrap",
-  gap: theme.spacing[8],
-},
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing[8],
+  },
   compactMetric: {
-  flexGrow: 1,
-  flexBasis: "31%",
-  minWidth: 105,
+    flexGrow: 1,
+    flexBasis: "31%",
+    minWidth: 105,
     backgroundColor: theme.colors.surface,
     borderColor: "#E5EEE9",
     borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: 9,
+    paddingVertical: 9,
     gap: theme.spacing[4],
     alignItems: "flex-end",
   },
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#F0F8F4",
+    backgroundColor: "#EEF7F2",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -310,6 +311,23 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     fontWeight: "800",
     textAlign: "right",
+  },
+  deliveryLink: {
+    minHeight: 40,
+    borderRadius: 999,
+    backgroundColor: "#EEF7F2",
+    paddingHorizontal: theme.spacing[12],
+    paddingVertical: theme.spacing[8],
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing[4],
+  },
+  deliveryLinkText: {
+    color: theme.colors.primaryDark,
+    fontSize: theme.typography.body.sm,
+    fontWeight: "800",
+    lineHeight: 18,
   },
   sectionLine: {
     flexDirection: "row",
@@ -349,10 +367,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   readyIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#EFFAF4",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#EEF7F2",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -375,11 +393,11 @@ const styles = StyleSheet.create({
   readyFooter: {
     borderTopWidth: 1,
     borderTopColor: "#EDF2EF",
-    paddingTop: 10,
+    paddingTop: 9,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+    justifyContent: "flex-start",
+    gap: 8,
   },
   rowReverse: {
     flexDirection: "row-reverse",

@@ -50,7 +50,7 @@ export function RoleRedirect({
   }, [role, router]);
 
   if (status === "loading") {
-    return <LoadingState message="Checking access..." />;
+    return <LoadingState message="جارٍ التحقق من صلاحية الوصول..." />;
   }
 
   return <>{children}</>;

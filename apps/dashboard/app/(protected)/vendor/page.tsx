@@ -194,7 +194,7 @@ export default async function VendorDashboardPage() {
           rows={overview.recentOrders.map((order) => [
             order.id,
             order.customer_name,
-            formatCurrency(order.total, "ar-EG"),
+            formatCurrency(order.total, "en-GB"),
             formatPaymentStatusLabel(order.payment_status, order.payment_method),
             order.address || "-",
             <OrderStatusBadge key={`${order.id}-overview-status`} status={order.order_status} />,

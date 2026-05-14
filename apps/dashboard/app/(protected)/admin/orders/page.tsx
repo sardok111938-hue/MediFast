@@ -5,11 +5,11 @@ import { AdminMedicalCallout, AdminOrdersClient } from "../../../../src/features
 
 export default function AdminOrdersPage() {
   return (
-    <DashboardShell title="Orders" subtitle="A lightweight operations board for order review." nav={dashboardNavigation.admin}>
-      <PageHeader title="Orders" description="Supabase-backed order reads for customer flow, payment state, and operational status." />
+    <DashboardShell title="الطلبات" subtitle="لوحة تشغيل خفيفة لمراجعة الطلبات." nav={dashboardNavigation.admin}>
+      <PageHeader title="الطلبات" description="قراءات طلبات Supabase لمسار العميل وحالة الدفع والتشغيل." />
       <AdminMedicalCallout
-        title="Operations order flow"
-        body="Use this board for broad order review, then open the driver assignment queue for orders that have reached ready_for_pickup."
+        title="مسار تشغيل الطلبات"
+        body="استخدم هذه اللوحة للمراجعة العامة، ثم افتح طابور إسناد السائقين للطلبات التي وصلت إلى جاهزة للاستلام."
       />
       <AdminOrdersClient />
     </DashboardShell>

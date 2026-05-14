@@ -12,8 +12,8 @@ export default async function VendorProductsPage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   return (
-    <DashboardShell title="Products" subtitle="Manage catalog items, prices, stock, and visibility." nav={dashboardNavigation.vendor}>
-      <PageHeader title="Products" description="Manage catalog items, prices, stock, images, and active visibility from one vendor-safe flow.">
+    <DashboardShell title="المنتجات" subtitle="إدارة عناصر الكتالوج والأسعار والمخزون والظهور." nav={dashboardNavigation.vendor}>
+      <PageHeader title="المنتجات" description="أدر المنتجات والأسعار والمخزون والصور وحالة الظهور من مسار آمن للصيدلية.">
         <div className="inline-actions">
           <Link href="/vendor/inventory" className="button secondary-button">
             فتح المخزون

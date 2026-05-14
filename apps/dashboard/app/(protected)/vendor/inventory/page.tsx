@@ -42,8 +42,8 @@ export default async function VendorInventoryPage({
   }
 
   return (
-    <DashboardShell title="Inventory" subtitle="Low stock and stock level management view." nav={dashboardNavigation.vendor}>
-      <PageHeader title="Inventory" description="Review stock risk, update safe stock counts, and jump back to product editing when needed.">
+    <DashboardShell title="المخزون" subtitle="متابعة المنتجات منخفضة أو نافدة المخزون." nav={dashboardNavigation.vendor}>
+      <PageHeader title="المخزون" description="راجع مخاطر المخزون، حدّث الكميات الآمنة، وافتح تعديل المنتج عند الحاجة.">
         {resolvedSearchParams?.success ? <p className="success">تم تحديث المخزون بنجاح.</p> : null}
         {resolvedSearchParams?.error ? <p className="danger">{resolvedSearchParams.error}</p> : null}
       </PageHeader>
@@ -52,15 +52,15 @@ export default async function VendorInventoryPage({
         <Card className="medical-panel">
           <div className="detail-meta">
             <div className="detail-block">
-              <strong>Active Products</strong>
+              <strong>منتجات نشطة</strong>
               <span>{activeProducts.length}</span>
             </div>
             <div className="detail-block">
-              <strong>Low Stock</strong>
+              <strong>مخزون منخفض</strong>
               <span>{lowStockProducts.length}</span>
             </div>
             <div className="detail-block">
-              <strong>Out of Stock</strong>
+              <strong>نفد المخزون</strong>
               <span>{outOfStockProducts.length}</span>
             </div>
           </div>
@@ -69,7 +69,7 @@ export default async function VendorInventoryPage({
 
       {activeProducts.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="No inventory yet" message="Active products will appear here once the vendor catalog is available." />
+          <EmptyState title="لا يوجد مخزون بعد" message="ستظهر المنتجات النشطة هنا بعد توفر كتالوج الصيدلية." />
         </Card>
       ) : null}
 

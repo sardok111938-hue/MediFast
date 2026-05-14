@@ -5,11 +5,11 @@ import { dashboardNavigation } from "../../../src/lib/config/navigation";
 
 export default function DriverDashboardPage() {
   return (
-    <DashboardShell title="Driver Panel" subtitle="Assigned deliveries and route progress for MediFast drivers." nav={dashboardNavigation.driver}>
+    <DashboardShell title="لوحة السائق" subtitle="التوصيلات المسندة وتقدم المسار لسائقي ميدي فاست." nav={dashboardNavigation.driver}>
       <PageHeader
-        badge="Assigned Deliveries"
-        title="Dashboard"
-        description="Track pickup-ready orders, active deliveries, and completed drop-offs from one place."
+        badge="توصيلات مسندة"
+        title="لوحة السائق"
+        description="تابع الطلبات الجاهزة للاستلام والتوصيلات النشطة والطلبات المكتملة من مكان واحد."
       />
       <DriverDashboardClient />
     </DashboardShell>

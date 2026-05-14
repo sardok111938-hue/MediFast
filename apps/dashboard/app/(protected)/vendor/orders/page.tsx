@@ -11,8 +11,8 @@ export default async function VendorOrdersPage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   return (
-    <DashboardShell title="Orders" subtitle="Accept, prepare, and ready pharmacy orders for pickup." nav={dashboardNavigation.vendor}>
-      <PageHeader title="Orders" description="Review vendor-owned orders, filter by fulfillment stage, and act only on the next valid step." />
+    <DashboardShell title="الطلبات" subtitle="قبول الطلبات وتجهيزها للصيدلية والتسليم." nav={dashboardNavigation.vendor}>
+      <PageHeader title="الطلبات" description="راجع طلبات الصيدلية، صفّها حسب مرحلة التنفيذ، واتخذ الإجراء التالي المسموح فقط." />
       <VendorOrdersClient initialStatusFilter={resolvedSearchParams?.status} />
     </DashboardShell>
   );

@@ -5,11 +5,11 @@ import { AdminMedicalCallout, AdminProductsClient } from "../../../../src/featur
 
 export default function AdminProductsPage() {
   return (
-    <DashboardShell title="Products" subtitle="Catalog review with a practical medical merchandising lens." nav={dashboardNavigation.admin}>
-      <PageHeader title="Products" description="Supabase-backed product reads for vendor, category, price, stock, and active state." />
+    <DashboardShell title="المنتجات" subtitle="مراجعة الكتالوج بمنظور تشغيلي للصيدليات." nav={dashboardNavigation.admin}>
+      <PageHeader title="المنتجات" description="قراءات منتجات Supabase للصيدلية والفئة والسعر والمخزون وحالة التفعيل." />
       <AdminMedicalCallout
-        title="Catalog hygiene"
-        body="This view keeps product coverage simple and readable while the team verifies category fit, price data, and stock levels."
+        title="سلامة الكتالوج"
+        body="يحافظ هذا العرض على وضوح تغطية المنتجات بينما يراجع الفريق ملاءمة الفئة والأسعار ومستويات المخزون."
       />
       <AdminProductsClient />
     </DashboardShell>

@@ -1,4 +1,5 @@
 import { formatOrderStatusLabel as formatSharedOrderStatusLabel, formatPaymentStatusLabel as formatSharedPaymentStatusLabel } from "@medifast/i18n";
+import { formatCurrencyLYD } from "@medifast/types";
 import { supabase } from "./supabase";
 
 export type CustomerOrderItem = {
@@ -30,6 +31,8 @@ const statusLabelMap: Record<string, string> = {
   preparing: "قيد التحضير",
   ready_for_pickup: "جاهز للاستلام",
   assigned: "تم التعيين",
+  arrived_at_pharmacy: "وصل السائق إلى الصيدلية",
+  picked_up: "تم استلام الطلب",
   on_the_way: "في الطريق",
   delivered: "تم التوصيل",
   cancelled: "ملغي",
@@ -116,14 +119,11 @@ export function normalizeCustomerOrderError(error: unknown) {
 }
 
 export function formatCustomerCurrency(value: number) {
-  return new Intl.NumberFormat("ar-EG", {
-    style: "currency",
-    currency: "SAR",
-  }).format(value);
+  return formatCurrencyLYD(value);
 }
 
 export function formatCustomerDate(value: string) {
-  return new Intl.DateTimeFormat("ar-EG", {
+  return new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));

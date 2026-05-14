@@ -5,11 +5,11 @@ import { AdminCategoriesClient, AdminMedicalCallout } from "../../../../src/feat
 
 export default function AdminCategoriesPage() {
   return (
-    <DashboardShell title="Categories" subtitle="Clean catalog grouping for a green medical storefront." nav={dashboardNavigation.admin}>
-      <PageHeader title="Categories" description="Supabase-backed category reads to keep the product taxonomy simple and easy to monitor." />
+    <DashboardShell title="الفئات" subtitle="تنظيم واضح لكتالوج الصيدليات." nav={dashboardNavigation.admin}>
+      <PageHeader title="الفئات" description="قراءة فئات Supabase للحفاظ على هيكل كتالوج واضح وسهل المتابعة." />
       <AdminMedicalCallout
-        title="Taxonomy check"
-        body="Categories are presented as a lightweight read-only list so the admin team can verify catalog structure before adding deeper management flows."
+        title="مراجعة التصنيف"
+        body="تُعرض الفئات بهيكل خفيف حتى يتمكن فريق الإدارة من مراجعة تنظيم الكتالوج قبل توسيع أدوات الإدارة."
       />
       <AdminCategoriesClient />
     </DashboardShell>

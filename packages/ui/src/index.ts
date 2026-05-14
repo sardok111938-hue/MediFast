@@ -255,7 +255,7 @@ export const drivers: Driver[] = [
   {
     id: "driver-1",
     user_id: "user-driver-1",
-    full_name: "Amina Yusuf",
+    full_name: "أمينة يوسف",
     is_available: true,
     current_lat: 24.7148,
     current_lng: 46.6814,
@@ -264,7 +264,7 @@ export const drivers: Driver[] = [
   {
     id: "driver-2",
     user_id: "user-driver-2",
-    full_name: "David Mensah",
+    full_name: "داود منساه",
     is_available: false,
     current_lat: 24.709,
     current_lng: 46.671,
@@ -273,15 +273,15 @@ export const drivers: Driver[] = [
 ];
 
 export const adminStats: DashboardStat[] = [
-  { label: "Orders Today", value: "148", hint: "+12% vs yesterday" },
-  { label: "Active Drivers", value: "32", hint: "5 nearby idle" },
-  { label: "Live Vendors", value: "18", hint: "2 awaiting approval" },
-  { label: "COD Pending", value: "$1,284", hint: "to reconcile today" },
+  { label: "طلبات اليوم", value: "148", hint: "+12% مقارنة بالأمس" },
+  { label: "سائقون نشطون", value: "32", hint: "5 قريبون ومتاحون" },
+  { label: "صيدليات فعالة", value: "18", hint: "2 بانتظار الاعتماد" },
+  { label: "تحصيل نقدي معلق", value: "1,284.00 د.ل", hint: "للمطابقة اليوم" },
 ];
 
 export const vendorStats: DashboardStat[] = [
-  { label: "New Orders", value: "14", hint: "3 need action now" },
-  { label: "Active Products", value: "126", hint: "9 low stock" },
-  { label: "Ready for Pickup", value: "5", hint: "drivers nearby" },
-  { label: "Today Revenue", value: "$436", hint: "cash on delivery" },
+  { label: "طلبات جديدة", value: "14", hint: "3 تحتاج إجراء الآن" },
+  { label: "منتجات نشطة", value: "126", hint: "9 منخفضة المخزون" },
+  { label: "جاهزة للاستلام", value: "5", hint: "سائقون قريبون" },
+  { label: "إيراد اليوم", value: "436.00 د.ل", hint: "دفع عند الاستلام" },
 ];

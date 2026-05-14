@@ -7,6 +7,8 @@ export type OrderStatus =
   | "rejected"
   | "ready_for_pickup"
   | "assigned"
+  | "arrived_at_pharmacy"
+  | "picked_up"
   | "on_the_way"
   | "delivered"
   | "cancelled";
@@ -15,10 +17,29 @@ export type PaymentMethod = "cash_on_delivery";
 export type PaymentStatus = "pending" | "collected";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
+export function formatCurrencyLYD(value: number | string | null | undefined) {
+  const amount = Number(value ?? 0);
+
+  return `${new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(amount) ? amount : 0)} د.ل`;
+}
+
 export function formatPaymentStatusLabel(
   status: PaymentStatus | string,
   paymentMethod?: PaymentMethod | string | null
 ) {
+  const fallbackLabels: Record<string, string> = {
+    pending: "قيد الانتظار",
+    collected: "تم التحصيل",
+    cash_on_delivery: "الدفع عند الاستلام",
+  };
+
+  if (status === "cash_on_delivery") {
+    return "الدفع عند الاستلام";
+  }
+
   if (status === "pending") {
     return paymentMethod === "cash_on_delivery" ? "الدفع نقدًا عند التوصيل" : "قيد الانتظار";
   }
@@ -27,7 +48,7 @@ export function formatPaymentStatusLabel(
     return paymentMethod === "cash_on_delivery" ? "تم تحصيل المبلغ" : "تم التحصيل";
   }
 
-  return status.replaceAll("_", " ");
+  return fallbackLabels[status] ?? status.replaceAll("_", " ");
 }
 
 export interface Profile {

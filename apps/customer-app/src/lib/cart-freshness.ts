@@ -1,4 +1,4 @@
-import type { CartItem, Product } from "@medifast/types";
+import { formatCurrencyLYD, type CartItem, type Product } from "@medifast/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { refreshCartItemSnapshot, removeProductFromCart, setCartItemQuantity } from "./cart-store";
 import { isSupabaseConfigured, supabase } from "./supabase";
@@ -54,12 +54,7 @@ function mapProduct(product: QueryProduct): Product {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "SAR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  return formatCurrencyLYD(value);
 }
 
 async function fetchLiveProducts(productIds: string[]) {

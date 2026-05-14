@@ -5,14 +5,14 @@ import { dashboardNavigation } from "../../../../src/lib/config/navigation";
 
 export default function AdminSupportPage() {
   return (
-    <DashboardShell title="Support Tickets" subtitle="Customer, vendor, and driver issue tracking." nav={dashboardNavigation.admin}>
-      <PageHeader title="Support Tickets" description="Customer, vendor, and driver issue tracking." />
+    <DashboardShell title="تذاكر الدعم" subtitle="متابعة مشاكل العملاء والصيدليات والسائقين." nav={dashboardNavigation.admin}>
+      <PageHeader title="تذاكر الدعم" description="متابعة مشاكل العملاء والصيدليات والسائقين." />
       <Table
-        title="Support Queue"
-        headers={["Ticket", "Type", "Priority", "Status"]}
+        title="طابور الدعم"
+        headers={["التذكرة", "النوع", "الأولوية", "الحالة"]}
         rows={[
-          ["SUP-101", "Late delivery", "High", "Open"],
-          ["SUP-102", "Inventory mismatch", "Medium", "Investigating"],
+          ["SUP-101", "تأخر التوصيل", "عالية", "مفتوحة"],
+          ["SUP-102", "اختلاف في المخزون", "متوسطة", "قيد المراجعة"],
         ]}
       />
     </DashboardShell>

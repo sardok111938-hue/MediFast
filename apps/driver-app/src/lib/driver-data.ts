@@ -1,4 +1,5 @@
 import { formatOrderStatusLabel, formatPaymentStatusLabel } from "@medifast/i18n";
+import { formatCurrencyLYD } from "@medifast/types";
 import { getActiveSession, getAuthenticatedUser, supabase } from "./supabase";
 
 export type DriverProfile = {
@@ -194,14 +195,11 @@ export function normalizeError(error: unknown) {
 }
 
 export function formatCurrency(value: number) {
-  return new Intl.NumberFormat("ar-EG", {
-    style: "currency",
-    currency: "SAR",
-  }).format(value);
+  return formatCurrencyLYD(value);
 }
 
 export function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ar-EG", {
+  return new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));

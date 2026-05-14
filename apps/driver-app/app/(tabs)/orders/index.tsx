@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
@@ -6,12 +6,10 @@ import {
   DriverEmptyCard,
   DriverErrorCard,
   DriverLoadingCard,
-  DriverMetricTile,
   DriverOrderCard,
   DriverQuickAction,
   DriverScreen,
   DriverSectionTitle,
-  DriverSummaryGrid,
   DriverUtilityRow,
   shortOrderRef,
 } from "../../../src/components/DriverUI";
@@ -89,7 +87,7 @@ function OrderUtilities({ order, mapTarget = "dropoff" }: { order: DriverOrder; 
   return (
     <DriverUtilityRow>
       <DriverQuickAction label="اتصال" onPress={customerPhone ? () => void callCustomer(customerPhone) : undefined} disabled={!customerPhone} />
-      <DriverQuickAction label="خرائط" onPress={() => void openMap(mapInput)} tone="primary" />
+      <DriverQuickAction label="خرائط" onPress={() => void openMap(mapInput)} />
     </DriverUtilityRow>
   );
 }
@@ -103,8 +101,6 @@ export default function DriverOrdersListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
-
-  const activeOrder = useMemo(() => orders[0] ?? null, [orders]);
 
   const loadOrders = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (mode === "refresh") {
@@ -190,13 +186,13 @@ export default function DriverOrdersListScreen() {
           <DriverErrorCard message={error} onRetry={() => void loadOrders("refresh")} />
         ) : (
           <>
-            <DriverSummaryGrid>
-              <DriverMetricTile label="طلبات متاحة" value={String(availableOrders.length)} hint="جاهزة للاستلام" />
-              <DriverMetricTile label="توصيلاتي" value={String(orders.length)} hint="مسندة لك" />
-              <DriverMetricTile label="التالية" value={activeOrder ? shortOrderRef(activeOrder.id) : "—"} hint={activeOrder ? activeOrder.vendorName : "لا توجد توصيلات"} />
-            </DriverSummaryGrid>
-
-            <DriverSectionTitle>طلبات متاحة</DriverSectionTitle>
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionHeaderRow}>
+                <DriverSectionTitle>الطلبات المتاحة</DriverSectionTitle>
+                <Text style={styles.sectionCount}>{availableOrders.length}</Text>
+              </View>
+              <Text style={styles.sectionHint}>طلبات جاهزة للاستلام ولم تُسند لسائق بعد.</Text>
+            </View>
 
             {availableOrders.length === 0 ? (
               <DriverEmptyCard title="لا توجد طلبات متاحة" message="لا توجد طلبات جاهزة للاستلام الآن." />
@@ -213,9 +209,10 @@ export default function DriverOrdersListScreen() {
                   dropoffAddress={order.dropoffAddress}
                   action={
                     <DriverButton
-                      label={claimingOrderId === order.id ? "جارٍ القبول..." : "قبول التوصيلة"}
+                      label={claimingOrderId === order.id ? "جارٍ القبول..." : "قبول الطلب"}
                       onPress={() => void handleClaimOrder(order.id)}
                       disabled={Boolean(claimingOrderId)}
+                      size="sm"
                     />
                   }
                   utilities={<OrderUtilities order={order} mapTarget="pickup" />}
@@ -225,7 +222,13 @@ export default function DriverOrdersListScreen() {
               ))
             )}
 
-            <DriverSectionTitle>توصيلاتي</DriverSectionTitle>
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionHeaderRow}>
+                <DriverSectionTitle>توصيلاتي الحالية</DriverSectionTitle>
+                <Text style={styles.sectionCount}>{orders.length}</Text>
+              </View>
+              <Text style={styles.sectionHint}>طلبات مسندة لك وتحتاج متابعة حتى التسليم.</Text>
+            </View>
 
             {orders.length === 0 ? (
               <DriverEmptyCard title="لا توجد توصيلات" message="ستظهر التوصيلات المقبولة أو المسندة لك هنا." />
@@ -243,6 +246,7 @@ export default function DriverOrdersListScreen() {
                   action={
                     <DriverButton
                       label="عرض التفاصيل"
+                      size="sm"
                       onPress={() =>
                         router.push({
                           pathname: "/(tabs)/orders/[orderId]",
@@ -266,12 +270,38 @@ export default function DriverOrdersListScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    gap: theme.spacing[16],
+    gap: 14,
     paddingBottom: theme.spacing[24],
   },
-  topAction: {
-    alignItems: "flex-end",
-    marginBottom: -theme.spacing[4],
+  sectionBlock: {
+    gap: 2,
+    marginTop: theme.spacing[4],
+  },
+  sectionHeaderRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing[8],
+  },
+  sectionCount: {
+    minWidth: 30,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "#EEF7F2",
+    color: theme.colors.primaryDark,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "800",
+    lineHeight: 18,
+    paddingHorizontal: theme.spacing[8],
+    paddingVertical: 3,
+    textAlign: "center",
+  },
+  sectionHint: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    lineHeight: 18,
+    textAlign: "right",
+    fontWeight: "600",
   },
   footerText: {
     color: theme.colors.muted,

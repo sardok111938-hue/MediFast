@@ -1,13 +1,13 @@
 function resolveIntlLocale(locale?: string) {
   if (locale) {
-    return locale;
+    return locale.startsWith("ar") ? "en-GB" : locale;
   }
 
   if (typeof document !== "undefined") {
-    return document.documentElement.lang === "ar" ? "ar-EG" : "en-US";
+    return document.documentElement.lang === "ar" ? "en-GB" : "en-US";
   }
 
-  return "en-US";
+  return "en-GB";
 }
 
 export function formatDate(value: string, locale?: string) {

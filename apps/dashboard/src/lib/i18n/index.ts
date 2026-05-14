@@ -13,7 +13,7 @@ export function isRtlLocale(_locale: Locale) {
 }
 
 export function getIntlLocale(_locale: Locale) {
-  return "ar-EG";
+  return "en-GB";
 }
 
 const translations: Record<Locale, Record<string, string>> = {

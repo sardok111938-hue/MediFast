@@ -55,13 +55,13 @@ export default async function AdminAssignmentsPage({
 
     const order = orders.find((candidate) => candidate.id === orderId);
     if (!order || order.order_status !== "ready_for_pickup") {
-      redirect(`/admin/assignments?filter=${activeFilter}&error=${encodeURIComponent("Only ready-for-pickup orders can be assigned.")}`);
+      redirect(`/admin/assignments?filter=${activeFilter}&error=${encodeURIComponent("لا يمكن إسناد إلا الطلبات الجاهزة للاستلام.")}`);
     }
 
     const result = await assignDriverAction({ orderId, driverId });
 
     if (!result.success) {
-      redirect(`/admin/assignments?filter=${activeFilter}&error=${encodeURIComponent(result.error ?? "Driver assignment failed.")}`);
+      redirect(`/admin/assignments?filter=${activeFilter}&error=${encodeURIComponent(result.error ?? "تعذر إسناد السائق.")}`);
     }
 
     redirect(`/admin/assignments?filter=${activeFilter}&success=driver_assigned`);
@@ -75,12 +75,12 @@ export default async function AdminAssignmentsPage({
   }));
 
   return (
-    <DashboardShell title="Driver Assignment" subtitle="Assign approved drivers once vendor orders are ready for pickup." nav={dashboardNavigation.admin}>
-      <PageHeader title="Driver Assignment" description="Review dispatch-ready orders, filter the delivery queue, and assign available drivers with clear operational context.">
-        {resolvedSearchParams?.success ? <p className="success">Driver assigned successfully.</p> : null}
+    <DashboardShell title="إسناد السائقين" subtitle="إسناد السائقين المعتمدين عند جاهزية طلبات الصيدليات للاستلام." nav={dashboardNavigation.admin}>
+      <PageHeader title="إسناد السائقين" description="راجع الطلبات الجاهزة للإرسال، صفّ طابور التوصيل، وأسند السائقين المتاحين بوضوح تشغيلي.">
+        {resolvedSearchParams?.success ? <p className="success">تم إسناد السائق بنجاح.</p> : null}
         {resolvedSearchParams?.error ? <p className="danger">{resolvedSearchParams.error}</p> : null}
         <p className="muted">
-          Default view shows only <strong>ready_for_pickup</strong> orders so dispatch can focus on what needs action right now.
+          العرض الافتراضي يُظهر فقط طلبات <strong>جاهزة للاستلام</strong> حتى يركز فريق التشغيل على ما يحتاج إجراءً الآن.
         </p>
       </PageHeader>
 
@@ -88,8 +88,8 @@ export default async function AdminAssignmentsPage({
         <Card className="medical-panel">
           <div className="split-actions assignment-summary">
             <div>
-              <strong>Assignment Filters</strong>
-              <p className="muted assignment-summary-text">Use these filters to move between pickup-ready work, active deliveries, and completed orders.</p>
+              <strong>مرشحات الإسناد</strong>
+              <p className="muted assignment-summary-text">استخدم هذه المرشحات للتنقل بين الطلبات الجاهزة للاستلام والتوصيلات النشطة والمكتملة.</p>
             </div>
             <div className="filter-chip-row">
               {counts.map(({ filter, count }) => (
@@ -98,7 +98,7 @@ export default async function AdminAssignmentsPage({
                   href={filterHref(filter)}
                   className={`filter-chip ${currentFilter === filter ? "filter-chip-active" : ""}`.trim()}
                 >
-                  <span>{filter.replaceAll("_", " ")}</span>
+                  <span>{filter === "ready_for_pickup" ? "جاهزة للاستلام" : filter === "assigned" ? "مسندة" : filter === "on_the_way" ? "في الطريق" : "مكتملة"}</span>
                   <strong>{count}</strong>
                 </a>
               ))}
@@ -109,15 +109,15 @@ export default async function AdminAssignmentsPage({
         <Card className="medical-panel">
           <div className="detail-meta">
             <div className="detail-block">
-              <strong>Available Drivers</strong>
+              <strong>السائقون المتاحون</strong>
               <span>{drivers.length}</span>
             </div>
             <div className="detail-block">
-              <strong>Current Filter</strong>
-              <span>{currentFilter.replaceAll("_", " ")}</span>
+              <strong>المرحلة الحالية</strong>
+              <span>{currentFilter === "ready_for_pickup" ? "جاهزة للاستلام" : currentFilter === "assigned" ? "مسندة" : currentFilter === "on_the_way" ? "في الطريق" : "مكتملة"}</span>
             </div>
             <div className="detail-block">
-              <strong>Orders in View</strong>
+              <strong>طلبات معروضة</strong>
               <span>{filteredOrders.length}</span>
             </div>
           </div>
@@ -127,15 +127,15 @@ export default async function AdminAssignmentsPage({
       {filteredOrders.length === 0 ? (
         <Card className="medical-panel">
           <EmptyState
-            title="No orders in this stage"
-            message={currentFilter === "ready_for_pickup" ? "No vendor-approved orders are waiting for a driver right now." : "No orders match the selected delivery stage."}
+            title="لا توجد طلبات في هذه المرحلة"
+            message={currentFilter === "ready_for_pickup" ? "لا توجد طلبات معتمدة من الصيدليات تنتظر سائقًا الآن." : "لا توجد طلبات تطابق مرحلة التوصيل المحددة."}
           />
         </Card>
       ) : (
         <Table
-          title="Assignment Queue"
-          headers={["Order", "Customer", "Vendor", "Delivery Address", "Total", "Created Date", "Order Status", "Driver Action"]}
-          emptyMessage="No orders are currently waiting for driver assignment."
+          title="طابور الإسناد"
+          headers={["الطلب", "العميل", "الصيدلية", "عنوان التوصيل", "الإجمالي", "تاريخ الإنشاء", "حالة الطلب", "إجراء السائق"]}
+          emptyMessage="لا توجد طلبات تنتظر إسناد سائق حاليًا."
           rows={filteredOrders.map((order) => {
             const assignable = order.order_status === "ready_for_pickup" && !blockedStatuses.has(order.order_status);
             const address = formatAddress(order);
@@ -145,8 +145,8 @@ export default async function AdminAssignmentsPage({
               order.customer_name,
               order.vendor_name,
               address || "-",
-              formatCurrency(order.total, "ar-EG"),
-              order.created_at ? formatDate(order.created_at, "ar-EG") : "-",
+              formatCurrency(order.total, "en-GB"),
+              order.created_at ? formatDate(order.created_at, "en-GB") : "-",
               <OrderStatusBadge key={`${order.id}-status`} status={order.order_status} />,
               assignable ? (
                 <form key={`${order.id}-assign`} action={handleAssignDriver} className="assignment-form">
@@ -154,7 +154,7 @@ export default async function AdminAssignmentsPage({
                   <input type="hidden" name="active_filter" value={currentFilter} />
                   <select name="driver_id" className="input" defaultValue="" disabled={drivers.length === 0}>
                     <option value="" disabled>
-                      Select driver
+                      اختر السائق
                     </option>
                     {drivers.map((driver) => (
                       <option key={driver.id} value={driver.id}>
@@ -169,10 +169,10 @@ export default async function AdminAssignmentsPage({
                   <strong>{order.driver_name}</strong>
                   <span className="muted">
                     {order.order_status === "assigned"
-                      ? "Driver has been assigned and is waiting to start delivery."
+                      ? "تم إسناد السائق وينتظر بدء التوصيل."
                       : order.order_status === "on_the_way"
-                        ? "Delivery is currently in progress."
-                        : "This order is no longer available for driver assignment."}
+                        ? "التوصيل جارٍ حاليًا."
+                        : "هذا الطلب لم يعد متاحًا لإسناد سائق."}
                   </span>
                 </div>
               ),

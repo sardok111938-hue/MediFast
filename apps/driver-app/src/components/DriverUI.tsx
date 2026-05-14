@@ -569,11 +569,11 @@ export function DriverErrorCard({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F6FAF7",
+    backgroundColor: "#F7FBF8",
   },
   screen: {
     flex: 1,
-    backgroundColor: "#F6FAF7",
+    backgroundColor: "#F7FBF8",
   },
   scrollContent: {
     paddingBottom: theme.spacing[32],
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing[20],
     paddingTop: theme.spacing[12],
     paddingBottom: theme.spacing[24],
-    gap: theme.spacing[16],
+    gap: 14,
   },
 
   header: {
@@ -633,23 +633,23 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
-    padding: theme.spacing[16],
-    borderColor: theme.colors.border,
+    padding: 15,
+    borderColor: "#E5EEE9",
     borderWidth: 1,
-    gap: theme.spacing[12],
+    gap: 11,
     shadowColor: theme.shadows.card.shadowColor,
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
+    shadowOpacity: 0.035,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   cardCompact: {
-    padding: theme.spacing[16],
-    gap: theme.spacing[12],
+    padding: 14,
+    gap: 10,
   },
   cardAccent: {
-    backgroundColor: "#EFFAF4",
-    borderColor: "#CFEBDD",
+    backgroundColor: "#EEF7F2",
+    borderColor: "#D8ECE1",
   },
   cardSubtle: {
     shadowOpacity: 0.03,
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: theme.spacing[12],
+    gap: 10,
   },
   listCardHeaderRtl: {
     flexDirection: "row-reverse",
@@ -677,12 +677,12 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.lg,
     fontWeight: "800",
     color: theme.colors.text,
-    lineHeight: 24,
+    lineHeight: 23,
   },
   listCardSubtitle: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
-    lineHeight: 20,
+    lineHeight: 19,
     fontWeight: "600",
   },
   badgeSlot: {
@@ -700,13 +700,13 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
   },
   listCardBody: {
-    gap: theme.spacing[12],
+    gap: 10,
   },
   cardUtilities: {
     marginTop: -theme.spacing[4],
   },
   cardAction: {
-    paddingTop: theme.spacing[4],
+    paddingTop: 2,
   },
   cardFooter: {
     borderTopWidth: 1,
@@ -751,14 +751,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primaryDark,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: theme.spacing[12],
-    paddingHorizontal: theme.spacing[20],
+    paddingVertical: 10,
+    paddingHorizontal: theme.spacing[16],
     borderRadius: 999,
-    minHeight: 52,
+    minHeight: 48,
   },
   buttonSm: {
-    minHeight: 42,
-    paddingVertical: theme.spacing[8],
+    minHeight: 38,
+    paddingVertical: 7,
     paddingHorizontal: theme.spacing[12],
   },
   buttonLg: {
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#FFFFFF",
     fontWeight: "800",
-    fontSize: theme.typography.body.md,
+    fontSize: theme.typography.body.sm,
     textAlign: "center",
     lineHeight: 20,
   },
@@ -837,7 +837,7 @@ const styles = StyleSheet.create({
   badge: {
     alignSelf: "flex-start",
     paddingHorizontal: theme.spacing[8],
-    paddingVertical: theme.spacing[8],
+    paddingVertical: 5,
     borderRadius: 999,
     backgroundColor: theme.status.neutral.background,
   },
@@ -873,17 +873,17 @@ const styles = StyleSheet.create({
   },
 
   sectionHeader: {
-    marginTop: theme.spacing[8],
-    marginBottom: -theme.spacing[4],
+    marginTop: 0,
+    marginBottom: -2,
   },
   sectionHeaderRtl: {
     alignItems: "flex-end",
   },
   sectionTitle: {
-    fontSize: theme.typography.body.lg,
+    fontSize: theme.typography.body.md,
     fontWeight: "800",
     color: theme.colors.text,
-    lineHeight: 24,
+    lineHeight: 22,
   },
 
   metaPill: {
@@ -941,16 +941,16 @@ const styles = StyleSheet.create({
   utilityRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: theme.spacing[8],
+    gap: 7,
     alignItems: "center",
   },
   utilityRowRtl: {
     flexDirection: "row-reverse",
   },
   quickAction: {
-    minHeight: 40,
-    paddingHorizontal: theme.spacing[12],
-    paddingVertical: theme.spacing[8],
+    minHeight: 36,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "#DCE8E1",
@@ -961,8 +961,8 @@ const styles = StyleSheet.create({
     flexBasis: "30%",
   },
   quickActionPrimary: {
-    backgroundColor: "#EFFAF4",
-    borderColor: "#BFE5D1",
+    backgroundColor: "#EEF7F2",
+    borderColor: "#CFEBDD",
   },
   quickActionDisabled: {
     opacity: 0.45,
@@ -1029,19 +1029,19 @@ const styles = StyleSheet.create({
 
   routeBlock: {
     backgroundColor: "#F8FBF9",
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing[12],
-    gap: theme.spacing[8],
+    borderRadius: theme.radius.md,
+    padding: 10,
+    gap: 7,
     borderWidth: 1,
     borderColor: "#EDF2EF",
   },
   routeBlockCompact: {
-    padding: theme.spacing[12],
-    gap: theme.spacing[8],
+    padding: 10,
+    gap: 7,
   },
   routeRow: {
     flexDirection: "row",
-    gap: theme.spacing[12],
+    gap: 10,
     alignItems: "flex-start",
   },
   routeRowRtl: {
@@ -1053,8 +1053,8 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing[4],
   },
   routeDot: {
-    width: 11,
-    height: 11,
+    width: 10,
+    height: 10,
     borderRadius: 999,
     backgroundColor: theme.colors.primaryDark,
   },
@@ -1063,7 +1063,7 @@ const styles = StyleSheet.create({
   },
   routeLine: {
     width: 2,
-    height: 22,
+    height: 18,
     backgroundColor: "#DDE8E2",
     marginTop: 4,
     borderRadius: 999,
@@ -1082,7 +1082,7 @@ const styles = StyleSheet.create({
   routeValue: {
     color: theme.colors.text,
     fontSize: theme.typography.body.sm,
-    lineHeight: 20,
+    lineHeight: 19,
     fontWeight: "600",
   },
 
