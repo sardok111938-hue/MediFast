@@ -20,7 +20,7 @@ export default function ProductDetailScreen() {
 
   if (loading) {
     return (
-      <Screen title="تفاصيل المنتج" subtitle="راجع تفاصيل المنتج قبل إضافته إلى السلة." backHref="/product-listing" backLabel="العودة إلى المنتجات">
+      <Screen title="تفاصيل المنتج" subtitle="راجع تفاصيل المنتج قبل إضافته إلى السلة." backHref="/search" backLabel="العودة إلى البحث">
         <LoadingCard message="جارٍ تحميل المنتج..." />
       </Screen>
     );
@@ -28,7 +28,7 @@ export default function ProductDetailScreen() {
 
   if (error) {
     return (
-      <Screen title="تفاصيل المنتج" subtitle="راجع تفاصيل المنتج قبل إضافته إلى السلة." backHref="/product-listing" backLabel="العودة إلى المنتجات">
+      <Screen title="تفاصيل المنتج" subtitle="راجع تفاصيل المنتج قبل إضافته إلى السلة." backHref="/search" backLabel="العودة إلى البحث">
         <ErrorCard message={error} onRetry={() => void reload()} />
       </Screen>
     );
@@ -36,11 +36,11 @@ export default function ProductDetailScreen() {
 
   if (!product) {
     return (
-      <Screen title="تفاصيل المنتج" subtitle="راجع معلومات المنتج قبل إضافته إلى السلة." backHref="/product-listing" backLabel="العودة إلى المنتجات">
+      <Screen title="تفاصيل المنتج" subtitle="راجع معلومات المنتج قبل إضافته إلى السلة." backHref="/search" backLabel="العودة إلى البحث">
         <EmptyCard
           title="المنتج غير متوفر"
           message="هذا المنتج غير متاح الآن. ارجع إلى القائمة لمتابعة التصفح."
-          action={<PrimaryButton label="العودة إلى المنتجات" onPress={() => router.push("/product-listing")} />}
+          action={<PrimaryButton label="العودة إلى البحث" onPress={() => router.push("/search")} />}
         />
       </Screen>
     );
@@ -52,8 +52,8 @@ export default function ProductDetailScreen() {
     <Screen
       title={product.name}
       subtitle="راجع معلومات المنتج، اختر الكمية المناسبة، ثم أضفه إلى السلة."
-      backHref="/product-listing"
-      backLabel="العودة إلى التصفح"
+      backHref="/search"
+      backLabel="العودة إلى البحث"
     >
       <Card style={styles.heroCard}>
         <CatalogImage
@@ -122,7 +122,7 @@ export default function ProductDetailScreen() {
                   router.push("/cart");
                 }}
               />
-              <PrimaryButton label="متابعة التصفح" variant="secondary" onPress={() => router.push("/product-listing")} />
+              <PrimaryButton label="متابعة التصفح" variant="secondary" onPress={() => router.push("/search")} />
             </View>
           </Card>
         </View>

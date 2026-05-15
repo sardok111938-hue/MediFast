@@ -31,7 +31,7 @@ export default function CartScreen() {
         <EmptyCard
           title="السلة فارغة"
           message="أضف بعض المنتجات من الصيدلية قبل متابعة الدفع."
-          action={<PrimaryButton label="تصفح المنتجات" onPress={() => router.push("/product-listing")} />}
+          action={<PrimaryButton label="تصفح المنتجات" onPress={() => router.push("/search")} />}
         />
       ) : (
         cartItems.map((item) => (

@@ -353,7 +353,7 @@ export default function AddressSelectionScreen() {
         <SectionTitle label="الخطوة التالية" />
         <Text style={styles.nextStepText}>بعد اختيار العنوان أو إضافته يمكنك العودة إلى الدفع أو متابعة تصفح المنتجات.</Text>
         <PrimaryButton label={nextStepPrimaryLabel} onPress={() => router.replace(backHref as never)} />
-        <PrimaryButton label="متابعة التسوق" variant="secondary" onPress={() => router.push("/product-listing")} />
+        <PrimaryButton label="متابعة التسوق" variant="secondary" onPress={() => router.push("/search")} />
       </Card>
     </Screen>
   );

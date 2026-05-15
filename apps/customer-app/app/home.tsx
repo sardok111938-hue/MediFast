@@ -9,9 +9,14 @@ import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle 
 import {
   buildPharmacyCategoryTree,
   getCategoryIcon,
+  getCategoryTheme,
+  getPharmacyCategoryProductCount,
   getVendorById,
   useCustomerCatalogData,
 } from "../src/lib/customer-catalog";
+import type { ComponentProps } from "react";
+
+type IconName = ComponentProps<typeof Ionicons>["name"];
 
 const promotionBanners = [
   {
@@ -114,7 +119,7 @@ export default function HomeScreen() {
                   pathname: "/pharmacies/[pharmacyId]",
                   params: { pharmacyId: promotedVendor.id },
                 }
-              : "/product-listing",
+              : "/search",
           )
         }
       >
@@ -161,39 +166,58 @@ export default function HomeScreen() {
       {!loading && !error ? (
         <>
           <View style={styles.sectionBlock}>
-            <SectionTitle label="تصفح حسب الفئة" actionLabel="كل الفئات" onAction={() => router.push("/categories")} />
+            <SectionTitle label="تصفح حسب الفئة" />
             <Text style={styles.sectionHint}>اختصر الوصول حسب نوع المنتج</Text>
 
             {parentCategories.length === 0 ? (
               <EmptyCard title="لا توجد فئات متاحة" message="ستظهر الفئات الرئيسية عند تفعيلها في لوحة الإدارة." />
             ) : (
               <View style={styles.categoryGrid}>
-                {parentCategories.map((category) => (
-                  <Pressable
-                    key={category.id}
-                    style={styles.categoryCard}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/categories/[categoryId]",
-                        params: { categoryId: category.id },
-                      })
-                    }
-                  >
-                    <View style={styles.categoryIcon}>
-                      <Ionicons name={getCategoryIcon(category.category.slug) as never} size={22} color={theme.colors.primaryDark} />
-                    </View>
+                {parentCategories.map((category) => {
+                  const productCount = getPharmacyCategoryProductCount(catalog.products, catalog.categories, category.id);
+                  const categoryTheme = getCategoryTheme(category.category.slug);
 
-                    <Text style={styles.categoryTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
-                      {category.label}
-                    </Text>
-                  </Pressable>
-                ))}
+                  return (
+                    <Pressable
+                      key={category.id}
+                      style={[
+                        styles.categoryCard,
+                        {
+                          backgroundColor: categoryTheme.background,
+                          borderColor: categoryTheme.border,
+                        },
+                      ]}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/categories/[categoryId]",
+                          params: { categoryId: category.id },
+                        })
+                      }
+                    >
+                      <View style={[styles.categoryIcon, { backgroundColor: categoryTheme.accentSoft }]}>
+                        <Ionicons
+                          name={getCategoryIcon(category.category.slug) as IconName}
+                          size={22}
+                          color={categoryTheme.accent}
+                        />
+                      </View>
+
+                      <Text style={[styles.categoryTitle, { color: categoryTheme.text }]} numberOfLines={2}>
+                        {category.label}
+                      </Text>
+
+                      <Text style={[styles.categoryDescription, { color: categoryTheme.accent }]} numberOfLines={1}>
+                        {category.subcategories.length} أقسام · {productCount} منتجات
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
           </View>
 
           <View style={styles.productsSection}>
-            <SectionTitle label="منتجات متوفرة الآن" actionLabel="عرض الكل" onAction={() => router.push("/product-listing")} />
+            <SectionTitle label="منتجات متوفرة الآن" actionLabel="عرض الكل" onAction={() => router.push("/search")} />
             <Text style={styles.sectionHint}>منتجات جاهزة للطلب والتوصيل</Text>
 
             {availableProducts.length === 0 ? (
@@ -391,22 +415,21 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing[8],
   },
   categoryGrid: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     flexWrap: "wrap",
-    gap: theme.spacing[8],
+    justifyContent: "space-between",
   },
   categoryCard: {
     width: "31%",
-    minWidth: 96,
-    minHeight: 82,
+    minHeight: 112,
     borderRadius: 18,
-    borderWidth: 0,
-    backgroundColor: "#F3F8F5",
+    borderWidth: 1,
     paddingVertical: theme.spacing[12],
     paddingHorizontal: theme.spacing[8],
     alignItems: "center",
     justifyContent: "center",
-    gap: theme.spacing[8],
+    gap: 7,
+    marginBottom: theme.spacing[8],
   },
   categoryIcon: {
     width: 42,
@@ -414,13 +437,16 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
   },
   categoryTitle: {
-    color: theme.colors.text,
     fontSize: theme.typography.caption.md,
     fontWeight: "900",
     lineHeight: 17,
+    textAlign: "center",
+  },
+  categoryDescription: {
+    fontSize: 10,
+    fontWeight: "800",
     textAlign: "center",
   },
   productsRow: {

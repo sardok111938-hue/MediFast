@@ -174,7 +174,7 @@ export default function CustomerOrderDetailScreen() {
               )}
             </Card>
 
-            <PrimaryButton label="العودة لتصفح المنتجات" variant="secondary" onPress={() => router.push("/product-listing")} />
+            <PrimaryButton label="العودة للبحث" variant="secondary" onPress={() => router.push("/search")} />
           </>
         )}
       </ScrollView>

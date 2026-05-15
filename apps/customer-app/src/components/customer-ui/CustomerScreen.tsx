@@ -29,7 +29,7 @@ const tabItems: TabItem[] = [
     label: "البحث",
     icon: "search-outline",
     href: "/search",
-    matches: (pathname) => pathname === "/search" || pathname === "/product-listing" || pathname === "/product-detail",
+    matches: (pathname) => pathname === "/search" || pathname === "/product-detail",
   },
   {
     key: "orders",

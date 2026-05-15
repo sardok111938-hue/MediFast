@@ -69,7 +69,7 @@ export default function OrderTrackingScreen() {
         <EmptyCard
           title="لا توجد طلبات بعد"
           message="ستظهر طلباتك هنا بعد إتمام الشراء."
-          action={<PrimaryButton label="ابدأ التسوق" onPress={() => router.push("/product-listing")} />}
+          action={<PrimaryButton label="ابدأ التسوق" onPress={() => router.push("/search")} />}
         />
       ) : null}
     </Screen>

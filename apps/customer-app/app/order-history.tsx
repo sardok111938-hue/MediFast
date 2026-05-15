@@ -83,7 +83,7 @@ export default function OrderHistoryScreen() {
           <EmptyCard
             title="لا توجد طلبات بعد"
             message="ستظهر طلباتك هنا بعد إتمام أول عملية شراء."
-            action={<PrimaryButton label="ابدأ التسوق" onPress={() => router.push("/product-listing")} />}
+            action={<PrimaryButton label="ابدأ التسوق" onPress={() => router.push("/search")} />}
           />
         ) : (
           <>

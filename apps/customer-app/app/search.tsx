@@ -32,7 +32,7 @@ export default function SearchScreen() {
             variant="secondary"
             onPress={() =>
               router.push({
-                pathname: "/product-listing",
+                pathname: "/categories/[categoryId]",
                 params: { categoryId: category.id },
               })
             }
@@ -45,7 +45,7 @@ export default function SearchScreen() {
         <EmptyCard
           title="لم يتم العثور على منتجات"
           message="جرّب كلمة أوسع أو ابحث بالباركود أو افتح قائمة جميع المنتجات."
-          action={<PrimaryButton label="تصفح جميع المنتجات" onPress={() => router.push("/product-listing")} />}
+          action={<PrimaryButton label="عرض كل المنتجات" onPress={() => setQuery("")} />}
         />
       ) : (
         <View style={styles.resultList}>
