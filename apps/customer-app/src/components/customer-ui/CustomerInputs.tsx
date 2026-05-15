@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@medifast/ui";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import type { TextInputProps } from "react-native";
 import { useCustomerI18n } from "../../lib/i18n";
 
 export function SearchInput({
@@ -47,6 +48,7 @@ export function FormInput({
   secureTextEntry,
   multiline,
   numberOfLines,
+  ...props
 }: {
   value: string;
   onChangeText: (value: string) => void;
@@ -54,7 +56,7 @@ export function FormInput({
   secureTextEntry?: boolean;
   multiline?: boolean;
   numberOfLines?: number;
-}) {
+} & Omit<TextInputProps, "onChangeText" | "placeholder" | "value">) {
   const { t, isRTL } = useCustomerI18n();
 
   return (
@@ -70,6 +72,7 @@ export function FormInput({
       textAlignVertical={multiline ? "top" : "center"}
       textAlign={isRTL ? "right" : "left"}
       style={[styles.formInput, multiline ? styles.formInputMultiline : null, isRTL ? styles.formInputRtl : null]}
+      {...props}
     />
   );
 }

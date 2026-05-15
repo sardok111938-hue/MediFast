@@ -15,6 +15,14 @@ import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { formatCurrency } from "../../../../lib/utils/format-currency";
 import type { ProductCategoryOption, ProductRow } from "../../../../types/dashboard";
 import {
+  getCategoryOptionLabel,
+  getCategoryPathDisplayName,
+  getChildCategoryOptions,
+  getProductCategorySelection,
+  getSubmittedProductCategoryId,
+  getTopLevelCategoryOptions,
+} from "../../../products/category-options";
+import {
   adminCreateProductAction,
   adminDeactivateProductAction,
   adminUpdateProductAction,
@@ -93,57 +101,6 @@ async function resolveDefaultVendorId() {
   }
 
   return data?.id ? String(data.id) : null;
-}
-
-function getCategoryChildren(categories: ProductCategoryOption[], parentCategoryId: string) {
-  return categories.filter((category) => category.parent_id === parentCategoryId);
-}
-
-function getTopLevelCategories(categories: ProductCategoryOption[]) {
-  return categories.filter((category) => !category.parent_id);
-}
-
-function getProductCategorySelection(categories: ProductCategoryOption[], categoryId?: string | null) {
-  const category = categories.find((nextCategory) => nextCategory.id === categoryId);
-
-  if (!category) {
-    return {
-      parentCategoryId: categoryId ?? "",
-      childCategoryId: "",
-    };
-  }
-
-  if (category.parent_id) {
-    return {
-      parentCategoryId: category.parent_id,
-      childCategoryId: category.id,
-    };
-  }
-
-  return {
-    parentCategoryId: category.id,
-    childCategoryId: "",
-  };
-}
-
-function getSubmittedProductCategoryId(values: ProductFormValues, categories: ProductCategoryOption[]) {
-  const childCategories = values.parent_category_id ? getCategoryChildren(categories, values.parent_category_id) : [];
-  return childCategories.length > 0 ? values.child_category_id.trim() : values.parent_category_id.trim();
-}
-
-function getCategoryDisplayName(categories: ProductCategoryOption[], categoryId?: string | null) {
-  const category = categories.find((nextCategory) => nextCategory.id === categoryId);
-
-  if (!category) {
-    return "-";
-  }
-
-  if (!category.parent_id) {
-    return category.display_name;
-  }
-
-  const parentCategory = categories.find((nextCategory) => nextCategory.id === category.parent_id);
-  return parentCategory ? `${parentCategory.display_name} / ${category.display_name}` : category.display_name;
 }
 
 function buildInitialProductFormValuesWithCategories(product: ProductRow | null | undefined, categories: ProductCategoryOption[]): ProductFormValues {
@@ -226,8 +183,8 @@ function AdminProductForm({
     setMessageType(null);
   }, [categories, product, mode]);
 
-  const topLevelCategories = getTopLevelCategories(categories);
-  const childCategories = values.parent_category_id ? getCategoryChildren(categories, values.parent_category_id) : [];
+  const topLevelCategories = getTopLevelCategoryOptions(categories);
+  const childCategories = getChildCategoryOptions(categories, values.parent_category_id);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -318,7 +275,7 @@ function AdminProductForm({
             <option value="">{t("Select category")}</option>
             {topLevelCategories.map((category) => (
               <option key={category.id} value={category.id}>
-                {category.display_name}
+                {getCategoryOptionLabel(category)}
               </option>
             ))}
           </select>
@@ -337,7 +294,7 @@ function AdminProductForm({
               <option value="">اختر الفئة الفرعية</option>
               {childCategories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {category.display_name}
+                  {getCategoryPathDisplayName(categories, category.id)}
                 </option>
               ))}
             </select>
@@ -588,7 +545,7 @@ function AdminProductsManager() {
           headers={["الاسم", "الفئة", "السعر", "الإجراءات"]}
           rows={products.map((product) => [
             product.name,
-            getCategoryDisplayName(categories, product.category_id),
+            getCategoryPathDisplayName(categories, product.category_id),
             `${formatCurrency(product.price)}${product.image_url ? " • الصورة جاهزة" : " • لا توجد صورة"}`,
             <div key={`${product.id}-actions`} className="table-actions">
               <Button className="secondary-button" onClick={() => setEditingProductId(product.id)} disabled={saving || deletingId === product.id}>

@@ -1,12 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "@medifast/ui";
-import type { Product, Vendor } from "@medifast/types";
 import { CatalogImage } from "../src/components/CatalogImage";
+import { CustomerProductCard } from "../src/components/CustomerProductCard";
 import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
-import { useCustomerCatalogData } from "../src/lib/customer-catalog";
+import {
+  buildPharmacyCategoryTree,
+  getCategoryIcon,
+  getVendorById,
+  useCustomerCatalogData,
+} from "../src/lib/customer-catalog";
 
 const promotionBanners = [
   {
@@ -21,41 +26,74 @@ const promotionBanners = [
   },
   {
     kicker: "اختيارات مميزة",
-    title: "تصفح الصيدليات حسب احتياجك اليومي",
+    title: "تصفح المنتجات حسب احتياجك اليومي",
     text: "عناية، أدوية، مكملات ومنتجات طبية.",
   },
 ];
 
-function getVendorProducts(products: Product[], vendorId: string) {
+function getVendorProducts<T extends { vendor_id: string }>(products: T[], vendorId: string) {
   return products.filter((product) => product.vendor_id === vendorId);
 }
 
-function getVendorImage(products: Product[], vendorId: string) {
+function getVendorImage(products: { vendor_id: string; image_url?: string | null }[], vendorId: string) {
   return getVendorProducts(products, vendorId).find((product) => product.image_url)?.image_url ?? null;
 }
 
-function getVendorSummary(vendor: Vendor, products: Product[]) {
+function getVendorSummary(vendor: { id: string; rating: number }, products: { vendor_id: string }[]) {
   const vendorProducts = getVendorProducts(products, vendor.id);
-  const categoryCount = new Set(vendorProducts.map((product) => product.category_id).filter(Boolean)).size;
 
   return {
     productCount: vendorProducts.length,
-    categoryCount,
-    etaLabel: vendor.eta_minutes > 0 ? `${vendor.eta_minutes} دقيقة` : "30-45 دقيقة",
     ratingLabel: vendor.rating > 0 ? vendor.rating.toFixed(1) : "جديد",
   };
+}
+
+function getVendorDeliveryFee(vendor: unknown) {
+  if (!vendor || typeof vendor !== "object" || !("delivery_fee" in vendor)) {
+    return 0;
+  }
+
+  const deliveryFee = vendor.delivery_fee;
+  return typeof deliveryFee === "number" ? deliveryFee : 0;
 }
 
 export default function HomeScreen() {
   const router = useRouter();
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+  const [search, setSearch] = useState("");
   const { data: catalog, loading, error, reload } = useCustomerCatalogData();
+
   const promotedVendor = catalog.vendors[0] ?? null;
   const activeBanner = promotionBanners[activeBannerIndex];
+
+  const parentCategories = useMemo(
+    () => buildPharmacyCategoryTree(catalog.categories).parents,
+    [catalog.categories],
+  );
+
   const promotedVendorImage = useMemo(
-  () => (promotedVendor ? promotedVendor.image_url ?? getVendorImage(catalog.products, promotedVendor.id) : null),
-  [catalog.products, promotedVendor],
-);
+    () => (promotedVendor ? promotedVendor.image_url ?? getVendorImage(catalog.products, promotedVendor.id) : null),
+    [catalog.products, promotedVendor],
+  );
+
+  const availableProducts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return catalog.products
+      .filter((product) => (product.stock_quantity ?? 0) > 0)
+      .filter((product) => {
+        if (!term) return true;
+
+        const vendorName = getVendorById(catalog.vendors, product.vendor_id)?.name.toLowerCase() ?? "";
+
+        return (
+          product.name.toLowerCase().includes(term) ||
+          (product.description ?? "").toLowerCase().includes(term) ||
+          vendorName.includes(term)
+        );
+      })
+      .slice(0, 10);
+  }, [catalog.products, catalog.vendors, search]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -66,13 +104,7 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <Screen title="الرئيسية" subtitle="صيدليات قريبة ومنتجات صحية تصل إليك بسرعة.">
-      <View style={styles.favoriteRow}>
-        <Pressable style={styles.favoriteButton} onPress={() => router.push("/profile")}>
-          <Ionicons name="heart-outline" size={21} color={theme.colors.primaryDark} />
-        </Pressable>
-      </View>
-
+    <Screen title="" subtitle="">
       <Pressable
         style={styles.heroBanner}
         onPress={() =>
@@ -94,12 +126,14 @@ export default function HomeScreen() {
           <Text style={styles.heroText} numberOfLines={1}>
             {promotedVendor ? `ابدأ من ${promotedVendor.name}` : activeBanner.text}
           </Text>
+
           <View style={styles.heroDots}>
             {promotionBanners.map((banner, index) => (
               <View key={banner.kicker} style={[styles.heroDot, index === activeBannerIndex ? styles.heroDotActive : null]} />
             ))}
           </View>
         </View>
+
         <CatalogImage
           uri={promotedVendorImage}
           alt={promotedVendor?.name ?? "صيدلية"}
@@ -109,94 +143,148 @@ export default function HomeScreen() {
         />
       </Pressable>
 
-      {loading ? <LoadingCard message="جارٍ تحميل الصيدليات..." /> : null}
+      <View style={styles.searchBox}>
+        <Ionicons name="search-outline" size={20} color={theme.colors.muted} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="ابحث عن دواء أو منتج"
+          placeholderTextColor={theme.colors.muted}
+          style={styles.searchInput}
+          textAlign="right"
+        />
+      </View>
+
+      {loading ? <LoadingCard message="جارٍ تحميل المنتجات..." /> : null}
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
 
       {!loading && !error ? (
         <>
-          <SectionTitle label="الصيدليات" />
-          {catalog.vendors.length === 0 ? (
-            <EmptyCard
-              title="لا توجد صيدليات متاحة الآن"
-              message="ستظهر الصيدليات هنا بمجرد توفر متاجر معتمدة ونشطة."
-              action={<PrimaryButton label="إعادة المحاولة" onPress={() => void reload()} />}
-            />
-          ) : (
-            <View style={styles.pharmacyList}>
-              {catalog.vendors.map((vendor) => {
-                const summary = getVendorSummary(vendor, catalog.products);
-                
-                const vendorImage = vendor.image_url ?? getVendorImage(catalog.products, vendor.id);
-                return (
+          <View style={styles.sectionBlock}>
+            <SectionTitle label="تصفح حسب الفئة" actionLabel="كل الفئات" onAction={() => router.push("/categories")} />
+            <Text style={styles.sectionHint}>اختصر الوصول حسب نوع المنتج</Text>
+
+            {parentCategories.length === 0 ? (
+              <EmptyCard title="لا توجد فئات متاحة" message="ستظهر الفئات الرئيسية عند تفعيلها في لوحة الإدارة." />
+            ) : (
+              <View style={styles.categoryGrid}>
+                {parentCategories.map((category) => (
                   <Pressable
-                    key={vendor.id}
-                    style={styles.pharmacyCard}
+                    key={category.id}
+                    style={styles.categoryCard}
                     onPress={() =>
                       router.push({
-                        pathname: "/pharmacies/[pharmacyId]",
-                        params: { pharmacyId: vendor.id },
+                        pathname: "/categories/[categoryId]",
+                        params: { categoryId: category.id },
                       })
                     }
                   >
-                    <CatalogImage uri={vendorImage} alt={vendor.name} fallbackLabel="صيدلية" containerStyle={styles.pharmacyImageWrap} imageStyle={styles.pharmacyImage} />
+                    <View style={styles.categoryIcon}>
+                      <Ionicons name={getCategoryIcon(category.category.slug) as never} size={22} color={theme.colors.primaryDark} />
+                    </View>
 
-                    <View style={styles.pharmacyBody}>
-                      <View style={styles.pharmacyTopRow}>
-                        <View style={styles.pharmacyCopy}>
+                    <Text style={styles.categoryTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+                      {category.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.productsSection}>
+            <SectionTitle label="منتجات متوفرة الآن" actionLabel="عرض الكل" onAction={() => router.push("/product-listing")} />
+            <Text style={styles.sectionHint}>منتجات جاهزة للطلب والتوصيل</Text>
+
+            {availableProducts.length === 0 ? (
+              <EmptyCard title="لا توجد منتجات مطابقة" message="جرّب البحث باسم آخر أو تصفح الفئات." />
+            ) : (
+              <ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  contentContainerStyle={styles.productsRow}
+  style={styles.productsScroller}
+>
+                {availableProducts.map((product) => (
+                  <CustomerProductCard
+                    key={product.id}
+                    product={product}
+                    vendors={catalog.vendors}
+                    width={206}
+                    style={styles.productCard}
+                  />
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          <View style={styles.sectionBlock}>
+            <SectionTitle label="الصيدليات" />
+            <Text style={styles.sectionHint}>تصفح منتجات صيدلية محددة</Text>
+
+            {catalog.vendors.length === 0 ? (
+              <EmptyCard
+                title="لا توجد صيدليات متاحة الآن"
+                message="ستظهر الصيدليات هنا بمجرد توفر متاجر معتمدة ونشطة."
+                action={<PrimaryButton label="إعادة المحاولة" onPress={() => void reload()} />}
+              />
+            ) : (
+              <View style={styles.pharmacyList}>
+                {catalog.vendors.map((vendor) => {
+                  const summary = getVendorSummary(vendor, catalog.products);
+                  const vendorImage = vendor.image_url ?? getVendorImage(catalog.products, vendor.id);
+
+                  return (
+                    <Pressable
+                      key={vendor.id}
+                      style={styles.pharmacyCard}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/pharmacies/[pharmacyId]",
+                          params: { pharmacyId: vendor.id },
+                        })
+                      }
+                    >
+                      <CatalogImage
+                        uri={vendorImage}
+                        alt={vendor.name}
+                        fallbackLabel="صيدلية"
+                        containerStyle={styles.pharmacyImageWrap}
+                        imageStyle={styles.pharmacyImage}
+                      />
+
+                      <View style={styles.pharmacyBody}>
+                        <View style={styles.pharmacyHeaderRow}>
                           <Text style={styles.pharmacyName} numberOfLines={1}>
                             {vendor.name}
                           </Text>
-                          <Text style={styles.pharmacySubtitle} numberOfLines={1}>
-                            {vendor.address || "صيدلية معتمدة"}
+
+                          <Text style={styles.pharmacyLocation} numberOfLines={1}>
+                            {vendor.address || "موقع غير محدد"}
                           </Text>
                         </View>
-                        <View style={styles.statusPill}>
-                          <Text style={styles.statusPillText}>{vendor.is_open ? "مفتوحة" : "غير متاحة"}</Text>
-                        </View>
-                        <Pressable
-                          style={styles.cardFavoriteButton}
-                          onPress={(event) => {
-                            event.stopPropagation();
-                            router.push("/profile");
-                          }}
-                        >
-                          <Ionicons name="heart-outline" size={17} color={theme.colors.primaryDark} />
-                        </Pressable>
-                      </View>
 
-                      <View style={styles.pharmacyMeta}>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="star" size={13} color="#9A6500" />
-                          <Text style={styles.metaText}>{summary.ratingLabel}</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="time-outline" size={13} color={theme.colors.primaryDark} />
-                          <Text style={styles.metaText}>{summary.etaLabel}</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="cube-outline" size={13} color={theme.colors.primaryDark} />
-                          <Text style={styles.metaText}>{summary.productCount} منتج</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="bicycle-outline" size={13} color={theme.colors.primaryDark} />
-                          <Text style={styles.metaText}>حسب العنوان</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="navigate-outline" size={13} color={theme.colors.info} />
-                          <Text style={styles.metaText}>قريبة منك</Text>
-                        </View>
-                      </View>
+                        <View style={styles.pharmacyInfoRow}>
+                          <View style={styles.infoItem}>
+                            <Ionicons name="star" size={12} color="#9A6500" />
+                            <Text style={styles.infoText}>{summary.ratingLabel}</Text>
+                          </View>
 
-                      <View style={styles.openRow}>
-                        <Text style={styles.openText}>{summary.categoryCount > 0 ? `${summary.categoryCount} فئات متاحة` : "افتح الصيدلية للتصفح"}</Text>
-                        <Ionicons name="chevron-back" size={18} color={theme.colors.primaryDark} />
+                          <View style={styles.infoItem}>
+                            <Ionicons name="bicycle-outline" size={12} color={theme.colors.primaryDark} />
+
+                            <Text style={styles.infoText}>
+                              {getVendorDeliveryFee(vendor) > 0 ? `${getVendorDeliveryFee(vendor)} د.ل` : "مجاني"}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
         </>
       ) : null}
     </Screen>
@@ -204,20 +292,6 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  favoriteRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-  },
-  favoriteButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
   heroBanner: {
     minHeight: 112,
     borderRadius: 24,
@@ -278,10 +352,97 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  searchBox: {
+    minHeight: 54,
+    marginTop: theme.spacing[12],
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing[12],
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: theme.spacing[8],
+  },
+  searchInput: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: theme.typography.body.md,
+    fontWeight: "800",
+    paddingVertical: theme.spacing[12],
+  },
+  sectionBlock: {
+    marginTop: theme.spacing[20],
+  },
+  productsSection: {
+    marginTop: theme.spacing[20],
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderRadius: 28,
+    backgroundColor: "#F7FAF8",
+  },
+  sectionHint: {
+    color: theme.colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "right",
+    marginTop: -6,
+    marginBottom: theme.spacing[8],
+  },
+  categoryGrid: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: theme.spacing[8],
+  },
+  categoryCard: {
+    width: "31%",
+    minWidth: 96,
+    minHeight: 82,
+    borderRadius: 18,
+    borderWidth: 0,
+    backgroundColor: "#F3F8F5",
+    paddingVertical: theme.spacing[12],
+    paddingHorizontal: theme.spacing[8],
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing[8],
+  },
+  categoryIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  categoryTitle: {
+    color: theme.colors.text,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "900",
+    lineHeight: 17,
+    textAlign: "center",
+  },
+  productsRow: {
+    flexDirection: "row",
+    gap: theme.spacing[12],
+    paddingBottom: 2,
+  },
+  productCard: {
+    transform: [{ scaleX: -1 }],
+  },
+  productsScroller: {
+    transform: [{ scaleX: -1 }],
+  },
+
   pharmacyList: {
-    gap: theme.spacing[16],
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: theme.spacing[12],
   },
   pharmacyCard: {
+    width: "48%",
     backgroundColor: theme.colors.surface,
     borderRadius: 24,
     borderWidth: 1,
@@ -294,7 +455,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   pharmacyImageWrap: {
-    height: 118,
+    width: "100%",
+    aspectRatio: 1.25,
     borderRadius: 0,
   },
   pharmacyImage: {
@@ -302,22 +464,12 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   pharmacyBody: {
-    padding: theme.spacing[16],
-    gap: theme.spacing[12],
-  },
-  pharmacyTopRow: {
-    flexDirection: "row-reverse",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: theme.spacing[12],
-  },
-  pharmacyCopy: {
-    flex: 1,
-    gap: 4,
+    padding: theme.spacing[12],
+    gap: theme.spacing[8],
   },
   pharmacyName: {
     color: theme.colors.text,
-    fontSize: theme.typography.heading.md,
+    fontSize: theme.typography.body.lg,
     fontWeight: "900",
     textAlign: "right",
   },
@@ -326,60 +478,44 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.sm,
     textAlign: "right",
   },
+  pharmacyInfoRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  infoItem: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 4,
+  },
+  infoText: {
+    color: theme.colors.text,
+    fontSize: theme.typography.caption.sm,
+    fontWeight: "800",
+  },
   statusPill: {
     borderRadius: 999,
-    paddingHorizontal: theme.spacing[12],
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     backgroundColor: theme.colors.accent,
   },
   statusPillText: {
     color: theme.colors.primaryDark,
-    fontSize: theme.typography.caption.sm,
+    fontSize: 10,
     fontWeight: "900",
   },
-  cardFavoriteButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  pharmacyMeta: {
-    flexDirection: "row-reverse",
-    flexWrap: "wrap",
-    gap: theme.spacing[8],
-  },
-  metaItem: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 5,
-    borderRadius: 999,
-    backgroundColor: "#F5FBF7",
-    paddingHorizontal: theme.spacing[12],
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: "#E2F0E7",
-  },
-  metaText: {
-    color: theme.colors.text,
-    fontSize: theme.typography.caption.md,
-    fontWeight: "800",
-  },
-  openRow: {
+  pharmacyHeaderRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: theme.spacing[8],
-    borderTopWidth: 1,
-    borderTopColor: "#EEF5F0",
+    gap: theme.spacing[8],
   },
-  openText: {
-    color: theme.colors.primaryDark,
-    fontSize: theme.typography.body.sm,
-    fontWeight: "900",
+  pharmacyLocation: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.sm,
+    fontWeight: "800",
     textAlign: "right",
+    flexShrink: 1,
   },
 });

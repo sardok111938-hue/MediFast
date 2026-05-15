@@ -5,8 +5,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import type { Product } from "@medifast/types";
 import { CatalogImage } from "../../src/components/CatalogImage";
-import { EmptyCard, ErrorCard, LoadingCard, Pill, PrimaryButton, Screen, SearchInput, SectionTitle } from "../../src/components/CustomerUI";
-import { addProductToCart } from "../../src/lib/cart-store";
+import { CustomerProductCard } from "../../src/components/CustomerProductCard";
+import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SearchInput, SectionTitle } from "../../src/components/CustomerUI";
 import {
   getPharmacyCategoryImage,
   getPharmacyCategoryProductCount,
@@ -15,7 +15,6 @@ import {
   getVendorById,
   useCustomerCatalogData,
 } from "../../src/lib/customer-catalog";
-import { formatCustomerCurrency } from "../../src/lib/customer-orders";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -58,10 +57,7 @@ export default function PharmacyDetailScreen() {
   const [query, setQuery] = useState("");
 
   const pharmacy = useMemo(() => getVendorById(data.vendors, pharmacyId), [data.vendors, pharmacyId]);
-  console.log("PHARMACY", pharmacy);
-console.log("PHARMACY IMAGE", pharmacy?.image_url);
-
-const pharmacyProducts = useMemo(() => getPharmacyProducts(data.products, pharmacyId), [data.products, pharmacyId]);
+  const pharmacyProducts = useMemo(() => getPharmacyProducts(data.products, pharmacyId), [data.products, pharmacyId]);
   const categoryCards = useMemo(() => getPharmacyParentCategoriesForProducts(pharmacyProducts, data.categories), [data.categories, pharmacyProducts]);
   const visibleProducts = useMemo(() => filterByQuery(pharmacyProducts, query), [pharmacyProducts, query]);
   const visibleCategorySections = useMemo(
@@ -69,9 +65,9 @@ const pharmacyProducts = useMemo(() => getPharmacyProducts(data.products, pharma
     [data.categories, visibleProducts],
   );
   const coverImage = useMemo(
-  () => pharmacy?.image_url ?? getCoverImage(pharmacyProducts),
-  [pharmacy?.image_url, pharmacyProducts]
-);
+    () => pharmacy?.image_url ?? getCoverImage(pharmacyProducts),
+    [pharmacy?.image_url, pharmacyProducts],
+  );
   const ratingLabel = pharmacy && pharmacy.rating > 0 ? pharmacy.rating.toFixed(1) : "جديد";
   const etaLabel = pharmacy && pharmacy.eta_minutes > 0 ? `${pharmacy.eta_minutes} دقيقة` : "30-45 دقيقة";
 
@@ -121,18 +117,18 @@ const pharmacyProducts = useMemo(() => getPharmacyProducts(data.products, pharma
           </View>
         </View>
         <View style={styles.logoWrap}>
-  {pharmacy.image_url ? (
-    <CatalogImage
-      uri={pharmacy.image_url}
-      alt={pharmacy.name}
-      fallbackLabel={pharmacy.name.slice(0, 1)}
-      containerStyle={styles.logoImageWrap}
-      imageStyle={styles.logoImage}
-    />
-  ) : (
-    <Text style={styles.logoText}>{pharmacy.name.slice(0, 1)}</Text>
-  )}
-</View>
+          {pharmacy.image_url ? (
+            <CatalogImage
+              uri={pharmacy.image_url}
+              alt={pharmacy.name}
+              fallbackLabel={pharmacy.name.slice(0, 1)}
+              containerStyle={styles.logoImageWrap}
+              imageStyle={styles.logoImage}
+            />
+          ) : (
+            <Text style={styles.logoText}>{pharmacy.name.slice(0, 1)}</Text>
+          )}
+        </View>
       </View>
 
       <View style={styles.infoHeader}>
@@ -236,46 +232,7 @@ const pharmacyProducts = useMemo(() => getPharmacyProducts(data.products, pharma
 
               <View style={styles.productList}>
                 {categoryProducts.map((product) => (
-                  <Pressable
-                    key={product.id}
-                    style={styles.productCard}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/product-detail",
-                        params: { productId: product.id },
-                      })
-                    }
-                  >
-                    <CatalogImage uri={product.image_url} alt={product.name} containerStyle={styles.productImageWrap} imageStyle={styles.productImage} />
-                    <View style={styles.productBody}>
-                      <View style={styles.productBadges}>
-                        <Pill label={product.stock_quantity > 0 ? "متوفر الآن" : "غير متوفر"} tone={product.stock_quantity > 0 ? "success" : "warning"} />
-                      </View>
-                      <Text style={styles.productName} numberOfLines={2}>
-                        {product.name}
-                      </Text>
-                      <Text style={styles.productDescription} numberOfLines={2}>
-                        {product.description || "منتج صحي من الصيدلية"}
-                      </Text>
-                      <View style={styles.productFooter}>
-                        <View>
-                          <Text style={styles.productPrice}>{formatCustomerCurrency(product.price)}</Text>
-                          <Text style={styles.productStock}>{product.stock_quantity > 0 ? `متوفر: ${product.stock_quantity}` : "غير متوفر حاليًا"}</Text>
-                        </View>
-                        <Pressable
-                          style={[styles.addButton, product.stock_quantity === 0 ? styles.addButtonDisabled : null]}
-                          disabled={product.stock_quantity === 0}
-                          onPress={(event) => {
-                            event.stopPropagation();
-                            addProductToCart(product, 1);
-                            router.push("/cart");
-                          }}
-                        >
-                          <Ionicons name="add" size={20} color="#FFFFFF" />
-                        </Pressable>
-                      </View>
-                    </View>
-                  </Pressable>
+                  <CustomerProductCard key={product.id} product={product} vendors={data.vendors} />
                 ))}
               </View>
             </View>
@@ -484,59 +441,6 @@ const styles = StyleSheet.create({
   productList: {
     gap: theme.spacing[12],
   },
-  productCard: {
-    flexDirection: "row-reverse",
-    gap: theme.spacing[12],
-    padding: theme.spacing[12],
-    borderRadius: 22,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  productImageWrap: {
-    width: 96,
-    height: 112,
-    borderRadius: 18,
-  },
-  productImage: {
-    width: "100%",
-    height: "100%",
-  },
-  productBody: {
-    flex: 1,
-    gap: 6,
-  },
-  productBadges: {
-    flexDirection: "row-reverse",
-    flexWrap: "wrap",
-    gap: theme.spacing[8],
-  },
-  productName: {
-    color: theme.colors.text,
-    fontSize: theme.typography.body.lg,
-    fontWeight: "900",
-    lineHeight: 23,
-    textAlign: "right",
-  },
-  productDescription: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body.sm,
-    lineHeight: theme.typography.lineHeight.body,
-    textAlign: "right",
-  },
-  productFooter: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing[8],
-    marginTop: theme.spacing[4],
-  },
-  productPrice: {
-    color: theme.colors.primaryDark,
-    fontSize: theme.typography.body.lg,
-    fontWeight: "900",
-    textAlign: "right",
-  },
   logoImageWrap: {
   width: "100%",
   height: "100%",
@@ -546,20 +450,4 @@ logoImage: {
   width: "100%",
   height: "100%",
 },
-  productStock: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.caption.sm,
-    textAlign: "right",
-  },
-  addButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.primary,
-  },
-  addButtonDisabled: {
-    opacity: 0.45,
-  },
 });

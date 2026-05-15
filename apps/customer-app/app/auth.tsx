@@ -2,7 +2,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Text } from "react-native";
 import { Card, FormInput, HelperText, PrimaryButton, Screen } from "../src/components/CustomerUI";
-import { isSupabaseConfigured, signInCustomer, signUpCustomer, supabase } from "../src/lib/supabase";
+import {
+  ensureCustomerBootstrap,
+  isSupabaseConfigured,
+  signInCustomer,
+  signUpCustomer,
+  supabase,
+} from "../src/lib/supabase";
+
+function readSessionFullName(userMetadata: Record<string, unknown> | null | undefined) {
+  const fullName = userMetadata?.full_name;
+
+  return typeof fullName === "string" ? fullName : null;
+}
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -13,24 +25,51 @@ export default function AuthScreen() {
   const [message, setMessage] = useState("");
   const configured = isSupabaseConfigured();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        router.replace("/home");
-      }
-    });
-  }, [router]);
+useEffect(() => {
+  let cancelled = false;
 
-  async function handleSignIn() {
-    if (!configured) {
-      setMessage("أضف قيم Supabase الحقيقية في apps/customer-app/.env قبل تسجيل الدخول.");
+  async function checkSession() {
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+
+    if (!session) {
       return;
     }
 
-    setLoading(true);
-    setMessage("");
+    try {
+      await ensureCustomerBootstrap({
+        authUserId: session.user.id,
+        fullName: readSessionFullName(session.user.user_metadata),
+      });
+
+      if (!cancelled) {
+        router.replace("/home");
+      }
+    } catch (error) {
+      if (!cancelled) {
+        console.log("CUSTOMER BOOTSTRAP ERROR", error);
+        setMessage(error instanceof Error ? error.message : JSON.stringify(error));
+      }
+    }
+  }
+
+  void checkSession();
+
+  return () => {
+    cancelled = true;
+  };
+}, [router]);
+  async function handleSignIn() {
+  if (!configured) {
+    setMessage("أضف قيم Supabase الحقيقية في apps/customer-app/.env قبل تسجيل الدخول.");
+    return;
+  }
+
+  setLoading(true);
+  setMessage("");
+
+  try {
     const { error } = await signInCustomer(email.trim(), password);
-    setLoading(false);
 
     if (error) {
       setMessage(error.message);
@@ -38,7 +77,13 @@ export default function AuthScreen() {
     }
 
     router.replace("/home");
+  } catch (error) {
+    console.log("CUSTOMER SIGN IN ERROR", error);
+    setMessage(error instanceof Error ? error.message : JSON.stringify(error));
+  } finally {
+    setLoading(false);
   }
+}
 
   async function handleSignUp() {
     if (!configured) {
@@ -53,24 +98,35 @@ export default function AuthScreen() {
 
     setLoading(true);
     setMessage("");
-    const { error, data } = await signUpCustomer({
-      email: email.trim(),
-      password,
-      fullName: fullName.trim(),
-    });
-    setLoading(false);
 
-    if (error) {
-      setMessage(error.message);
-      return;
+    try {
+      const { error, data } = await signUpCustomer({
+        email: email.trim(),
+        password,
+        fullName: fullName.trim(),
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      if (!data.session) {
+        setMessage("تم إنشاء الحساب بنجاح. أكّد البريد الإلكتروني في Supabase إذا كان التفعيل مطلوبًا، ثم سجّل الدخول.");
+        return;
+      }
+
+      router.replace("/home");
+    } catch (error) {
+console.log("BOOTSTRAP ERROR", error);
+
+setMessage(
+  error instanceof Error
+    ? error.message
+    : JSON.stringify(error),
+);    } finally {
+      setLoading(false);
     }
-
-    if (!data.session) {
-      setMessage("تم إنشاء الحساب بنجاح. أكّد البريد الإلكتروني في Supabase إذا كان التفعيل مطلوبًا، ثم سجّل الدخول.");
-      return;
-    }
-
-    router.replace("/home");
   }
 
   return (

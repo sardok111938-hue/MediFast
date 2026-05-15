@@ -407,6 +407,15 @@ html[dir="rtl"] .hero {
   min-inline-size: max(760px, 100%);
 }
 
+html[dir="rtl"] .table-row {
+  direction: rtl;
+}
+
+html[dir="rtl"] .table-row > *,
+html[dir="rtl"] .table-cell {
+  text-align: right;
+}
+
 .table-row:not(.table-row-header):hover {
   background: var(--surface-subtle);
 }

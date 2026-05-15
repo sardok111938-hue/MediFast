@@ -1,26 +1,24 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import type { ComponentProps } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useMemo } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
-import { Card, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
+import { ErrorCard, LoadingCard, Screen, SectionTitle } from "../src/components/CustomerUI";
 import {
-  getParentCategories,
-  getPharmacyCategoryImage,
+  buildPharmacyCategoryTree,
+  getCategoryIcon,
+  getCategoryTheme,
   getPharmacyCategoryProductCount,
-  getPharmacyParentCategoryById,
   useCustomerCatalogData,
 } from "../src/lib/customer-catalog";
-import { CatalogImage } from "../src/components/CatalogImage";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 export default function CategoriesScreen() {
   const router = useRouter();
   const { data, loading, error, reload } = useCustomerCatalogData();
-  const parentCategories = getParentCategories(data.categories)
-    .map((category) => getPharmacyParentCategoryById(data.categories, category.id))
-    .filter((category): category is NonNullable<typeof category> => Boolean(category));
+  const parentCategories = useMemo(() => buildPharmacyCategoryTree(data.categories).parents, [data.categories]);
 
   return (
     <Screen title="الفئات" subtitle="تصفح أقسام الصيدلية الرئيسية بتجربة منظمة وواضحة.">
@@ -28,45 +26,41 @@ export default function CategoriesScreen() {
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
 
       <SectionTitle label="الفئات الرئيسية" />
+
       <View style={styles.grid}>
         {parentCategories.map((category) => {
           const productCount = getPharmacyCategoryProductCount(data.products, data.categories, category.id);
+          const categoryTheme = getCategoryTheme(category.category.slug);
 
           return (
-            <Card key={category.id} style={styles.categoryCard}>
-              <View style={styles.categoryRow}>
-                <CatalogImage
-                  uri={getPharmacyCategoryImage(data.products, data.categories, category.id)}
-                  alt={category.label}
-                  fallbackLabel=""
-                  containerStyle={styles.categoryImageWrap}
-                  imageStyle={styles.categoryImage}
-                />
-                <View style={styles.categoryCopy}>
-                  <View style={styles.titleRow}>
-                    <View style={styles.iconBadge}>
-                      <Ionicons name={category.icon as IconName} size={18} color={theme.colors.primaryDark} />
-                    </View>
-                    <Text style={styles.categoryTitle}>{category.label}</Text>
-                  </View>
-                  <Text style={styles.categoryDescription}>
-                    {category.subcategories.length > 0 ? `${category.subcategories.length} أقسام فرعية` : "قسم رئيسي"}
-                    {" · "}
-                    {productCount} منتجات
-                  </Text>
-                </View>
+            <Pressable
+              key={category.id}
+              style={[
+                styles.categoryCard,
+                {
+                  backgroundColor: categoryTheme.background,
+                  borderColor: categoryTheme.border,
+                },
+              ]}
+              onPress={() =>
+                router.push({
+                  pathname: "/categories/[categoryId]",
+                  params: { categoryId: category.id },
+                })
+              }
+            >
+              <View style={[styles.iconBadge, { backgroundColor: categoryTheme.accentSoft }]}>
+                <Ionicons name={getCategoryIcon(category.category.slug) as IconName} size={22} color={categoryTheme.accent} />
               </View>
-              <PrimaryButton
-                label="فتح الفئة"
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: "/categories/[categoryId]",
-                    params: { categoryId: category.id },
-                  })
-                }
-              />
-            </Card>
+
+              <Text style={[styles.categoryTitle, { color: categoryTheme.text }]} numberOfLines={2}>
+                {category.label}
+              </Text>
+
+              <Text style={[styles.categoryDescription, { color: categoryTheme.accent }]} numberOfLines={1}>
+                {category.subcategories.length} أقسام · {productCount} منتجات
+              </Text>
+            </Pressable>
           );
         })}
       </View>
@@ -76,53 +70,38 @@ export default function CategoriesScreen() {
 
 const styles = StyleSheet.create({
   grid: {
-    gap: theme.spacing[12],
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
   categoryCard: {
-    gap: theme.spacing[12],
-  },
-  categoryRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: theme.spacing[12],
-  },
-  categoryImageWrap: {
-    width: 78,
-    height: 78,
-    borderRadius: 22,
-  },
-  categoryImage: {
-    width: "100%",
-    height: "100%",
-  },
-  categoryCopy: {
-    flex: 1,
-    gap: theme.spacing[8],
-  },
-  titleRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: theme.spacing[8],
-  },
-  iconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: "31%",
+    minHeight: 112,
+    marginBottom: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: theme.spacing[12],
+    paddingHorizontal: theme.spacing[8],
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.colors.accent,
+    gap: 7,
+  },
+  iconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
   },
   categoryTitle: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: theme.typography.heading.md,
+    fontSize: theme.typography.caption.md,
     fontWeight: "900",
-    textAlign: "right",
+    lineHeight: 17,
+    textAlign: "center",
   },
   categoryDescription: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body.sm,
-    fontWeight: "700",
-    textAlign: "right",
+    fontSize: 10,
+    fontWeight: "800",
+    textAlign: "center",
   },
 });

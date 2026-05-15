@@ -9,29 +9,69 @@ import { Table } from "../../../../components/ui/table";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { formatDate } from "../../../../lib/utils/format-date";
 import type { AdminCustomerRow, AsyncState } from "../shared/admin-types";
-import { normalizeError, readSingle } from "../shared/admin-utils";
+import { normalizeError } from "../shared/admin-utils";
+
+type CustomerRow = {
+  id: string;
+  user_id: string | null;
+  created_at: string | null;
+};
+
+type ProfileRow = {
+  id: string | null;
+  full_name: string | null;
+  phone: string | null;
+};
 
 async function loadAdminCustomersData(): Promise<AdminCustomerRow[]> {
   const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase
+
+  const { data: customers, error: customersError } = await supabase
     .from("customers")
-    .select(`
-      id,
-      created_at,
-      profile:profiles!customers_user_id_fkey(full_name, phone)
-    `)
+    .select("id, user_id, created_at")
     .order("created_at", { ascending: false });
 
-  if (error) {
-    throw error;
+  if (customersError) {
+    throw customersError;
   }
 
-  return (data ?? []).map((customer) => {
-    const profile = readSingle(customer.profile as { full_name?: string; phone?: string | null } | { full_name?: string; phone?: string | null }[] | null);
+  const customerRows = (customers ?? []) as CustomerRow[];
+
+  const userIds = Array.from(
+    new Set(
+      customerRows
+        .map((customer) => customer.user_id)
+        .filter((userId): userId is string => Boolean(userId)),
+    ),
+  );
+
+  const profileById = new Map<string, ProfileRow>();
+
+  if (userIds.length > 0) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name, phone")
+      .in("id", userIds);
+
+    if (profilesError) {
+      throw profilesError;
+    }
+
+    for (const profile of (profiles ?? []) as ProfileRow[]) {
+      if (profile.id) {
+        profileById.set(String(profile.id), profile);
+      }
+    }
+  }
+
+  return customerRows.map((customer) => {
+    const profile = customer.user_id ? profileById.get(String(customer.user_id)) : null;
+
+    const fullName = profile?.full_name?.trim();
 
     return {
       id: String(customer.id),
-      fullName: profile?.full_name ?? "العميل",
+      fullName: fullName && fullName.length > 0 ? fullName : "عميل بدون اسم",
       phone: profile?.phone ?? null,
       createdAt: String(customer.created_at ?? ""),
     };

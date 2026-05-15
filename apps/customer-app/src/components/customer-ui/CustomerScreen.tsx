@@ -133,10 +133,12 @@ export function Screen({
   const content = (
     <View style={[styles.content, !scroll ? styles.contentFullHeight : null]}>
       <View style={styles.header}>
-        <View style={[styles.headerTopRow, isRTL ? styles.headerTopRowRtl : null]}>
-          {backHref ? <BackButton label={backLabel} href={backHref} /> : <View style={styles.headerSpacer} />}
-          {action ? <View>{action}</View> : <View style={styles.headerSpacer} />}
-        </View>
+        {backHref || action ? (
+  <View style={[styles.headerTopRow, isRTL ? styles.headerTopRowRtl : null]}>
+    {backHref ? <BackButton label={backLabel} href={backHref} /> : <View style={styles.headerSpacer} />}
+    {action ? <View>{action}</View> : <View style={styles.headerSpacer} />}
+  </View>
+) : null}
         <View style={styles.headerText}>
           <Text style={[styles.title, isRTL ? styles.textRight : null]}>{t(title)}</Text>
           {subtitle ? <Text style={[styles.subtitle, isRTL ? styles.textRight : null]}>{t(subtitle)}</Text> : null}

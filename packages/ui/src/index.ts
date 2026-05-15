@@ -114,12 +114,12 @@ export const theme = {
 };
 
 export const categories: Category[] = [
-  { id: "cat-1", name: "الأدوية", icon: "cross" },
-  { id: "cat-2", name: "الفيتامينات", icon: "leaf" },
-  { id: "cat-3", name: "العناية بالبشرة", icon: "sparkles" },
-  { id: "cat-4", name: "العناية بالأطفال", icon: "heart" },
-  { id: "cat-5", name: "الأجهزة الطبية", icon: "pulse" },
-  { id: "cat-6", name: "العناية الشخصية", icon: "drop" },
+  { id: "cat-1", name: "medicine", name_ar: "الأدوية", slug: "medicine", icon: "medkit-outline", parent_id: null, sort_order: 1, is_active: true },
+  { id: "cat-2", name: "medical-devices", name_ar: "الأجهزة الطبية", slug: "medical-devices", icon: "fitness-outline", parent_id: null, sort_order: 2, is_active: true },
+  { id: "cat-3", name: "personal-care", name_ar: "العناية الشخصية", slug: "personal-care", icon: "sparkles-outline", parent_id: null, sort_order: 3, is_active: true },
+  { id: "cat-4", name: "skin-hair-care", name_ar: "البشرة والشعر", slug: "skin-hair-care", icon: "leaf-outline", parent_id: null, sort_order: 4, is_active: true },
+  { id: "cat-5", name: "mother-baby", name_ar: "الأم والطفل", slug: "mother-baby", icon: "heart-outline", parent_id: null, sort_order: 5, is_active: true },
+  { id: "cat-6", name: "vitamins-nutrition", name_ar: "الفيتامينات والتغذية", slug: "vitamins-nutrition", icon: "nutrition-outline", parent_id: null, sort_order: 6, is_active: true },
 ];
 
 export const vendors: Vendor[] = [

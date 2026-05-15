@@ -79,6 +79,153 @@ export type PharmacyParentCategory = {
   subcategories: PharmacySubcategory[];
 };
 
+export type PharmacyCategoryTree = {
+  parents: PharmacyParentCategory[];
+  categoryById: Map<string, Category>;
+  childCategoriesByParentId: Map<string, Category[]>;
+  categoryAndDescendantIdsById: Map<string, Set<string>>;
+};
+
+export type CategoryTheme = {
+  background: string;
+  border: string;
+  accent: string;
+  accentSoft: string;
+  text: string;
+};
+
+const defaultCategoryTheme: CategoryTheme = {
+  background: "#F6FBF8",
+  border: "#DCEBE2",
+  accent: "#127244",
+  accentSoft: "#E4F4EA",
+  text: "#153427",
+};
+
+const categoryVisuals: Record<
+  string,
+  {
+    icon: string;
+    theme: CategoryTheme;
+    gradient: readonly [string, string];
+    fallbackImage: string;
+    subtitle: string;
+  }
+> = {
+  medicine: {
+    icon: "medical-outline",
+    theme: {
+      background: "#F1FAF5",
+      border: "#CDEBDD",
+      accent: "#127244",
+      accentSoft: "#DDF3E7",
+      text: "#123B2A",
+    },
+    gradient: ["#F4FBF7", "#DDF3E7"],
+    fallbackImage: "https://placehold.co/800x600/F1FAF5/127244?text=Medicine",
+    subtitle: "الأدوية اليومية والوصفات الأساسية",
+  },
+  "medical-devices": {
+    icon: "fitness-outline",
+    theme: {
+      background: "#F2F8FF",
+      border: "#D5E8FA",
+      accent: "#2563A7",
+      accentSoft: "#E1F0FF",
+      text: "#173456",
+    },
+    gradient: ["#F5FAFF", "#E1F0FF"],
+    fallbackImage: "https://placehold.co/800x600/F2F8FF/2563A7?text=Devices",
+    subtitle: "أجهزة قياس ومستلزمات طبية منزلية",
+  },
+  "personal-care": {
+    icon: "sparkles-outline",
+    theme: {
+      background: "#FFF7F2",
+      border: "#F4DDD1",
+      accent: "#B96532",
+      accentSoft: "#FCE8DD",
+      text: "#4A2B1B",
+    },
+    gradient: ["#FFF9F5", "#FCE8DD"],
+    fallbackImage: "https://placehold.co/800x600/FFF7F2/B96532?text=Care",
+    subtitle: "احتياجات العناية اليومية والنظافة",
+  },
+  "skin-hair-care": {
+    icon: "leaf-outline",
+    theme: {
+      background: "#F7F6FF",
+      border: "#E1DDF6",
+      accent: "#6F5AA8",
+      accentSoft: "#EAE5FA",
+      text: "#332A50",
+    },
+    gradient: ["#FAF9FF", "#EAE5FA"],
+    fallbackImage: "https://placehold.co/800x600/F7F6FF/6F5AA8?text=Skin+Hair",
+    subtitle: "روتين البشرة والشعر من الصيدلية",
+  },
+  "mother-baby": {
+    icon: "heart-outline",
+    theme: {
+      background: "#FFF5F7",
+      border: "#F4D7DF",
+      accent: "#B84E6A",
+      accentSoft: "#FBE3EA",
+      text: "#512633",
+    },
+    gradient: ["#FFF9FA", "#FBE3EA"],
+    fallbackImage: "https://placehold.co/800x600/FFF5F7/B84E6A?text=Mother+Baby",
+    subtitle: "رعاية الأم والطفل بلطف ووضوح",
+  },
+  "vitamins-nutrition": {
+    icon: "nutrition-outline",
+    theme: {
+      background: "#F8FAEF",
+      border: "#E3EBC9",
+      accent: "#6F8329",
+      accentSoft: "#EDF5D5",
+      text: "#394418",
+    },
+    gradient: ["#FBFCF4", "#EDF5D5"],
+    fallbackImage: "https://placehold.co/800x600/F8FAEF/6F8329?text=Vitamins",
+    subtitle: "فيتامينات ومكملات لدعم الصحة اليومية",
+  },
+};
+
+function normalizeSlug(slug?: string | null) {
+  return slug?.trim() ?? "";
+}
+
+function getVisualForSlug(slug?: string | null) {
+  return categoryVisuals[normalizeSlug(slug)] ?? {
+    icon: "grid-outline",
+    theme: defaultCategoryTheme,
+    gradient: ["#F8FCF9", "#E4F4EA"] as const,
+    fallbackImage: "https://placehold.co/800x600/F8FCF9/127244?text=MediFast",
+    subtitle: "منتجات صيدلية منظمة حسب احتياجك",
+  };
+}
+
+export function getCategoryIcon(slug?: string | null) {
+  return getVisualForSlug(slug).icon;
+}
+
+export function getCategoryTheme(slug?: string | null) {
+  return getVisualForSlug(slug).theme;
+}
+
+export function getCategoryGradient(slug?: string | null) {
+  return getVisualForSlug(slug).gradient;
+}
+
+export function getCategoryFallbackImage(slug?: string | null) {
+  return getVisualForSlug(slug).fallbackImage;
+}
+
+export function getCategorySubtitle(slug?: string | null) {
+  return getVisualForSlug(slug).subtitle;
+}
+
 function normalizeQuery(value: string) {
   return value.trim().toLocaleLowerCase();
 }
@@ -330,8 +477,8 @@ export function getProductById(products: Product[], productId?: string | null) {
   return products.find((product) => product.id === productId) ?? null;
 }
 
-function getCategoryLabel(category: Category) {
-  return category.name_ar || category.name;
+export function getCategoryLabel(category: Pick<Category, "name" | "name_ar">) {
+  return category.name_ar?.trim() || category.name.trim();
 }
 
 function getCategorySortOrder(category: Category) {
@@ -341,23 +488,23 @@ function getCategorySortOrder(category: Category) {
 function toPharmacySubcategory(category: Category): PharmacySubcategory {
   return {
     id: category.id,
-    label: getCategoryLabel(category),
-    icon: category.icon || "grid",
-    imageUrl: category.image_url ?? null,
+    label: getCategoryDisplayLabel(category),
+    icon: category.icon || getCategoryIcon(category.slug),
+    imageUrl: category.image_url ?? getCategoryFallbackImage(category.slug),
     sortOrder: getCategorySortOrder(category),
     category,
   };
 }
 
-function toPharmacyParentCategory(category: Category, categories: Category[]): PharmacyParentCategory {
+function toPharmacyParentCategory(category: Category, childCategoriesByParentId: Map<string, Category[]>): PharmacyParentCategory {
   return {
     id: category.id,
-    label: getCategoryLabel(category),
-    icon: category.icon || "grid",
-    imageUrl: category.image_url ?? null,
+    label: getCategoryDisplayLabel(category),
+    icon: category.icon || getCategoryIcon(category.slug),
+    imageUrl: category.image_url ?? getCategoryFallbackImage(category.slug),
     sortOrder: getCategorySortOrder(category),
     category,
-    subcategories: getSubcategoriesForParent(categories, category.id).map(toPharmacySubcategory),
+    subcategories: (childCategoriesByParentId.get(category.id) ?? []).map(toPharmacySubcategory),
   };
 }
 
@@ -365,11 +512,64 @@ function sortCategoriesByDisplayOrder(left: Category, right: Category) {
   return getCategorySortOrder(left) - getCategorySortOrder(right) || getCategoryLabel(left).localeCompare(getCategoryLabel(right), "ar");
 }
 
-export function getParentCategories(categories: Category[]) {
-  const activeCategories = categories.filter((category) => category.is_active !== false);
-  const parentCategories = activeCategories.filter((category) => !category.parent_id);
+function isActiveCategory(category: Category) {
+  return category.is_active !== false;
+}
 
-  return (parentCategories.length > 0 ? parentCategories : activeCategories).sort(sortCategoriesByDisplayOrder);
+function buildCategoryAndDescendantIds(categoryId: string, childCategoriesByParentId: Map<string, Category[]>) {
+  const ids = new Set<string>([categoryId]);
+  const stack = [...(childCategoriesByParentId.get(categoryId) ?? [])];
+
+  while (stack.length > 0) {
+    const category = stack.pop();
+
+    if (!category || ids.has(category.id)) {
+      continue;
+    }
+
+    ids.add(category.id);
+    stack.push(...(childCategoriesByParentId.get(category.id) ?? []));
+  }
+
+  return ids;
+}
+
+export function buildPharmacyCategoryTree(categories: Category[]): PharmacyCategoryTree {
+  const activeCategories = categories.filter(isActiveCategory).sort(sortCategoriesByDisplayOrder);
+  const categoryById = new Map(activeCategories.map((category) => [category.id, category]));
+  const childCategoriesByParentId = new Map<string, Category[]>();
+
+  for (const category of activeCategories) {
+    if (!category.parent_id || !categoryById.has(category.parent_id)) {
+      continue;
+    }
+
+    const children = childCategoriesByParentId.get(category.parent_id) ?? [];
+    children.push(category);
+    childCategoriesByParentId.set(category.parent_id, children);
+  }
+
+  for (const children of childCategoriesByParentId.values()) {
+    children.sort(sortCategoriesByDisplayOrder);
+  }
+
+  const parentCategories = activeCategories.filter((category) => !category.parent_id);
+  const categoryAndDescendantIdsById = new Map<string, Set<string>>();
+
+  for (const category of activeCategories) {
+    categoryAndDescendantIdsById.set(category.id, buildCategoryAndDescendantIds(category.id, childCategoriesByParentId));
+  }
+
+  return {
+    parents: parentCategories.map((category) => toPharmacyParentCategory(category, childCategoriesByParentId)),
+    categoryById,
+    childCategoriesByParentId,
+    categoryAndDescendantIdsById,
+  };
+}
+
+export function getParentCategories(categories: Category[]) {
+  return buildPharmacyCategoryTree(categories).parents.map((parentCategory) => parentCategory.category);
 }
 
 export function getSubcategoriesForParent(categories: Category[], parentCategoryId?: string | null) {
@@ -377,9 +577,7 @@ export function getSubcategoriesForParent(categories: Category[], parentCategory
     return [];
   }
 
-  return categories
-    .filter((category) => category.is_active !== false && category.parent_id === parentCategoryId)
-    .sort(sortCategoriesByDisplayOrder);
+  return buildPharmacyCategoryTree(categories).childCategoriesByParentId.get(parentCategoryId) ?? [];
 }
 
 export function getPharmacyParentCategoryById(categories: Category[], categoryId?: string | null) {
@@ -387,15 +585,16 @@ export function getPharmacyParentCategoryById(categories: Category[], categoryId
     return null;
   }
 
-  const category = categories.find((nextCategory) => nextCategory.id === categoryId) ?? null;
+  const tree = buildPharmacyCategoryTree(categories);
+  const category = tree.categoryById.get(categoryId) ?? null;
 
   if (!category) {
     return null;
   }
 
-  const parentCategory = category.parent_id ? getCategoryById(categories, category.parent_id) : category;
+  const parentCategory = category.parent_id ? tree.categoryById.get(category.parent_id) : category;
 
-  return parentCategory ? toPharmacyParentCategory(parentCategory, categories) : null;
+  return parentCategory ? toPharmacyParentCategory(parentCategory, tree.childCategoriesByParentId) : null;
 }
 
 export function getPharmacySubcategoryById(parentCategory: PharmacyParentCategory, subcategoryId?: string | null) {
@@ -406,8 +605,46 @@ export function getPharmacySubcategoryById(parentCategory: PharmacyParentCategor
   return parentCategory.subcategories.find((subcategory) => subcategory.id === subcategoryId) ?? null;
 }
 
+export function getCategoryDisplayLabel(category: Pick<Category, "name" | "name_ar" | "slug">) {
+  const slug = normalizeSlug(category.slug);
+
+  if (slug.endsWith("-other")) {
+    return "منتجات أخرى";
+  }
+
+  return getCategoryLabel(category);
+}
+
+export function getProductCategoryBadgeLabel(categories: Category[], categoryId?: string | null) {
+  const category = getCategoryById(categories, categoryId);
+
+  if (!category) {
+    return "";
+  }
+
+  return getCategoryDisplayLabel(category);
+}
+
+export function getCategoryPathLabel(categories: Category[], categoryId?: string | null) {
+  const category = getCategoryById(categories, categoryId);
+
+  if (!category) {
+    return "";
+  }
+
+  if (!category.parent_id) {
+    return getCategoryDisplayLabel(category);
+  }
+
+  const parentCategory = getCategoryById(categories, category.parent_id);
+
+  return parentCategory ? `${getCategoryDisplayLabel(parentCategory)} ← ${getCategoryDisplayLabel(category)}` : getCategoryDisplayLabel(category);
+}
+
 export function productMatchesPharmacyParentCategory(product: Product, categories: Category[], parentCategory: PharmacyParentCategory) {
-  const categoryIds = new Set([parentCategory.id, ...parentCategory.subcategories.map((subcategory) => subcategory.id)]);
+  const tree = buildPharmacyCategoryTree(categories);
+  const categoryIds = tree.categoryAndDescendantIdsById.get(parentCategory.id) ?? new Set([parentCategory.id]);
+
   return categoryIds.has(product.category_id);
 }
 
@@ -428,7 +665,9 @@ export function getProductsForPharmacyParentCategory(
     return [];
   }
 
-  const parentProducts = products.filter((product) => productMatchesPharmacyParentCategory(product, categories, parentCategory));
+  const tree = buildPharmacyCategoryTree(categories);
+  const categoryIds = tree.categoryAndDescendantIdsById.get(parentCategory.id) ?? new Set([parentCategory.id]);
+  const parentProducts = products.filter((product) => categoryIds.has(product.category_id));
   const subcategory = getPharmacySubcategoryById(parentCategory, subcategoryId);
 
   if (!subcategory) {
@@ -439,9 +678,13 @@ export function getProductsForPharmacyParentCategory(
 }
 
 export function getPharmacyParentCategoriesForProducts(products: Product[], categories: Category[]) {
-  return getParentCategories(categories)
-    .map((category) => toPharmacyParentCategory(category, categories))
-    .filter((parentCategory) => products.some((product) => productMatchesPharmacyParentCategory(product, categories, parentCategory)));
+  const tree = buildPharmacyCategoryTree(categories);
+
+  return tree.parents.filter((parentCategory) => {
+    const categoryIds = tree.categoryAndDescendantIdsById.get(parentCategory.id) ?? new Set([parentCategory.id]);
+
+    return products.some((product) => categoryIds.has(product.category_id));
+  });
 }
 
 export function getPharmacyCategoryProductCount(products: Product[], categories: Category[], parentCategoryId: string) {
@@ -450,14 +693,20 @@ export function getPharmacyCategoryProductCount(products: Product[], categories:
 
 export function getPharmacyCategoryImage(products: Product[], categories: Category[], parentCategoryId: string) {
   const category = getCategoryById(categories, parentCategoryId);
-  return category?.image_url ?? getProductsForPharmacyParentCategory(products, categories, parentCategoryId).find((product) => product.image_url)?.image_url ?? null;
+  return category?.image_url ?? getProductsForPharmacyParentCategory(products, categories, parentCategoryId).find((product) => product.image_url)?.image_url ?? getCategoryFallbackImage(category?.slug);
 }
 
-export function filterProducts(products: Product[], input: { categoryId?: string | null; query?: string | null }) {
+export function filterProducts(products: Product[], input: { categories?: Category[]; categoryId?: string | null; query?: string | null }) {
   const normalizedQuery = normalizeQuery(input.query ?? "");
+  const categoryIds =
+    input.categoryId && input.categories
+      ? (buildPharmacyCategoryTree(input.categories).categoryAndDescendantIdsById.get(input.categoryId) ?? new Set([input.categoryId]))
+      : input.categoryId
+        ? new Set([input.categoryId])
+        : null;
 
   return products.filter((product) => {
-    const matchesCategory = !input.categoryId || product.category_id === input.categoryId;
+    const matchesCategory = !categoryIds || categoryIds.has(product.category_id);
     const matchesQuery =
       !normalizedQuery ||
       normalizeQuery(product.name).includes(normalizedQuery) ||
@@ -471,5 +720,5 @@ export function filterProducts(products: Product[], input: { categoryId?: string
 export function useFilteredProducts(input: { categoryId?: string | null; query?: string | null }) {
   const { data } = useCustomerCatalogData();
 
-  return useMemo(() => filterProducts(data.products, input), [data.products, input]);
+  return useMemo(() => filterProducts(data.products, { ...input, categories: data.categories }), [data.categories, data.products, input]);
 }

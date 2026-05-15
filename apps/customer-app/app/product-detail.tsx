@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import { formatCategoryLabel } from "@medifast/i18n";
 import { theme } from "@medifast/ui";
 import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, Pill, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../src/components/CustomerUI";
 import { addProductToCart } from "../src/lib/cart-store";
-import { getCategoryById, getProductById, getVendorById, useCustomerCatalogData } from "../src/lib/customer-catalog";
+import { getCategoryPathLabel, getProductById, getVendorById, useCustomerCatalogData } from "../src/lib/customer-catalog";
 import { formatCustomerCurrency } from "../src/lib/customer-orders";
 import { CatalogImage } from "../src/components/CatalogImage";
 
@@ -17,7 +16,7 @@ export default function ProductDetailScreen() {
   const product = getProductById(data.products, productId);
   const [quantity, setQuantity] = useState(1);
   const vendor = useMemo(() => getVendorById(data.vendors, product?.vendor_id), [data.vendors, product?.vendor_id]);
-  const category = useMemo(() => getCategoryById(data.categories, product?.category_id), [data.categories, product?.category_id]);
+  const categoryLabel = useMemo(() => getCategoryPathLabel(data.categories, product?.category_id), [data.categories, product?.category_id]);
 
   if (loading) {
     return (
@@ -68,7 +67,7 @@ export default function ProductDetailScreen() {
           <View style={styles.heroTop}>
             <View style={styles.heroCopy}>
               <View style={styles.heroBadges}>
-                {category ? <Pill label={formatCategoryLabel(category)} tone="info" /> : null}
+                {categoryLabel ? <Pill label={categoryLabel} tone="info" /> : null}
                 {product.stock_quantity > 0 ? <Pill label="متوفر الآن" tone="success" /> : <Pill label="غير متوفر" tone="warning" />}
               </View>
               <Text style={styles.productName}>{product.name}</Text>
@@ -86,7 +85,7 @@ export default function ProductDetailScreen() {
           <View style={styles.metaGrid}>
             <View style={styles.metaTile}>
               <Text style={styles.metaTitle}>الفئة</Text>
-              <Text style={styles.metaValue}>{category ? formatCategoryLabel(category) : "-"}</Text>
+              <Text style={styles.metaValue}>{categoryLabel || "-"}</Text>
             </View>
             <View style={styles.metaTile}>
               <Text style={styles.metaTitle}>المتجر</Text>

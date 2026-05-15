@@ -93,6 +93,8 @@ export type AdminCategoryRow = {
   isActive: boolean;
   parentId: string | null;
   displayName: string;
+  childCount: number;
+  productCount: number;
   createdAt: string;
 };
 

@@ -6,12 +6,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   await requireDashboardRole("admin");
 
   return (
-    <div>
+    <>
       <header className="auth-strip">
         <LogoutButton />
       </header>
 
       {children}
-    </div>
+    </>
   );
 }

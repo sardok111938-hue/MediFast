@@ -63,12 +63,12 @@ export interface Category {
   id: string;
   name: string;
   name_ar?: string | null;
-  icon: string;
+  icon?: string | null;
   parent_id?: string | null;
   slug?: string | null;
   sort_order?: number | null;
   image_url?: string | null;
-  is_active?: boolean;
+  is_active?: boolean | null;
 }
 
 export interface Vendor {

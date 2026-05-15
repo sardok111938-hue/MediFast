@@ -2,30 +2,95 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
-import { Card, DetailRow, ErrorCard, HelperText, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
-import { formatSavedAddressLine, getPrimaryAddress, getSavedAddresses, hasSavedAddressCoordinates, useCustomerCatalogData } from "../src/lib/customer-catalog";
-import { signOutCustomer, supabase } from "../src/lib/supabase";
+import {
+  Card,
+  DetailRow,
+  ErrorCard,
+  FormInput,
+  HelperText,
+  LoadingCard,
+  PrimaryButton,
+  Screen,
+  SectionTitle,
+} from "../src/components/CustomerUI";
+import {
+  formatSavedAddressLine,
+  getPrimaryAddress,
+  getSavedAddresses,
+  hasSavedAddressCoordinates,
+  useCustomerCatalogData,
+} from "../src/lib/customer-catalog";
+import { signOutCustomer, supabase, updateCustomerProfile } from "../src/lib/supabase";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { data, loading, error, reload } = useCustomerCatalogData();
   const [fullName, setFullName] = useState("العميل");
+  const [draftFullName, setDraftFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("customer@example.com");
+  const [profileMessage, setProfileMessage] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
   const addresses = useMemo(() => getSavedAddresses(data.addresses), [data.addresses]);
   const defaultAddress = useMemo(() => getPrimaryAddress(data.addresses, data.defaultAddressId), [data.addresses, data.defaultAddressId]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const user = data.session?.user;
+    async function loadProfile() {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData.session?.user;
+
       if (!user) {
         return;
       }
 
-      setFullName(String(user.user_metadata.full_name ?? "العميل"));
       setEmail(user.email ?? "customer@example.com");
-    });
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, phone")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      const resolvedFullName =
+        profile?.full_name?.trim() ||
+        (typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "") ||
+        "العميل";
+
+      setFullName(resolvedFullName);
+      setDraftFullName(resolvedFullName);
+      setPhone(profile?.phone ?? "");
+    }
+
+    void loadProfile();
   }, []);
+
+  async function handleSaveProfile() {
+    const nextFullName = draftFullName.trim();
+
+    if (!nextFullName) {
+      setProfileMessage("الاسم الكامل مطلوب.");
+      return;
+    }
+
+    setSavingProfile(true);
+    setProfileMessage("");
+
+    try {
+      await updateCustomerProfile({
+        fullName: nextFullName,
+        phone,
+      });
+
+      setFullName(nextFullName);
+      setProfileMessage("تم تحديث بيانات الحساب بنجاح.");
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : "تعذر تحديث بيانات الحساب.");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -48,11 +113,26 @@ export default function ProfileScreen() {
       </Card>
 
       <Card>
-        <SectionTitle label="بيانات الحساب" />
-        <DetailRow label="الاسم الكامل" value={fullName} />
-        <DetailRow label="البريد الإلكتروني" value={email} />
-        <DetailRow label="طريقة الدفع المفضلة" value="الدفع عند الاستلام" />
-      </Card>
+  <SectionTitle label="بيانات الحساب" />
+  <FormInput value={draftFullName} onChangeText={setDraftFullName} placeholder="الاسم الكامل" />
+  <FormInput value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" keyboardType="phone-pad" />
+  <DetailRow label="البريد الإلكتروني" value={email} />
+  <DetailRow label="طريقة الدفع المفضلة" value="الدفع عند الاستلام" />
+
+  {profileMessage ? (
+    <HelperText tone={profileMessage.includes("بنجاح") ? "success" : "danger"}>
+      {profileMessage}
+    </HelperText>
+  ) : (
+    <HelperText>يظهر الاسم ورقم الهاتف في لوحة الإدارة وبيانات الطلبات.</HelperText>
+  )}
+
+  <PrimaryButton
+    label={savingProfile ? "جارٍ الحفظ..." : "حفظ بيانات الحساب"}
+    onPress={() => void handleSaveProfile()}
+    disabled={savingProfile}
+  />
+</Card>
 
       <Card>
         <SectionTitle
