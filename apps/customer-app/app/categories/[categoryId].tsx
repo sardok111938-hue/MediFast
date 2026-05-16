@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { Product } from "@medifast/types";
 import { theme } from "@medifast/ui";
 import { CustomerProductCard } from "../../src/components/CustomerProductCard";
@@ -13,26 +13,74 @@ import {
   useCustomerCatalogData,
 } from "../../src/lib/customer-catalog";
 
-function getScopedProducts(products: Product[]) {
-  return products;
+function getScopedProducts(products: Product[], pharmacyId?: string | null) {
+  if (!pharmacyId) {
+    return products;
+  }
+
+  return products.filter((product) => product.vendor_id === pharmacyId);
+}
+
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase();
 }
 
 export default function MarketplaceCategoryScreen() {
-  const params = useLocalSearchParams<{ categoryId?: string | string[]; pharmacyId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+  categoryId?: string | string[];
+  pharmacyId?: string | string[];
+}>();
+
+const pharmacyId = Array.isArray(params.pharmacyId)
+  ? params.pharmacyId[0]
+  : params.pharmacyId;
+
   const categoryId = Array.isArray(params.categoryId) ? params.categoryId[0] : params.categoryId;
   const { data, loading, error, reload } = useCustomerCatalogData();
   const [activeSubcategoryId, setActiveSubcategoryId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const parentCategory = useMemo(
     () => getPharmacyParentCategoryById(data.categories, categoryId),
     [categoryId, data.categories],
   );
-  const requestedCategory = useMemo(() => getCategoryById(data.categories, categoryId), [categoryId, data.categories]);
-  const scopedProducts = useMemo(() => getScopedProducts(data.products), [data.products]);
+
+  const requestedCategory = useMemo(
+    () => getCategoryById(data.categories, categoryId),
+    [categoryId, data.categories],
+  );
+
+  const scopedProducts = useMemo(
+  () => getScopedProducts(data.products, pharmacyId),
+  [data.products, pharmacyId],
+);
+
   const products = useMemo(
-    () => getProductsForPharmacyParentCategory(scopedProducts, data.categories, parentCategory?.id, activeSubcategoryId),
+    () =>
+      getProductsForPharmacyParentCategory(
+        scopedProducts,
+        data.categories,
+        parentCategory?.id,
+        activeSubcategoryId,
+      ),
     [activeSubcategoryId, data.categories, parentCategory?.id, scopedProducts],
   );
+
+  const filteredProducts = useMemo(() => {
+    const normalizedQuery = normalizeSearch(query);
+
+    if (!normalizedQuery) {
+      return products;
+    }
+
+    return products.filter((product) => {
+      return (
+        normalizeSearch(product.name).includes(normalizedQuery) ||
+        normalizeSearch(product.description).includes(normalizedQuery) ||
+        normalizeSearch(product.barcode ?? "").includes(normalizedQuery)
+      );
+    });
+  }, [products, query]);
 
   useEffect(() => {
     setActiveSubcategoryId(requestedCategory?.parent_id ? requestedCategory.id : null);
@@ -40,7 +88,7 @@ export default function MarketplaceCategoryScreen() {
 
   if (loading) {
     return (
-      <Screen title="الفئة" subtitle="جارٍ تحميل المنتجات.">
+      <Screen title="" subtitle="" backHref="/home" backLabel="">
         <LoadingCard message="جارٍ تحميل الفئة..." />
       </Screen>
     );
@@ -48,7 +96,7 @@ export default function MarketplaceCategoryScreen() {
 
   if (error) {
     return (
-      <Screen title="الفئة" subtitle="تعذر تحميل المنتجات.">
+      <Screen title="" subtitle="" backHref="/home" backLabel="">
         <ErrorCard message={error} onRetry={() => void reload()} />
       </Screen>
     );
@@ -56,7 +104,7 @@ export default function MarketplaceCategoryScreen() {
 
   if (!parentCategory) {
     return (
-      <Screen title="الفئة" subtitle="هذه الفئة غير متاحة.">
+      <Screen title="" subtitle="" backHref="/home" backLabel="">
         <EmptyCard title="الفئة غير متاحة" message="لم نتمكن من العثور على هذه الفئة." />
       </Screen>
     );
@@ -64,28 +112,19 @@ export default function MarketplaceCategoryScreen() {
 
   const selectedSubcategory = getPharmacySubcategoryById(parentCategory, activeSubcategoryId);
 
-  console.log(
-  "CATEGORY DEBUG",
-  {
-    categoryId,
-    activeSubcategoryId,
-    totalProductsLoaded: data.products.length,
-    filteredProducts: products.length,
-    matchingProducts: products.map((product) => ({
-      id: product.id,
-      name: product.name,
-      vendor_id: product.vendor_id,
-      barcode: product.barcode,
-      category_id: product.category_id,
-    })),
-  }
-);
-
   return (
-    <Screen
-      title={parentCategory.label}
-      subtitle="تصفح المنتجات حسب الفئة الرئيسية والفرعية."
-    >
+    <Screen title="" subtitle="" backHref="/home" backLabel="">
+      <View style={styles.searchBox}>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="ابحث داخل المنتجات"
+          placeholderTextColor={theme.colors.muted}
+          style={styles.searchInput}
+          textAlign="right"
+        />
+      </View>
+
       <View style={styles.subcategoryGrid}>
         <Pressable
           style={[styles.subcategoryCard, !activeSubcategoryId ? styles.subcategoryCardActive : null]}
@@ -115,11 +154,11 @@ export default function MarketplaceCategoryScreen() {
 
       {selectedSubcategory ? <SectionTitle label={selectedSubcategory.label} /> : null}
 
-      {products.length === 0 ? (
+      {filteredProducts.length === 0 ? (
         <EmptyCard title="لا توجد منتجات" message="لا توجد منتجات متاحة لهذا الاختيار حاليًا." />
       ) : (
         <View style={styles.productList}>
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <CustomerProductCard key={product.id} product={product} vendors={data.vendors} width="48%" />
           ))}
         </View>
@@ -129,6 +168,22 @@ export default function MarketplaceCategoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  searchBox: {
+    minHeight: 52,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing[12],
+    justifyContent: "center",
+    marginBottom: theme.spacing[12],
+  },
+  searchInput: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body.md,
+    fontWeight: "800",
+    paddingVertical: theme.spacing[12],
+  },
   subcategoryGrid: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",

@@ -232,7 +232,7 @@ export default function HomeScreen() {
                     key={product.id}
                     product={product}
                     vendors={catalog.vendors}
-                    width={206}
+                    width={138}
                     style={styles.productCard}
                   />
                 ))}
@@ -397,13 +397,13 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing[20],
   },
   productsSection: {
-    marginTop: theme.spacing[20],
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    borderRadius: 28,
-    backgroundColor: "#F7FAF8",
-  },
+  marginTop: theme.spacing[18],
+  marginHorizontal: -16,
+  paddingHorizontal: 16,
+  paddingVertical: 14,
+  borderRadius: 24,
+  backgroundColor: "#F7FAF8",
+},
   sectionHint: {
     color: theme.colors.muted,
     fontSize: 12,
@@ -448,10 +448,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   productsRow: {
-    flexDirection: "row",
-    gap: theme.spacing[12],
-    paddingBottom: 2,
-  },
+  flexDirection: "row",
+  gap: theme.spacing[10],
+  paddingBottom: 2,
+  paddingHorizontal: 2,
+},
   productCard: {
     transform: [{ scaleX: -1 }],
   },

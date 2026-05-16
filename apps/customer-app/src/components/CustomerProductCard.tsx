@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { Product, Vendor } from "@medifast/types";
+import type { Product } from "@medifast/types";
 import { theme } from "@medifast/ui";
 import { usePathname, useRouter } from "expo-router";
-import { memo, useCallback, useMemo, type ComponentProps } from "react";
+import { memo, useCallback, type ComponentProps } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -31,11 +31,6 @@ function CustomerProductCardComponent({
 }: CustomerProductCardProps) {
   const router = useRouter();
   const pathname = usePathname();
-
-  const vendor = useMemo(
-    () => vendors.find((candidate) => candidate.id === product.vendor_id) ?? null,
-    [product.vendor_id, vendors],
-  );
 
   const handlePress = useCallback(() => {
     router.push({
@@ -84,26 +79,14 @@ function CustomerProductCardComponent({
         </View>
 
         <View style={styles.body}>
-          <View style={styles.row}>
-            <Text style={styles.name} numberOfLines={2}>
-              {product.name}
-            </Text>
+  <Text style={styles.name} numberOfLines={2}>
+    {product.name}
+  </Text>
 
-            <Text style={styles.location} numberOfLines={1}>
-              {vendor?.address || "موقع غير محدد"}
-            </Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.vendor} numberOfLines={1}>
-              {vendor?.name || "صيدلية معتمدة"}
-            </Text>
-
-            <Text style={styles.price} numberOfLines={1}>
-              {formatCustomerCurrency(product.price)}
-            </Text>
-          </View>
-        </View>
+  <Text style={styles.price} numberOfLines={1}>
+    {formatCustomerCurrency(product.price)}
+  </Text>
+</View>
       </View>
     </Pressable>
   );
@@ -113,17 +96,17 @@ export const CustomerProductCard = memo(CustomerProductCardComponent);
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "#E1ECE6",
     backgroundColor: theme.colors.surface,
-    padding: theme.spacing[12],
-    gap: theme.spacing[12],
+    padding: theme.spacing[8],
+    gap: theme.spacing[8],
     shadowColor: theme.shadows.card.shadowColor,
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   cardPressed: {
     opacity: 0.95,
@@ -132,72 +115,45 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   imageWrap: {
-    width: "100%",
-    aspectRatio: 1.08,
-    borderRadius: 18,
-    backgroundColor: "#F4F8F6",
-  },
+  width: "100%",
+  height: 96,
+  borderRadius: 14,
+  backgroundColor: "#F4F8F6",
+},
   image: {
     width: "100%",
     height: "100%",
   },
   addButton: {
-    position: "absolute",
-    left: theme.spacing[8],
-    bottom: theme.spacing[8],
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
+  position: "absolute",
+  left: theme.spacing[6],
+  bottom: theme.spacing[6],
+  width: 30,
+  height: 30,
+  borderRadius: 15,
+  backgroundColor: theme.colors.primary,
+  alignItems: "center",
+  justifyContent: "center",
+},
   addButtonDisabled: {
     opacity: 0.42,
   },
   body: {
-    gap: theme.spacing[8],
-  },
-  row: {
-    flexDirection: "row-reverse",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: theme.spacing[8],
+    gap: 6,
   },
   name: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: theme.typography.body.md,
-    fontWeight: "900",
-    lineHeight: 22,
-    textAlign: "right",
-  },
-  location: {
-    maxWidth: "38%",
-    color: theme.colors.muted,
-    fontSize: theme.typography.caption.sm,
-    fontWeight: "800",
-    textAlign: "right",
-    lineHeight: 18,
-  },
-  vendor: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: theme.typography.caption.md,
-    fontWeight: "800",
-    textAlign: "right",
-    lineHeight: 18,
-  },
-  price: {
-    color: theme.colors.primaryDark,
-    fontSize: theme.typography.caption.md,
-    fontWeight: "900",
-    textAlign: "left",
-    lineHeight: 18,
-  },
+  color: theme.colors.text,
+  fontSize: 12,
+  fontWeight: "900",
+  lineHeight: 16,
+  textAlign: "right",
+  minHeight: 32,
+},
+price: {
+  color: theme.colors.primaryDark,
+  fontSize: 13,
+  fontWeight: "900",
+  textAlign: "right",
+  lineHeight: 16,
+},
 });
