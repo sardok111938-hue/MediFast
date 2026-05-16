@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
-import { Card, EmptyCard, ErrorCard, HelperText, ListCard, LoadingCard, PrimaryButton, Screen, SectionTitle, StatusBadge } from "../src/components/CustomerUI";
+import { Card, EmptyCard, ErrorCard, HelperText, ListCard, LoadingCard, PrimaryButton, Screen, SectionTitle, StatusBadge } from "../../src/components/CustomerUI";
 import {
   loadCurrentCustomerOrders,
   formatCustomerCurrency,
@@ -12,8 +12,8 @@ import {
   normalizeCustomerOrderError,
   orderStatusTone,
   type CustomerOrder,
-} from "../src/lib/customer-orders";
-import { subscribeToCustomerOrders, supabase } from "../src/lib/supabase";
+} from "../../src/lib/customer-orders";
+import { subscribeToCustomerOrders, supabase } from "../../src/lib/supabase";
 
 export default function OrderHistoryScreen() {
   const router = useRouter();
@@ -83,7 +83,7 @@ export default function OrderHistoryScreen() {
           <EmptyCard
             title="لا توجد طلبات بعد"
             message="ستظهر طلباتك هنا بعد إتمام أول عملية شراء."
-            action={<PrimaryButton label="ابدأ التسوق" onPress={() => router.push("/search")} />}
+            action={<PrimaryButton label="ابدأ التسوق" onPress={() => router.push("/(tabs)/search")} />}
           />
         ) : (
           <>

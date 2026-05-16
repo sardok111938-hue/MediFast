@@ -134,7 +134,7 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
         quantity,
         unit_price,
         total_price,
-        product:products(name)
+        product:products!order_items_product_id_fkey(name)
       )
     `)
     .eq("vendor_id", vendorId)

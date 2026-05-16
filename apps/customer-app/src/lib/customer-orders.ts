@@ -294,7 +294,7 @@ export async function listCustomerOrders(customerId: string): Promise<CustomerOr
         quantity,
         unit_price,
         total_price,
-        product:products(name)
+        product:products!order_items_product_id_fkey(name)
       )
     `)
     .eq("customer_id", customerId)
@@ -331,7 +331,7 @@ export async function getCustomerOrder(customerId: string, orderId: string): Pro
         quantity,
         unit_price,
         total_price,
-        product:products(name)
+        product:products!order_items_product_id_fkey(name)
       )
     `)
     .eq("id", orderId)

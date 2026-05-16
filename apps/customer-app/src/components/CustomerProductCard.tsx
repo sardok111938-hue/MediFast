@@ -55,7 +55,7 @@ function CustomerProductCardComponent({
       addProductToCart(product, 1);
 
       if (pathname !== "/home") {
-        router.push("/cart");
+        router.push("/(tabs)/cart");
       }
     },
     [pathname, product, router],

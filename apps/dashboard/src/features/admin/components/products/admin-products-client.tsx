@@ -14,6 +14,7 @@ import { useLocale } from "../../../../lib/i18n/locale-context";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { formatCurrency } from "../../../../lib/utils/format-currency";
 import type { ProductCategoryOption, ProductRow } from "../../../../types/dashboard";
+import { AdminSeedProductsCard } from "./admin-seed-products-card";
 import {
   getCategoryOptionLabel,
   getCategoryPathDisplayName,
@@ -25,6 +26,7 @@ import {
 import {
   adminCreateProductAction,
   adminDeactivateProductAction,
+  adminSaveProductImageToGlobalCatalogueAction,
   adminUpdateProductAction,
 } from "../../actions";
 import type { AdminProductManagerData, AsyncState, ProductFormValues } from "../shared/admin-types";
@@ -41,14 +43,22 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
-    image_url: product.image_url ? String(product.image_url) : null,
+    image_url: product.resolved_image_url
+      ? String(product.resolved_image_url)
+      : product.image_url
+        ? String(product.image_url)
+        : null,
   };
+}
+
+function canSaveProductImageToGlobalCatalogue(product: ProductRow | null | undefined) {
+  return Boolean(product?.barcode?.trim() && product?.image_url?.trim());
 }
 
 async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
   const supabase = getSupabaseBrowserClient();
 
-  const [categoriesResult, productsResult] = await Promise.all([
+  const [categoriesResult, productsResult, vendorsResult] = await Promise.all([
     supabase
       .from("categories")
       .select("id, name, name_ar, slug, icon, image_url, sort_order, is_active, parent_id, created_at")
@@ -56,10 +66,29 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
-      .from("products")
-      .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
+  .from("products_with_global_images")
+  .select(`
+    id,
+    vendor_id,
+    category_id,
+    name,
+    description,
+    price,
+    stock_quantity,
+    barcode,
+    is_active,
+    image_url,
+    resolved_image_url
+  `)
+  .eq("is_active", true)
+  .order("created_at", { ascending: false }),
+
+supabase
+      .from("vendors")
+      .select("id, name, approval_status, is_active")
+      .eq("approval_status", "approved")
       .eq("is_active", true)
-      .order("created_at", { ascending: false }),
+      .order("name", { ascending: true }),
   ]);
 
   if (categoriesResult.error) {
@@ -68,6 +97,10 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
 
   if (productsResult.error) {
     throw productsResult.error;
+  }
+
+  if (vendorsResult.error) {
+    throw vendorsResult.error;
   }
 
   return {
@@ -89,6 +122,10 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
     products: (productsResult.data ?? []).map((product) =>
       mapProductRow(product as Record<string, unknown>)
     ),
+    vendors: (vendorsResult.data ?? []).map((vendor) => ({
+      id: String(vendor.id),
+      name: String(vendor.name),
+    })),
   };
 }
 
@@ -108,6 +145,7 @@ function buildInitialProductFormValuesWithCategories(product: ProductRow | null 
 
   return {
     name: product?.name ?? "",
+    barcode: product?.barcode ?? "",
     description: product?.description ?? "",
     price: product ? String(product.price) : "",
     parent_category_id: selection.parentCategoryId,
@@ -117,6 +155,7 @@ function buildInitialProductFormValuesWithCategories(product: ProductRow | null 
 
 function validateProductForm(values: ProductFormValues, categories: ProductCategoryOption[]) {
   const name = values.name.trim();
+  const barcode = values.barcode.trim();
   const description = values.description.trim();
   const price = Number(values.price);
   const categoryId = getSubmittedProductCategoryId(values, categories);
@@ -133,6 +172,7 @@ function validateProductForm(values: ProductFormValues, categories: ProductCateg
     error: null,
     payload: {
       name,
+      barcode: barcode || null,
       description,
       price,
       category_id: categoryId,
@@ -162,15 +202,19 @@ function AdminProductForm({
   categories,
   product,
   loading,
+  savingGlobalImage,
   onSubmit,
   onCancel,
+  onSaveToGlobalCatalogue,
 }: {
   mode: "create" | "edit";
   categories: ProductCategoryOption[];
   product?: ProductRow | null;
   loading: boolean;
+  savingGlobalImage?: boolean;
   onSubmit: (formData: FormData) => Promise<void>;
   onCancel?: () => void;
+  onSaveToGlobalCatalogue?: (product: ProductRow) => Promise<void>;
 }) {
   const { t } = useLocale();
   const [message, setMessage] = useState<string | null>(null);
@@ -191,6 +235,7 @@ function AdminProductForm({
     const formData = new FormData(event.currentTarget);
     const nextValues = {
       name: String(formData.get("name") ?? ""),
+      barcode: String(formData.get("barcode") ?? ""),
       description: String(formData.get("description") ?? ""),
       price: String(formData.get("price") ?? ""),
       parent_category_id: String(formData.get("parent_category_id") ?? ""),
@@ -234,6 +279,16 @@ function AdminProductForm({
             onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
             placeholder="باراسيتامول 500 مجم"
             required
+          />
+        </div>
+        <div className="field">
+          <label htmlFor={`${mode}-barcode`}>الباركود</label>
+          <Input
+            id={`${mode}-barcode`}
+            name="barcode"
+            value={values.barcode}
+            onChange={(event) => setValues((current) => ({ ...current, barcode: event.target.value }))}
+            placeholder="6290000000000"
           />
         </div>
         <div className="field">
@@ -310,6 +365,16 @@ function AdminProductForm({
           <Button type="submit" disabled={loading}>
             {loading ? "جارٍ الحفظ..." : mode === "create" ? "إضافة منتج" : "حفظ التعديلات"}
           </Button>
+          {product && canSaveProductImageToGlobalCatalogue(product) && onSaveToGlobalCatalogue ? (
+            <Button
+              type="button"
+              className="secondary-button"
+              onClick={() => void onSaveToGlobalCatalogue(product)}
+              disabled={loading || savingGlobalImage}
+            >
+              {savingGlobalImage ? "جارٍ الحفظ..." : "حفظ كصورة عامة"}
+            </Button>
+          ) : null}
           {onCancel ? (
             <Button type="button" className="secondary-button" onClick={onCancel} disabled={loading}>
               إلغاء
@@ -330,6 +395,7 @@ function AdminProductsManager() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [savingGlobalProductId, setSavingGlobalProductId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   async function load() {
@@ -366,6 +432,7 @@ function AdminProductsManager() {
     try {
       const values = {
         name: String(formData.get("name") ?? ""),
+        barcode: String(formData.get("barcode") ?? ""),
         description: String(formData.get("description") ?? ""),
         price: String(formData.get("price") ?? ""),
         parent_category_id: String(formData.get("parent_category_id") ?? ""),
@@ -391,6 +458,7 @@ function AdminProductsManager() {
       const result = await adminCreateProductAction({
         vendorId,
         name: validation.payload.name,
+        barcode: validation.payload.barcode,
         description: validation.payload.description,
         price: validation.payload.price,
         categoryId: validation.payload.category_id,
@@ -423,6 +491,7 @@ function AdminProductsManager() {
     try {
       const values = {
         name: String(formData.get("name") ?? ""),
+        barcode: String(formData.get("barcode") ?? ""),
         description: String(formData.get("description") ?? ""),
         price: String(formData.get("price") ?? ""),
         parent_category_id: String(formData.get("parent_category_id") ?? ""),
@@ -445,6 +514,7 @@ function AdminProductsManager() {
       const result = await adminUpdateProductAction({
         productId,
         name: validation.payload.name,
+        barcode: validation.payload.barcode,
         description: validation.payload.description,
         price: validation.payload.price,
         categoryId: validation.payload.category_id,
@@ -498,6 +568,33 @@ function AdminProductsManager() {
     }
   }
 
+  async function handleSaveImageToGlobalCatalogue(product: ProductRow) {
+    setSavingGlobalProductId(product.id);
+    setFeedback(null);
+
+    try {
+      const result = await adminSaveProductImageToGlobalCatalogueAction({
+        productId: product.id,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر حفظ الصورة في الكتالوج العام.");
+      }
+
+      setFeedback({
+        type: "success",
+        message: result.message ?? "تم حفظ الصورة في الكتالوج العام بنجاح.",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: normalizeError(error),
+      });
+    } finally {
+      setSavingGlobalProductId(null);
+    }
+  }
+
   if (state.loading) {
     return (
       <Card className="medical-panel">
@@ -520,6 +617,8 @@ function AdminProductsManager() {
 
   return (
     <div className="stack">
+      <AdminSeedProductsCard categories={categories} vendors={state.data?.vendors ?? []} onImportComplete={load} />
+
       <AdminProductForm mode="create" categories={categories} loading={saving && !editingProductId} onSubmit={handleCreateProduct} />
 
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
@@ -530,8 +629,10 @@ function AdminProductsManager() {
           categories={categories}
           product={editingProduct}
           loading={saving && editingProductId === editingProduct.id}
+          savingGlobalImage={savingGlobalProductId === editingProduct.id}
           onSubmit={handleEditProduct}
           onCancel={() => setEditingProductId(null)}
+          onSaveToGlobalCatalogue={handleSaveImageToGlobalCatalogue}
         />
       ) : null}
 
@@ -551,10 +652,19 @@ function AdminProductsManager() {
               <Button className="secondary-button" onClick={() => setEditingProductId(product.id)} disabled={saving || deletingId === product.id}>
                 تعديل
               </Button>
+              {canSaveProductImageToGlobalCatalogue(product) ? (
+                <Button
+                  className="secondary-button"
+                  onClick={() => void handleSaveImageToGlobalCatalogue(product)}
+                  disabled={saving || deletingId === product.id || savingGlobalProductId === product.id}
+                >
+                  {savingGlobalProductId === product.id ? "جارٍ الحفظ..." : "حفظ كصورة عامة"}
+                </Button>
+              ) : null}
               <Button
                 className="danger-button"
                 onClick={() => void handleDeleteProduct(product.id)}
-                disabled={saving || deletingId === product.id}
+                disabled={saving || deletingId === product.id || savingGlobalProductId === product.id}
               >
                 {deletingId === product.id ? "جارٍ التعطيل..." : "تعطيل"}
               </Button>

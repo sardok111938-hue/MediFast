@@ -191,7 +191,29 @@ function estimateRouteTravelMinutes(distanceKm: number | null) {
 }
 
 export function normalizeError(error: unknown) {
-  return error instanceof Error ? error.message : "حدث خطأ ما.";
+  let message = "";
+
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (error && typeof error === "object" && "message" in error) {
+    message = String((error as { message?: unknown }).message ?? "");
+  } else {
+    message = String(error ?? "");
+  }
+
+  if (message.includes("Driver is not available")) {
+    return "السائق غير متاح حالياً.";
+  }
+
+  if (message.includes("Order is no longer available")) {
+    return "تم استلام الطلب بواسطة سائق آخر.";
+  }
+
+  if (message.includes("Driver not found")) {
+    return "تعذر العثور على حساب السائق.";
+  }
+
+  return "حدث خطأ ما. حاول مرة أخرى.";
 }
 
 export function formatCurrency(value: number) {
@@ -388,7 +410,7 @@ export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
         quantity,
         unit_price,
         total_price,
-        product:products(name)
+        product:products!order_items_product_id_fkey(name)
       )
     `)
     .eq("order_status", "ready_for_pickup")
@@ -437,7 +459,7 @@ export async function listCurrentDriverOrders(driverId: string): Promise<DriverO
         quantity,
         unit_price,
         total_price,
-        product:products(name)
+        product:products!order_items_product_id_fkey(name)
       )
     `)
     .eq("driver_id", driverId)
@@ -508,7 +530,7 @@ export async function getDriverOrderDetail(driverId: string, orderId: string): P
         quantity,
         unit_price,
         total_price,
-        product:products(name)
+        product:products!order_items_product_id_fkey(name)
       )
     `)
     .eq("id", orderId)

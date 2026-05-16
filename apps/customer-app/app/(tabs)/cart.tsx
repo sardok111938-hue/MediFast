@@ -2,16 +2,16 @@ import { useMemo } from "react";
 import { useRouter } from "expo-router";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
-import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../src/components/CustomerUI";
+import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../../src/components/CustomerUI";
 import {
   getCartItemCount,
   getCartSubtotal,
   removeProductFromCart,
   setCartItemQuantity,
   useCustomerCart,
-} from "../src/lib/cart-store";
-import { useCartFreshness } from "../src/lib/cart-freshness";
-import { formatCustomerCurrency } from "../src/lib/customer-orders";
+} from "../../src/lib/cart-store";
+import { useCartFreshness } from "../../src/lib/cart-freshness";
+import { formatCustomerCurrency } from "../../src/lib/customer-orders";
 
 export default function CartScreen() {
   const router = useRouter();

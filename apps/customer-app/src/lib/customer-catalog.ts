@@ -42,6 +42,7 @@ type QueryProduct = {
   description?: string | null;
   price?: number | string | null;
   image_url?: string | null;
+  resolved_image_url?: string | null;
   barcode?: string | null;
   stock_quantity?: number | null;
   is_active?: boolean | null;
@@ -260,7 +261,11 @@ function mapProduct(product: QueryProduct): Product {
     name: product.name,
     description: String(product.description ?? ""),
     price: Number(product.price ?? 0),
-    image_url: String(product.image_url ?? "https://placehold.co/800x800/E8F7EE/1A9C5A?text=MediFast"),
+    image_url: String(
+  product.resolved_image_url ??
+    product.image_url ??
+    "https://placehold.co/800x800/E8F7EE/1A9C5A?text=MediFast"
+),
     barcode: product.barcode ?? null,
     stock_quantity: Number(product.stock_quantity ?? 0),
     is_active: Boolean(product.is_active),
@@ -362,8 +367,8 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
 
   if (activeVendorIds.length > 0) {
     const { data: productsData, error: productsError } = await supabase
-      .from("products")
-      .select("id, vendor_id, category_id, name, description, price, image_url, barcode, stock_quantity, is_active")
+      .from("products_with_global_images")
+      .select("id, vendor_id, category_id, name, description, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
       .eq("is_active", true)
       .gt("stock_quantity", 0)
       .in("vendor_id", activeVendorIds)
@@ -374,8 +379,15 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
     }
 
     products = ((productsData ?? []) as QueryProduct[])
-      .filter((product) => !product.category_id || categoryIds.has(String(product.category_id)))
-      .map(mapProduct);
+  .filter((product) => !product.category_id || categoryIds.has(String(product.category_id)))
+  .map(mapProduct);
+
+console.log(
+  products.map((product) => ({
+    name: product.name,
+    image: product.image_url,
+  })),
+);
   }
 
   return {
@@ -721,4 +733,84 @@ export function useFilteredProducts(input: { categoryId?: string | null; query?:
   const { data } = useCustomerCatalogData();
 
   return useMemo(() => filterProducts(data.products, { ...input, categories: data.categories }), [data.categories, data.products, input]);
+}
+export async function listFavouriteVendorIds() {
+  const customerIdResult = await supabase.rpc("get_customer_id");
+
+  if (customerIdResult.error) {
+    throw customerIdResult.error;
+  }
+
+  const customerId = customerIdResult.data;
+
+  if (!customerId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("customer_favourite_vendors")
+    .select("vendor_id")
+    .eq("customer_id", customerId);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map((item) => item.vendor_id as string);
+}
+
+export async function isFavouriteVendor(vendorId: string) {
+  const favouriteVendorIds = await listFavouriteVendorIds();
+  return favouriteVendorIds.includes(vendorId);
+}
+
+export async function toggleFavouriteVendor(vendorId: string) {
+  const customerIdResult = await supabase.rpc("get_customer_id");
+
+  if (customerIdResult.error) {
+    throw customerIdResult.error;
+  }
+
+  const customerId = customerIdResult.data;
+
+  if (!customerId) {
+    throw new Error("Customer not found.");
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("customer_favourite_vendors")
+    .select("id")
+    .eq("customer_id", customerId)
+    .eq("vendor_id", vendorId)
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from("customer_favourite_vendors")
+      .delete()
+      .eq("id", existing.id);
+
+    if (error) {
+      throw error;
+    }
+
+    return false;
+  }
+
+  const { error } = await supabase
+    .from("customer_favourite_vendors")
+    .insert({
+      customer_id: customerId,
+      vendor_id: vendorId,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
 }

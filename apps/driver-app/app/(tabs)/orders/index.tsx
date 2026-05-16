@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
-import { DriverErrorCard, DriverLoadingCard, DriverScreen } from "../../../src/components/DriverUI";
+import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
+
+import {
+  DriverButton,
+  DriverCard,
+  DriverErrorCard,
+  DriverLoadingCard,
+  DriverScreen,
+} from "../../../src/components/DriverUI";
+
 import { DriverOrdersSection } from "../../../src/components/orders";
+
 import {
   claimAvailableOrder,
   getCurrentDriverProfile,
@@ -11,7 +20,12 @@ import {
   normalizeError,
   type DriverOrder,
 } from "../../../src/lib/driver-data";
-import { subscribeToAssignedOrders, subscribeToAvailablePickupOrders, supabase } from "../../../src/lib/supabase";
+
+import {
+  subscribeToAssignedOrders,
+  subscribeToAvailablePickupOrders,
+  supabase,
+} from "../../../src/lib/supabase";
 
 export default function DriverOrdersListScreen() {
   const router = useRouter();
@@ -104,7 +118,18 @@ export default function DriverOrdersListScreen() {
         {loading ? (
           <DriverLoadingCard message="جارٍ تحميل الطلبات..." />
         ) : error ? (
-          <DriverErrorCard message={error} onRetry={() => void loadOrders("refresh")} />
+          error === "السائق غير متاح حالياً." ? (
+  <DriverCard>
+    <Text style={styles.unavailableText}>السائق غير متاح حالياً.</Text>
+
+    <DriverButton
+      label="الذهاب للرئيسية"
+      onPress={() => router.push("/(tabs)/home")}
+    />
+  </DriverCard>
+) : (
+  <DriverErrorCard message={error} onRetry={() => void loadOrders("refresh")} />
+)
         ) : (
           <>
             <DriverOrdersSection
@@ -146,4 +171,11 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingBottom: 24,
   },
+  unavailableText: {
+  textAlign: "center",
+  fontWeight: "900",
+  fontSize: 16,
+  color: "#B23A48",
+  marginBottom: 12,
+},
 });

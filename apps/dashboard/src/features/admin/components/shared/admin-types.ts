@@ -25,6 +25,7 @@ export type OverviewData = {
 
 export type ProductFormValues = {
   name: string;
+  barcode: string;
   description: string;
   price: string;
   parent_category_id: string;
@@ -34,6 +35,7 @@ export type ProductFormValues = {
 export type AdminProductManagerData = {
   categories: ProductCategoryOption[];
   products: ProductRow[];
+  vendors: AdminVendorOption[];
 };
 
 export type AdminOrderManagerRow = {
@@ -64,6 +66,11 @@ export type AdminVendorRow = {
   name: string;
   approvalStatus: string;
   address: string;
+};
+
+export type AdminVendorOption = {
+  id: string;
+  name: string;
 };
 
 export type AdminDriverRow = {

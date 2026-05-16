@@ -3,17 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "@medifast/ui";
-import { CatalogImage } from "../src/components/CatalogImage";
-import { CustomerProductCard } from "../src/components/CustomerProductCard";
-import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../src/components/CustomerUI";
+import { CatalogImage } from "../../src/components/CatalogImage";
+import { CustomerProductCard } from "../../src/components/CustomerProductCard";
+import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../../src/components/CustomerUI";
 import {
   buildPharmacyCategoryTree,
   getCategoryIcon,
   getCategoryTheme,
   getPharmacyCategoryProductCount,
-  getVendorById,
   useCustomerCatalogData,
-} from "../src/lib/customer-catalog";
+} from "../../src/lib/customer-catalog";
 import type { ComponentProps } from "react";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -68,6 +67,15 @@ export default function HomeScreen() {
   const [search, setSearch] = useState("");
   const { data: catalog, loading, error, reload } = useCustomerCatalogData();
 
+  function openSearch() {
+    const query = search.trim();
+    
+    router.push({
+      pathname: "/search",
+      params: query ? { query } : {},
+    });
+  }
+
   const promotedVendor = catalog.vendors[0] ?? null;
   const activeBanner = promotionBanners[activeBannerIndex];
 
@@ -82,23 +90,8 @@ export default function HomeScreen() {
   );
 
   const availableProducts = useMemo(() => {
-    const term = search.trim().toLowerCase();
-
-    return catalog.products
-      .filter((product) => (product.stock_quantity ?? 0) > 0)
-      .filter((product) => {
-        if (!term) return true;
-
-        const vendorName = getVendorById(catalog.vendors, product.vendor_id)?.name.toLowerCase() ?? "";
-
-        return (
-          product.name.toLowerCase().includes(term) ||
-          (product.description ?? "").toLowerCase().includes(term) ||
-          vendorName.includes(term)
-        );
-      })
-      .slice(0, 10);
-  }, [catalog.products, catalog.vendors, search]);
+  return catalog.products.filter((product) => (product.stock_quantity ?? 0) > 0).slice(0, 10);
+}, [catalog.products]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -149,16 +142,21 @@ export default function HomeScreen() {
       </Pressable>
 
       <View style={styles.searchBox}>
-        <Ionicons name="search-outline" size={20} color={theme.colors.muted} />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="ابحث عن دواء أو منتج"
-          placeholderTextColor={theme.colors.muted}
-          style={styles.searchInput}
-          textAlign="right"
-        />
-      </View>
+  <Pressable onPress={openSearch}>
+    <Ionicons name="search-outline" size={20} color={theme.colors.muted} />
+  </Pressable>
+
+  <TextInput
+    value={search}
+    onChangeText={setSearch}
+    placeholder="ابحث عن دواء أو منتج"
+    placeholderTextColor={theme.colors.muted}
+    style={styles.searchInput}
+    textAlign="right"
+    returnKeyType="search"
+    onSubmitEditing={openSearch}
+  />
+</View>
 
       {loading ? <LoadingCard message="جارٍ تحميل المنتجات..." /> : null}
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}

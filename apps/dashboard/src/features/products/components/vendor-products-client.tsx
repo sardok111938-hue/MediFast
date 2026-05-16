@@ -14,6 +14,7 @@ import { useLocale } from "../../../lib/i18n/locale-context";
 import { getSupabaseBrowserClient } from "../../../lib/supabase/browser";
 import { formatCurrency } from "../../../lib/utils/format-currency";
 import type { ProductCategoryOption, ProductRow } from "../../../types/dashboard";
+import { BulkProductImportCard } from "../../vendor-products/import/bulk-product-import-card";
 import {
   getCategoryOptionLabel,
   getCategoryPathDisplayName,
@@ -63,7 +64,11 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
-    image_url: product.image_url ? String(product.image_url) : null,
+    image_url: product.resolved_image_url
+  ? String(product.resolved_image_url)
+  : product.image_url
+    ? String(product.image_url)
+    : null,
   };
 }
 
@@ -184,8 +189,20 @@ async function loadVendorProductsData(): Promise<VendorProductsData> {
   }
 
   const { data: productsData, error: productsError } = await supabase
-    .from("products")
-    .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
+    .from("products_with_global_images")
+.select(`
+  id,
+  vendor_id,
+  category_id,
+  name,
+  description,
+  price,
+  stock_quantity,
+  barcode,
+  is_active,
+  image_url,
+  resolved_image_url
+`)
     .eq("vendor_id", vendorId)
     .order("created_at", { ascending: false });
 
@@ -727,6 +744,8 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
           <ErrorState message={categoriesError} retryLabel="إعادة تحميل الفئات" onRetry={() => void loadCategoriesOnly()} />
         </Card>
       ) : null}
+
+      <BulkProductImportCard categories={categories} onImportComplete={loadProducts} />
 
       <Card className="medical-panel">
         <div className="split-actions">

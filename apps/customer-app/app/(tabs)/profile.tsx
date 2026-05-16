@@ -12,19 +12,20 @@ import {
   PrimaryButton,
   Screen,
   SectionTitle,
-} from "../src/components/CustomerUI";
+} from "../../src/components/CustomerUI";
 import {
   formatSavedAddressLine,
   getPrimaryAddress,
   getSavedAddresses,
   hasSavedAddressCoordinates,
   useCustomerCatalogData,
-} from "../src/lib/customer-catalog";
-import { signOutCustomer, supabase, updateCustomerProfile } from "../src/lib/supabase";
+} from "../../src/lib/customer-catalog";
+import { signOutCustomer, supabase, updateCustomerProfile } from "../../src/lib/supabase";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { data, loading, error, reload } = useCustomerCatalogData();
+
   const [fullName, setFullName] = useState("العميل");
   const [draftFullName, setDraftFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -34,7 +35,11 @@ export default function ProfileScreen() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const addresses = useMemo(() => getSavedAddresses(data.addresses), [data.addresses]);
-  const defaultAddress = useMemo(() => getPrimaryAddress(data.addresses, data.defaultAddressId), [data.addresses, data.defaultAddressId]);
+
+  const defaultAddress = useMemo(
+    () => getPrimaryAddress(data.addresses, data.defaultAddressId),
+    [data.addresses, data.defaultAddressId],
+  );
 
   useEffect(() => {
     async function loadProfile() {
@@ -113,26 +118,26 @@ export default function ProfileScreen() {
       </Card>
 
       <Card>
-  <SectionTitle label="بيانات الحساب" />
-  <FormInput value={draftFullName} onChangeText={setDraftFullName} placeholder="الاسم الكامل" />
-  <FormInput value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" keyboardType="phone-pad" />
-  <DetailRow label="البريد الإلكتروني" value={email} />
-  <DetailRow label="طريقة الدفع المفضلة" value="الدفع عند الاستلام" />
+        <SectionTitle label="بيانات الحساب" />
+        <FormInput value={draftFullName} onChangeText={setDraftFullName} placeholder="الاسم الكامل" />
+        <FormInput value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" keyboardType="phone-pad" />
+        <DetailRow label="البريد الإلكتروني" value={email} />
+        <DetailRow label="طريقة الدفع المفضلة" value="الدفع عند الاستلام" />
 
-  {profileMessage ? (
-    <HelperText tone={profileMessage.includes("بنجاح") ? "success" : "danger"}>
-      {profileMessage}
-    </HelperText>
-  ) : (
-    <HelperText>يظهر الاسم ورقم الهاتف في لوحة الإدارة وبيانات الطلبات.</HelperText>
-  )}
+        {profileMessage ? (
+          <HelperText tone={profileMessage.includes("بنجاح") ? "success" : "danger"}>
+            {profileMessage}
+          </HelperText>
+        ) : (
+          <HelperText>يظهر الاسم ورقم الهاتف في لوحة الإدارة وبيانات الطلبات.</HelperText>
+        )}
 
-  <PrimaryButton
-    label={savingProfile ? "جارٍ الحفظ..." : "حفظ بيانات الحساب"}
-    onPress={() => void handleSaveProfile()}
-    disabled={savingProfile}
-  />
-</Card>
+        <PrimaryButton
+          label={savingProfile ? "جارٍ الحفظ..." : "حفظ بيانات الحساب"}
+          onPress={() => void handleSaveProfile()}
+          disabled={savingProfile}
+        />
+      </Card>
 
       <Card>
         <SectionTitle
@@ -145,10 +150,17 @@ export default function ProfileScreen() {
             })
           }
         />
+
         <Text style={styles.addressCount}>{addresses.length} عناوين محفوظة</Text>
+
         {defaultAddress ? <Text style={styles.defaultAddressLine}>{formatSavedAddressLine(defaultAddress)}</Text> : null}
-        {defaultAddress && hasSavedAddressCoordinates(defaultAddress) ? <HelperText tone="info">تم تحديد الموقع</HelperText> : null}
+
+        {defaultAddress && hasSavedAddressCoordinates(defaultAddress) ? (
+          <HelperText tone="info">تم تحديد الموقع</HelperText>
+        ) : null}
+
         <HelperText>حدّث عناوين التوصيل لديك باستمرار لتجربة دفع أسرع.</HelperText>
+
         <PrimaryButton
           label="فتح العناوين"
           variant="secondary"
@@ -163,9 +175,17 @@ export default function ProfileScreen() {
 
       <Card>
         <SectionTitle label="إجراءات سريعة" />
+
         <PrimaryButton label="تتبع آخر طلب" onPress={() => router.push("/order-tracking")} />
+
         <PrimaryButton label="عرض سجل الطلبات" variant="secondary" onPress={() => router.push("/order-history")} />
-        <PrimaryButton label={loggingOut ? "جارٍ تسجيل الخروج..." : "تسجيل الخروج"} variant="ghost" onPress={() => void handleLogout()} disabled={loggingOut} />
+
+        <PrimaryButton
+          label={loggingOut ? "جارٍ تسجيل الخروج..." : "تسجيل الخروج"}
+          variant="ghost"
+          onPress={() => void handleLogout()}
+          disabled={loggingOut}
+        />
       </Card>
     </Screen>
   );

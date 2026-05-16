@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
@@ -13,6 +13,8 @@ import {
   getPharmacyParentCategoriesForProducts,
   getProductsForPharmacyParentCategory,
   getVendorById,
+  isFavouriteVendor,
+  toggleFavouriteVendor,
   useCustomerCatalogData,
 } from "../../src/lib/customer-catalog";
 
@@ -55,6 +57,40 @@ export default function PharmacyDetailScreen() {
   const pharmacyId = Array.isArray(params.pharmacyId) ? params.pharmacyId[0] : params.pharmacyId;
   const { data, loading, error, reload } = useCustomerCatalogData();
   const [query, setQuery] = useState("");
+  const [isFavourite, setIsFavourite] = useState(false);
+  const [favouriteLoading, setFavouriteLoading] = useState(false);
+
+useEffect(() => {
+  if (!pharmacyId) {
+    return;
+  }
+
+  void (async () => {
+    try {
+      setIsFavourite(await isFavouriteVendor(pharmacyId));
+    } catch (error) {
+      console.error(error);
+    }
+  })();
+}, [pharmacyId]);
+
+async function handleToggleFavourite() {
+  if (!pharmacyId || favouriteLoading) {
+    return;
+  }
+
+  try {
+    setFavouriteLoading(true);
+
+    const nextValue = await toggleFavouriteVendor(pharmacyId);
+
+    setIsFavourite(nextValue);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setFavouriteLoading(false);
+  }
+}
 
   const pharmacy = useMemo(() => getVendorById(data.vendors, pharmacyId), [data.vendors, pharmacyId]);
   const pharmacyProducts = useMemo(() => getPharmacyProducts(data.products, pharmacyId), [data.products, pharmacyId]);
@@ -108,12 +144,13 @@ export default function PharmacyDetailScreen() {
             <Ionicons name="chevron-forward" size={20} color={theme.colors.text} />
           </Pressable>
           <View style={styles.heroActions}>
-            <Pressable style={styles.heroIconButton} onPress={() => router.push("/profile")}>
-              <Ionicons name="heart-outline" size={20} color={theme.colors.text} />
-            </Pressable>
-            <Pressable style={styles.heroIconButton}>
-              <Ionicons name="share-social-outline" size={19} color={theme.colors.text} />
-            </Pressable>
+            <Pressable style={styles.heroIconButton} onPress={() => void handleToggleFavourite()}>
+  <Ionicons
+    name={isFavourite ? "heart" : "heart-outline"}
+    size={20}
+    color={isFavourite ? "#D64545" : theme.colors.text}
+  />
+</Pressable>
           </View>
         </View>
         <View style={styles.logoWrap}>
@@ -183,9 +220,9 @@ export default function PharmacyDetailScreen() {
               style={styles.categoryCard}
               onPress={() =>
                 router.push({
-                  pathname: "/categories/[categoryId]",
-                  params: { categoryId: category.id, pharmacyId: pharmacy.id },
-                })
+  pathname: "/categories/[categoryId]",
+  params: { categoryId: category.id },
+})
               }
             >
               <CatalogImage
@@ -221,9 +258,9 @@ export default function PharmacyDetailScreen() {
                 <Pressable
                   onPress={() =>
                     router.push({
-                      pathname: "/categories/[categoryId]",
-                      params: { categoryId: category.id, pharmacyId: pharmacy.id },
-                    })
+  pathname: "/categories/[categoryId]",
+  params: { categoryId: category.id },
+})
                   }
                 >
                   <Text style={styles.sectionAction}>عرض الكل</Text>

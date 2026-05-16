@@ -16,7 +16,11 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
-    image_url: product.image_url ? String(product.image_url) : null,
+    image_url: product.resolved_image_url
+  ? String(product.resolved_image_url)
+  : product.image_url
+    ? String(product.image_url)
+    : null,
   };
 }
 
@@ -24,9 +28,20 @@ export async function listProducts(): Promise<ProductRow[]> {
   const supabase = await getSupabaseServerClient();
 
   const { data, error } = await supabase
-    .from("products")
-    .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
-    .order("created_at", { ascending: false });
+.from("products_with_global_images")
+.select(`
+  id,
+  vendor_id,
+  category_id,
+  name,
+  description,
+  price,
+  stock_quantity,
+  barcode,
+  is_active,
+  image_url,
+  resolved_image_url
+`)    .order("created_at", { ascending: false });
 
   if (error) throw error;
 
@@ -45,8 +60,20 @@ export async function listVendorProducts(): Promise<ProductRow[]> {
   }
 
   const { data, error } = await supabase
-    .from("products")
-    .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
+    .from("products_with_global_images")
+.select(`
+  id,
+  vendor_id,
+  category_id,
+  name,
+  description,
+  price,
+  stock_quantity,
+  barcode,
+  is_active,
+  image_url,
+  resolved_image_url
+`)
     .eq("vendor_id", vendorId)
     .order("created_at", { ascending: false });
 
@@ -156,8 +183,20 @@ export async function getProductById(productId: string): Promise<ProductRow | nu
   const supabase = await getSupabaseServerClient();
 
   const { data, error } = await supabase
-    .from("products")
-    .select("id, vendor_id, category_id, name, description, price, stock_quantity, barcode, is_active, image_url")
+    .from("products_with_global_images")
+.select(`
+  id,
+  vendor_id,
+  category_id,
+  name,
+  description,
+  price,
+  stock_quantity,
+  barcode,
+  is_active,
+  image_url,
+  resolved_image_url
+`)
     .eq("id", productId)
     .maybeSingle();
 

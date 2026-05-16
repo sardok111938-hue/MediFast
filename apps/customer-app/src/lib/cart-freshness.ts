@@ -59,9 +59,20 @@ function formatCurrency(value: number) {
 
 async function fetchLiveProducts(productIds: string[]) {
   const { data, error } = await supabase
-    .from("products")
-    .select("id, vendor_id, category_id, name, description, price, image_url, barcode, stock_quantity, is_active")
-    .in("id", productIds);
+    .from("products_with_global_images")
+.select(`
+  id,
+  vendor_id,
+  category_id,
+  name,
+  description,
+  price,
+  stock_quantity,
+  barcode,
+  is_active,
+  image_url,
+  resolved_image_url
+`);
 
   if (error) {
     throw error;

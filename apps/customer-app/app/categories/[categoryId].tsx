@@ -10,22 +10,16 @@ import {
   getPharmacyParentCategoryById,
   getPharmacySubcategoryById,
   getProductsForPharmacyParentCategory,
-  getVendorById,
   useCustomerCatalogData,
 } from "../../src/lib/customer-catalog";
 
-function getScopedProducts(products: Product[], pharmacyId?: string | null) {
-  if (!pharmacyId) {
-    return products;
-  }
-
-  return products.filter((product) => product.vendor_id === pharmacyId);
+function getScopedProducts(products: Product[]) {
+  return products;
 }
 
 export default function MarketplaceCategoryScreen() {
   const params = useLocalSearchParams<{ categoryId?: string | string[]; pharmacyId?: string | string[] }>();
   const categoryId = Array.isArray(params.categoryId) ? params.categoryId[0] : params.categoryId;
-  const pharmacyId = Array.isArray(params.pharmacyId) ? params.pharmacyId[0] : params.pharmacyId;
   const { data, loading, error, reload } = useCustomerCatalogData();
   const [activeSubcategoryId, setActiveSubcategoryId] = useState<string | null>(null);
 
@@ -34,8 +28,7 @@ export default function MarketplaceCategoryScreen() {
     [categoryId, data.categories],
   );
   const requestedCategory = useMemo(() => getCategoryById(data.categories, categoryId), [categoryId, data.categories]);
-  const scopedProducts = useMemo(() => getScopedProducts(data.products, pharmacyId), [data.products, pharmacyId]);
-  const pharmacy = useMemo(() => getVendorById(data.vendors, pharmacyId), [data.vendors, pharmacyId]);
+  const scopedProducts = useMemo(() => getScopedProducts(data.products), [data.products]);
   const products = useMemo(
     () => getProductsForPharmacyParentCategory(scopedProducts, data.categories, parentCategory?.id, activeSubcategoryId),
     [activeSubcategoryId, data.categories, parentCategory?.id, scopedProducts],
@@ -71,10 +64,27 @@ export default function MarketplaceCategoryScreen() {
 
   const selectedSubcategory = getPharmacySubcategoryById(parentCategory, activeSubcategoryId);
 
+  console.log(
+  "CATEGORY DEBUG",
+  {
+    categoryId,
+    activeSubcategoryId,
+    totalProductsLoaded: data.products.length,
+    filteredProducts: products.length,
+    matchingProducts: products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      vendor_id: product.vendor_id,
+      barcode: product.barcode,
+      category_id: product.category_id,
+    })),
+  }
+);
+
   return (
     <Screen
       title={parentCategory.label}
-      subtitle={pharmacy ? `منتجات ${parentCategory.label} من ${pharmacy.name}` : "تصفح المنتجات حسب الفئة الرئيسية والفرعية."}
+      subtitle="تصفح المنتجات حسب الفئة الرئيسية والفرعية."
     >
       <View style={styles.subcategoryGrid}>
         <Pressable

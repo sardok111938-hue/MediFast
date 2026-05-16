@@ -129,29 +129,50 @@ export async function signOutCustomer() {
   return supabase.auth.signOut();
 }
 
-export function subscribeToCustomerOrders(customerId: string, onChange: (payload: unknown) => void) {
+export function subscribeToCustomerOrders(
+  customerId: string,
+  onChange: (payload: unknown) => void
+) {
   return supabase
-    .channel(`customer-orders-${customerId}`)
+    .channel(`customer-orders-${customerId}-${Date.now()}`)
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "orders", filter: `customer_id=eq.${customerId}` },
-      onChange,
+      {
+        event: "*",
+        schema: "public",
+        table: "orders",
+        filter: `customer_id=eq.${customerId}`,
+      },
+      onChange
     )
     .subscribe();
 }
 
-export function subscribeToOrderTracking(orderId: string, onChange: (payload: unknown) => void) {
+export function subscribeToOrderTracking(
+  orderId: string,
+  onChange: (payload: unknown) => void
+) {
   return supabase
-    .channel(`customer-order-${orderId}`)
+    .channel(`customer-order-${orderId}-${Date.now()}`)
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
-      onChange,
+      {
+        event: "*",
+        schema: "public",
+        table: "orders",
+        filter: `id=eq.${orderId}`,
+      },
+      onChange
     )
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "delivery_tracking", filter: `order_id=eq.${orderId}` },
-      onChange,
+      {
+        event: "*",
+        schema: "public",
+        table: "delivery_tracking",
+        filter: `order_id=eq.${orderId}`,
+      },
+      onChange
     )
     .subscribe();
 }

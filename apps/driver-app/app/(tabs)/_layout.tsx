@@ -22,6 +22,7 @@ export default function DriverTabsLayout() {
           minHeight: 68,
           paddingBottom: 10,
           paddingTop: 8,
+          borderTopWidth: 1,
           borderTopColor: "#DCE8E1",
           backgroundColor: "#FFFFFF",
         },
@@ -46,17 +47,25 @@ export default function DriverTabsLayout() {
         options={{
           title: "الطلبات",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cube-outline" color={color} size={size} />
+            <Ionicons
+              name="cube-outline"
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
 
       <Tabs.Screen
-        name="dashboard"
+        name="home"
         options={{
           title: "الرئيسية",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" color={color} size={size} />
+            <Ionicons
+              name="home-outline"
+              color={color}
+              size={size}
+            />
           ),
         }}
       />

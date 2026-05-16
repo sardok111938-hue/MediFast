@@ -38,7 +38,7 @@ try {
   });
 
   if (!cancelled) {
-    router.replace("/home");
+    router.replace("/(tabs)/home");
   }
 } catch (error) {
   if (!cancelled) {
@@ -69,7 +69,7 @@ try {
           fullName: readSessionFullName(session.user.user_metadata),
         });
 
-        router.replace("/home");
+        router.replace("/(tabs)/home");
       } catch (error) {
         setSessionError(error instanceof Error ? error.message : "تعذر تجهيز حساب العميل.");
         setContinueLoading(false);
@@ -83,7 +83,7 @@ try {
       return;
     }
 
-    router.push("/home");
+    router.push("/(tabs)/home");
   }
 
   return (

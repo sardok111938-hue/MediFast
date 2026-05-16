@@ -119,7 +119,7 @@ export default function ProductDetailScreen() {
                 disabled={outOfStock}
                 onPress={() => {
                   addProductToCart(product, quantity);
-                  router.push("/cart");
+                  router.push("/(tabs)/cart");
                 }}
               />
               <PrimaryButton label="متابعة التصفح" variant="secondary" onPress={() => router.push("/search")} />

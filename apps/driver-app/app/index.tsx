@@ -18,7 +18,7 @@ export default function DriverLoginScreen() {
   useEffect(() => {
     supabase.auth.getSession().then((response) => {
       if (response.data.session) {
-        router.replace("/(tabs)/dashboard");
+        router.replace("/(tabs)/home");
       }
     });
   }, [router]);
@@ -32,14 +32,17 @@ export default function DriverLoginScreen() {
     setLoading(true);
     setMessage("");
     const { error } = await signInDriver(email.trim(), password);
-    setLoading(false);
 
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+if (error) {
+  setMessage(error.message);
+  return;
+}
 
-    router.replace("/(tabs)/dashboard");
+const { data } = await supabase.auth.getUser();
+
+console.log("DRIVER AUTH USER ID", data.user?.id);
+
+router.replace("/(tabs)/home");
   }
 
   return (

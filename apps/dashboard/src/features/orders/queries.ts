@@ -158,7 +158,7 @@ export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
         quantity,
         unit_price,
         total_price,
-        product:products(name)
+        product:products!order_items_product_id_fkey(name)
       )
     `)
     .order("created_at", { ascending: false });
@@ -273,7 +273,7 @@ export async function listVendorOrderDetails(vendorId?: string): Promise<VendorO
         quantity,
         unit_price,
         total_price,
-        product:products(name)
+        product:products!order_items_product_id_fkey(name)
       )
     `)
     .order("created_at", { ascending: false });
