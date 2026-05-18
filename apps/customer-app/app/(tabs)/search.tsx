@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -6,6 +7,7 @@ import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, SearchInput } from "../../src/components/CustomerUI";
 import { filterProducts, getVendorById, useCustomerCatalogData } from "../../src/lib/customer-catalog";
 import { formatCustomerCurrency } from "../../src/lib/customer-orders";
+import { addProductToCart } from "../../src/lib/cart-store";
 
 type SearchFilter = "relevant" | "available" | "cheaper";
 
@@ -21,6 +23,7 @@ export default function SearchScreen() {
 }, [initialQuery]);
 
   const [filters, setFilters] = useState<SearchFilter[]>(["relevant"]);
+  const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
   const { data, loading, error, reload } = useCustomerCatalogData();
 
@@ -124,6 +127,7 @@ export default function SearchScreen() {
                       fallbackLabel="منتج"
                       containerStyle={styles.productImageWrap}
                       imageStyle={styles.productImage}
+                      resizeMode="contain"
                     />
 
                     <View style={styles.productBody}>
@@ -144,10 +148,36 @@ export default function SearchScreen() {
                       </Text>
 
                       <View style={styles.productBottomRow}>
-                        <Text style={styles.price}>{formatCustomerCurrency(Number(product.price ?? 0))}</Text>
-                      </View>
-                    </View>
-                  </Pressable>
+  <Pressable
+    style={[
+  styles.addButton,
+  addedProductId === product.id ? styles.addButtonAdded : null,
+  !inStock ? styles.addButtonDisabled : null,
+]}
+    disabled={!inStock}
+    onPress={() => {
+  addProductToCart(product, 1);
+
+  setAddedProductId(product.id);
+
+  setTimeout(() => {
+    setAddedProductId(null);
+  }, 900);
+}}
+  >
+    <Ionicons
+  name={addedProductId === product.id ? "checkmark" : "add"}
+  size={16}
+  color="#FFFFFF"
+/>
+  </Pressable>
+
+  <Text style={styles.price}>
+    {formatCustomerCurrency(Number(product.price ?? 0))}
+    </Text>
+  </View>
+</View>
+</Pressable>
                 );
               })}
             </View>
@@ -271,10 +301,11 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   productBottomRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "flex-start",
-  },
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginTop: theme.spacing[6],
+},
   price: {
     color: theme.colors.primaryDark,
     fontSize: theme.typography.body.md,
@@ -309,11 +340,21 @@ const styles = StyleSheet.create({
 content: {
   paddingHorizontal: theme.spacing[16],
   paddingTop: theme.spacing[16],
-  paddingBottom: theme.spacing[32],
-},
-content: {
-  paddingHorizontal: theme.spacing[16],
-  paddingTop: theme.spacing[16],
   paddingBottom: 120,
+},
+addButton: {
+  width: 28,
+  height: 28,
+  borderRadius: 14,
+  backgroundColor: theme.colors.primary,
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+addButtonDisabled: {
+  opacity: 0.4,
+},
+addButtonAdded: {
+  backgroundColor: "#15803D",
 },
 });

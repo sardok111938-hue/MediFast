@@ -1,7 +1,8 @@
 import * as Location from "expo-location";
 import { useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Modal, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 import { theme } from "@medifast/ui";
 import { supabase } from "../src/lib/supabase";
@@ -46,7 +47,7 @@ function normalizeAddressError(error: unknown, fallback: string) {
 
 function validateAddressForm(values: AddressFormState) {
   if (!values.line1.trim()) {
-    return "اكتب عنوانك بالتفصيل.";
+    return "اكتب اسم الشارع أو وصف العنوان، حتى بعد اختيار الموقع من الخريطة.";
   }
 
   return null;
@@ -70,10 +71,33 @@ export default function AddressSelectionScreen() {
   const [mapCenterLng, setMapCenterLng] = useState(46.6753);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
+  const [linkedOrderAddressIds, setLinkedOrderAddressIds] = useState<string[]>([]);
 
   const backHref = from === "checkout" ? "/checkout" : "/profile";
   const backLabel = from === "checkout" ? "العودة إلى الدفع" : "العودة إلى الحساب";
   const nextStepPrimaryLabel = from === "checkout" ? "العودة إلى الدفع" : "العودة إلى الحساب";
+
+  useEffect(() => {
+  async function loadLinkedOrderAddresses() {
+    const { data: rows, error } = await supabase
+      .from("orders")
+      .select("delivery_address_id")
+      .not("delivery_address_id", "is", null);
+
+    if (error) {
+      return;
+    }
+
+    setLinkedOrderAddressIds(
+      rows
+        .map((row) => row.delivery_address_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+  }
+
+  void loadLinkedOrderAddresses();
+}, []);
 
   useEffect(() => {
     const hasDefaultAddress = Boolean(
@@ -168,6 +192,55 @@ export default function AddressSelectionScreen() {
     }
   }
 
+  async function handleDeleteAddress(addressId: string) {
+  setDeletingAddressId(addressId);
+  setSaveError(null);
+  setSaveSuccess(null);
+
+  try {
+    const customerId = await loadCustomerId();
+
+    const { data: linkedOrders, error: linkedOrdersError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("delivery_address_id", addressId)
+      .limit(1);
+
+    if (linkedOrdersError) throw linkedOrdersError;
+
+    if (linkedOrders && linkedOrders.length > 0) {
+      throw new Error("لا يمكن حذف عنوان مرتبط بطلب سابق.");
+    }
+
+    await supabase
+      .from("customers")
+      .update({ default_address_id: null })
+      .eq("id", customerId)
+      .eq("default_address_id", addressId);
+
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("addresses")
+      .delete()
+      .eq("id", addressId)
+      .eq("customer_id", customerId)
+      .select("id");
+
+    if (deleteError) throw deleteError;
+
+    if (!deletedRows || deletedRows.length === 0) {
+      throw new Error("لم يتم حذف أي عنوان. تحقق من صلاحيات الحذف.");
+    }
+
+    setSelectedAddressId((current) => (current === addressId ? "" : current));
+    setSaveSuccess("تم حذف العنوان بنجاح.");
+    await reload();
+  } catch (nextError) {
+    setSaveError(normalizeAddressError(nextError, "تعذر حذف العنوان."));
+  } finally {
+    setDeletingAddressId(null);
+  }
+}
+
   async function handleCreateAddress() {
     const validationError = validateAddressForm(addressForm);
 
@@ -215,7 +288,11 @@ export default function AddressSelectionScreen() {
   }
 
   return (
-    <Screen title="اختيار العنوان" subtitle="اكتب عنوان التوصيل بالتفصيل أو اختر عنوانًا محفوظًا." backHref={backHref} backLabel={backLabel}>
+    <Screen
+  backHref={backHref}
+  backLabel={backLabel}
+  contentContainerStyle={{ paddingBottom: 120 }}
+>
       {loading ? <LoadingCard message="جارٍ تحميل العناوين..." /> : null}
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
       {saveError ? <ErrorCard message={saveError} /> : null}
@@ -228,8 +305,6 @@ export default function AddressSelectionScreen() {
 
       <Card>
         <SectionTitle label="إضافة عنوان جديد" />
-        <Text style={styles.fieldLabel}>العنوان</Text>
-
         <FormInput
           value={addressForm.line1}
           onChangeText={updateAddressLine}
@@ -237,14 +312,12 @@ export default function AddressSelectionScreen() {
           multiline
           numberOfLines={4}
         />
-
-        <PrimaryButton
-          label="اختيار الموقع من الخريطة"
-          variant="secondary"
-          onPress={() => void openMapPicker()}
-          disabled={creatingAddress || savingAddressId !== null}
-        />
-
+<PrimaryButton
+  label="اختيار الموقع من الخريطة"
+  variant="secondary"
+  onPress={() => void openMapPicker()}
+  disabled={creatingAddress || savingAddressId !== null}
+/>
         <HelperText tone={selectedLat !== null && selectedLng !== null ? "success" : "info"}>
           {selectedLat !== null && selectedLng !== null
             ? `تم تحديد الموقع: ${selectedLat.toFixed(6)}, ${selectedLng.toFixed(6)}`
@@ -319,7 +392,10 @@ export default function AddressSelectionScreen() {
         </Screen>
       </Modal>
 
-      <SectionTitle label="العناوين المحفوظة" />
+      <View style={styles.savedHeader}>
+  <SectionTitle label="عناويني" />
+  <Text style={styles.savedCount}>{addresses.length} محفوظة</Text>
+</View>
       {!loading && !error && addresses.length === 0 ? (
         <EmptyCard title="لا توجد عناوين محفوظة" message="أضف عنوان التوصيل حتى تتمكن من إكمال الطلب." />
       ) : null}
@@ -327,25 +403,66 @@ export default function AddressSelectionScreen() {
       {addresses.map((address) => {
         const selected = address.id === selectedAddressId;
         const isDefault = address.id === data.defaultAddressId;
+        const isLinkedToOrder = linkedOrderAddressIds.includes(address.id);
+        const canDelete = !isLinkedToOrder;
 
         return (
-          <Card key={address.id} style={[styles.addressCard, selected ? styles.addressCardSelected : null]}>
-            <View style={styles.addressHeader}>
-              <View style={styles.addressCopy}>
-                <Text style={styles.addressLine}>{formatSavedAddressLine(address)}</Text>
-                {hasSavedAddressCoordinates(address) ? <HelperText tone="info">تم تحديد الموقع</HelperText> : null}
-              </View>
+          <Card
+  key={address.id}
+  style={[styles.addressCard, selected ? styles.addressCardSelected : null]}
+>
+  <View style={styles.addressCardInner}>
+    <Pressable
+      onPress={() => void selectAddress(address.id)}
+      disabled={savingAddressId !== null || creatingAddress || deletingAddressId !== null}
+      style={({ pressed }) => [
+        styles.addressPressable,
+        pressed ? styles.addressPressablePressed : null,
+      ]}
+    >
+      <View style={styles.addressHeader}>
+        <View style={styles.addressIconWrap}>
+          <Ionicons
+            name={isDefault ? "home" : "location-outline"}
+            size={20}
+            color={theme.colors.primary}
+          />
+        </View>
 
-              {isDefault ? <Pill label="العنوان الافتراضي" tone="success" /> : selected ? <Pill label="محدد" tone="info" /> : null}
-            </View>
+        <View style={styles.addressCopy}>
+          <Text style={styles.addressLine}>{formatSavedAddressLine(address)}</Text>
 
-            <PrimaryButton
-              label={savingAddressId === address.id ? "جارٍ الحفظ..." : isDefault ? "العنوان المحدد" : "استخدام هذا العنوان"}
-              variant={isDefault ? "primary" : "secondary"}
-              disabled={savingAddressId !== null || creatingAddress}
-              onPress={() => void selectAddress(address.id)}
-            />
-          </Card>
+          <Text style={styles.addressMeta}>
+            {hasSavedAddressCoordinates(address)
+              ? "تم تحديد الموقع على الخريطة"
+              : "لم يتم تحديد الموقع"}
+          </Text>
+        </View>
+
+        {isDefault ? (
+          <View style={styles.defaultBadge}>
+            <Text style={styles.defaultBadgeText}>افتراضي</Text>
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
+
+    {canDelete ? (
+  <Pressable
+    onPress={() => void handleDeleteAddress(address.id)}
+    disabled={deletingAddressId !== null || creatingAddress || savingAddressId !== null}
+    style={({ pressed }) => [
+      styles.deleteButton,
+      pressed ? styles.deleteButtonPressed : null,
+    ]}
+  >
+    <Ionicons name="trash-outline" size={17} color={theme.colors.danger} />
+  </Pressable>
+) : (
+  <Text style={styles.lockedAddressText}>مرتبط بطلب</Text>
+)}
+  </View>
+</Card>
         );
       })}
 
@@ -365,27 +482,17 @@ const styles = StyleSheet.create({
     borderColor: "#D0E9D9",
   },
   addressCard: {
-    gap: theme.spacing[16],
-  },
-  addressCardSelected: {
-    backgroundColor: "#E8F7EE",
-    borderColor: "#D0E9D9",
-  },
+  borderRadius: 26,
+  borderColor: "transparent",
+  padding: 0,
+  overflow: "hidden",
+  backgroundColor: theme.colors.surface,
+},
   addressHeader: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     gap: theme.spacing[12],
     alignItems: "flex-start",
-  },
-  addressCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  addressLine: {
-    color: theme.colors.text,
-    fontSize: theme.typography.body.md,
-    lineHeight: theme.typography.lineHeight.body,
-    textAlign: "right",
   },
   fieldLabel: {
     color: theme.colors.text,
@@ -410,4 +517,90 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  savedHeader: {
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+savedCount: {
+  color: theme.colors.muted,
+  fontSize: theme.typography.caption.md,
+  textAlign: "right",
+},
+
+addressPressablePressed: {
+  opacity: 0.82,
+},
+
+addressCardSelected: {
+  backgroundColor: "#EEF7F1",
+},
+
+addressIconWrap: {
+  width: 46,
+  height: 46,
+  borderRadius: 23,
+  backgroundColor: "#F4FAF6",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+addressCopy: {
+  flex: 1,
+  gap: 6,
+  alignItems: "flex-end",
+},
+
+addressLine: {
+  color: theme.colors.text,
+  fontSize: 15,
+  fontWeight: "600",
+  textAlign: "right",
+  lineHeight: 22,
+},
+
+addressMeta: {
+  color: theme.colors.muted,
+  fontSize: 12,
+  textAlign: "right",
+},
+
+defaultBadge: {
+  backgroundColor: "#DDEEE3",
+  paddingHorizontal: 12,
+  paddingVertical: 7,
+  borderRadius: 999,
+  alignSelf: "flex-start",
+},
+
+addressCardInner: {
+  flexDirection: "row-reverse",
+  alignItems: "stretch",
+},
+
+addressPressable: {
+  flex: 1,
+  borderRadius: 22,
+  paddingHorizontal: 18,
+  paddingVertical: 18,
+},
+
+deleteButton: {
+  width: 52,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#FFF3F4",
+},
+
+deleteButtonPressed: {
+  opacity: 0.7,
+},
+lockedAddressText: {
+  color: theme.colors.muted,
+  fontSize: 11,
+  textAlign: "center",
+  paddingHorizontal: 8,
+  alignSelf: "center",
+},
 });

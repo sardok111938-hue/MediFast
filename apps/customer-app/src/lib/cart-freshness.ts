@@ -11,6 +11,7 @@ type QueryProduct = {
   description?: string | null;
   price?: number | string | null;
   image_url?: string | null;
+  resolved_image_url?: string | null;
   barcode?: string | null;
   stock_quantity?: number | null;
   is_active?: boolean | null;
@@ -46,7 +47,10 @@ function mapProduct(product: QueryProduct): Product {
     name: product.name,
     description: String(product.description ?? ""),
     price: Number(product.price ?? 0),
-    image_url: String(product.image_url ?? "https://placehold.co/800x800/E8F7EE/1A9C5A?text=MediFast"),
+    image_url:
+      product.resolved_image_url?.trim() ||
+      product.image_url?.trim() ||
+      null,
     barcode: product.barcode ?? null,
     stock_quantity: Number(product.stock_quantity ?? 0),
     is_active: Boolean(product.is_active),
@@ -60,19 +64,20 @@ function formatCurrency(value: number) {
 async function fetchLiveProducts(productIds: string[]) {
   const { data, error } = await supabase
     .from("products_with_global_images")
-.select(`
-  id,
-  vendor_id,
-  category_id,
-  name,
-  description,
-  price,
-  stock_quantity,
-  barcode,
-  is_active,
-  image_url,
-  resolved_image_url
-`);
+    .select(`
+      id,
+      vendor_id,
+      category_id,
+      name,
+      description,
+      price,
+      stock_quantity,
+      barcode,
+      is_active,
+      image_url,
+      resolved_image_url
+    `)
+    .in("id", productIds);
 
   if (error) {
     throw error;

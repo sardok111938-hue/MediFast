@@ -62,17 +62,23 @@ export async function signUpCustomer({
   email,
   password,
   fullName,
+  phone,
 }: {
   email: string;
   password: string;
   fullName: string;
+  phone: string;
 }) {
+  const safeFullName = fullName.trim();
+  const safePhone = phone.trim();
+
   const response = await supabase.auth.signUp({
-    email,
+    email: email.trim(),
     password,
     options: {
       data: {
-        full_name: fullName,
+        full_name: safeFullName,
+        phone: safePhone,
         role: "customer",
       },
     },
@@ -84,7 +90,8 @@ export async function signUpCustomer({
 
   await ensureCustomerBootstrap({
     authUserId: response.data.user.id,
-    fullName,
+    fullName: safeFullName,
+    phone: safePhone,
   });
 
   return response;

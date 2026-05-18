@@ -68,7 +68,9 @@ export default function OrderHistoryScreen() {
   }, [customerId, loadOrders]);
 
   return (
-    <Screen title="الطلبات" subtitle="تابع الطلبات النشطة، وراجع حالة الدفع، وافتح أي طلب حديث بسهولة." scroll={false}>
+    <Screen
+  scroll={false}
+>
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -87,18 +89,41 @@ export default function OrderHistoryScreen() {
           />
         ) : (
           <>
-            {latestOrder ? (
+            {latestOrder &&
+latestOrder.orderStatus !== "delivered" ? (
               <Card style={styles.highlightCard}>
-                <SectionTitle label="تتبع آخر طلب" />
-                <Text style={styles.highlightTitle}>{latestOrder.vendorName}</Text>
-                <HelperText>{formatCustomerDate(latestOrder.createdAt)}</HelperText>
-                <View style={styles.highlightRow}>
-                  <StatusBadge label={formatOrderStatusLabel(latestOrder.orderStatus)} tone={orderStatusTone(latestOrder.orderStatus)} />
-                  <StatusBadge
-                    label={formatCustomerPaymentStatusLabel(latestOrder.paymentStatus, latestOrder.paymentMethod)}
-                    tone={orderStatusTone(latestOrder.paymentStatus)}
-                  />
-                </View>
+
+  <View style={styles.heroCompactHeader}>
+  <View style={styles.heroLeftMeta}>
+    <Text style={styles.heroDate}>
+      {formatCustomerDate(latestOrder.createdAt)}
+    </Text>
+
+    <StatusBadge
+      label={formatOrderStatusLabel(latestOrder.orderStatus)}
+      tone={orderStatusTone(latestOrder.orderStatus)}
+    />
+
+    <StatusBadge
+      label={formatCustomerPaymentStatusLabel(
+        latestOrder.paymentStatus,
+        latestOrder.paymentMethod
+      )}
+      tone={orderStatusTone(latestOrder.paymentStatus)}
+    />
+  </View>
+
+  <View style={styles.heroRightInfo}>
+    <Text style={styles.latestLabel}>آخر طلب</Text>
+
+    <Text
+      style={styles.highlightTitle}
+      numberOfLines={1}
+    >
+      {latestOrder.vendorName}
+    </Text>
+  </View>
+</View>
                 <PrimaryButton
                   label="تتبع آخر طلب"
                   onPress={() =>
@@ -115,7 +140,7 @@ export default function OrderHistoryScreen() {
             {orders.map((order) => (
               <ListCard
                 key={order.id}
-                title={`الطلب ${order.id}`}
+                title={`طلب #${order.id.slice(0, 8).toUpperCase()}`}
                 subtitle={order.vendorName}
                 badge={<StatusBadge label={formatOrderStatusLabel(order.orderStatus)} tone={orderStatusTone(order.orderStatus)} />}
                 onPress={() =>
@@ -135,11 +160,16 @@ export default function OrderHistoryScreen() {
                     <Text style={styles.summaryValue}>{formatCustomerPaymentStatusLabel(order.paymentStatus, order.paymentMethod)}</Text>
                   </View>
                 </View>
-                <HelperText>{order.deliveryAddress}</HelperText>
-                <HelperText>{formatCustomerDate(order.createdAt)}</HelperText>
+                <Text style={styles.metaText}>
+  {order.deliveryAddress}
+</Text>
+
+<Text style={styles.metaText}>
+  {formatCustomerDate(order.createdAt)}
+</Text>
                 <PrimaryButton
                   label="عرض التفاصيل"
-                  variant="secondary"
+                  variant="outline"
                   onPress={() =>
                     router.push({
                       pathname: "/orders/[orderId]",
@@ -202,4 +232,68 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "right",
   },
+  latestLabel: {
+  color: theme.colors.primary,
+  fontSize: theme.typography.caption.md,
+  fontWeight: "800",
+  textAlign: "right",
+},
+
+highlightCard: {
+  backgroundColor: "#F3FAF6",
+  borderColor: "#D8ECDD",
+  gap: theme.spacing[12],
+},
+
+summaryGrid: {
+  flexDirection: "row-reverse",
+  gap: 10,
+},
+
+summaryTile: {
+  flex: 1,
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  borderRadius: theme.radius.lg,
+  padding: theme.spacing[12],
+  backgroundColor: theme.colors.background,
+  gap: 4,
+},
+metaText: {
+  color: theme.colors.muted,
+  fontSize: theme.typography.body.sm,
+  lineHeight: 20,
+  textAlign: "right",
+},
+heroCompactHeader: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: theme.spacing[12],
+},
+
+heroLeftMeta: {
+  alignItems: "flex-start",
+  gap: 6,
+  maxWidth: "48%",
+},
+
+heroRightInfo: {
+  flex: 1,
+  alignItems: "flex-end",
+  gap: 4,
+},
+
+heroDate: {
+  color: theme.colors.muted,
+  fontSize: theme.typography.caption.md,
+  fontWeight: "700",
+},
+
+highlightTitle: {
+  color: theme.colors.text,
+  fontWeight: "900",
+  fontSize: theme.typography.body.lg,
+  textAlign: "right",
+},
 });

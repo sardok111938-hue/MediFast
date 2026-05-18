@@ -37,28 +37,30 @@ export const designTokens = {
     md: 16,
     lg: 24,
   },
-  typography: {
-    heading: {
-      xl: 30,
-      lg: 22,
-      md: 18,
-    },
-    body: {
-      lg: 16,
-      md: 15,
-      sm: 14,
-    },
-    caption: {
-      md: 13,
-      sm: 12,
-    },
-    lineHeight: {
-      compact: 20,
-      body: 22,
-      relaxed: 24,
-    },
+typography: {
+  heading: {
+    xl: 26,
+    lg: 21,
+    md: 17,
   },
-  shadows: {
+
+  body: {
+    lg: 16,
+    md: 15,
+    sm: 13,
+  },
+
+  caption: {
+    md: 12,
+    sm: 11,
+  },
+
+  lineHeight: {
+    compact: 20,
+    body: 22,
+    relaxed: 24,
+  },
+},  shadows: {
     card: {
       shadowColor: "#113321",
       shadowOpacity: 0.05,

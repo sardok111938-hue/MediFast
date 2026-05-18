@@ -180,13 +180,60 @@ function validateProductForm(values: ProductFormValues, categories: ProductCateg
   };
 }
 
+async function resizeProductImage(file: File): Promise<Blob> {
+  const image = document.createElement("img");
+  const objectUrl = URL.createObjectURL(file);
+
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("تعذر قراءة صورة المنتج."));
+    image.src = objectUrl;
+  });
+
+  const size = 1000;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    URL.revokeObjectURL(objectUrl);
+    throw new Error("تعذر تجهيز صورة المنتج.");
+  }
+
+  ctx.fillStyle = "#F7FAF8";
+  ctx.fillRect(0, 0, size, size);
+
+  const scale = Math.min(size / image.width, size / image.height);
+  const width = image.width * scale;
+  const height = image.height * scale;
+  const x = (size - width) / 2;
+  const y = (size - height) / 2;
+
+  ctx.drawImage(image, x, y, width, height);
+  URL.revokeObjectURL(objectUrl);
+
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("تعذر ضغط صورة المنتج."));
+      },
+      "image/jpeg",
+      0.84,
+    );
+  });
+}
+
 async function uploadAdminProductImage(file: File) {
   const supabase = getSupabaseBrowserClient();
-  const extension = file.name.split(".").pop() ?? "jpg";
-  const path = `products/${Date.now()}-${crypto.randomUUID()}.${extension}`;
-  const { error } = await supabase.storage.from("product-images").upload(path, file, {
+  const optimizedImage = await resizeProductImage(file);
+  const path = `products/${Date.now()}-${crypto.randomUUID()}.jpg`;
+
+  const { error } = await supabase.storage.from("product-images").upload(path, optimizedImage, {
     upsert: true,
-    contentType: file.type || "application/octet-stream",
+    contentType: "image/jpeg",
   });
 
   if (error) {

@@ -19,8 +19,10 @@ function readSessionFullName(userMetadata: Record<string, unknown> | null | unde
 export default function AuthScreen() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const configured = isSupabaseConfigured();
@@ -66,6 +68,11 @@ export default function AuthScreen() {
       return;
     }
 
+    if (!email.trim() || !password) {
+      setMessage("البريد الإلكتروني وكلمة المرور مطلوبان لتسجيل الدخول.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
@@ -107,6 +114,16 @@ export default function AuthScreen() {
       return;
     }
 
+    if (!phone.trim()) {
+      setMessage("رقم الهاتف مطلوب لإنشاء حساب العميل.");
+      return;
+    }
+
+    if (!email.trim() || !password) {
+      setMessage("البريد الإلكتروني وكلمة المرور مطلوبان لإنشاء الحساب.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
@@ -115,6 +132,7 @@ export default function AuthScreen() {
         email: email.trim(),
         password,
         fullName: fullName.trim(),
+        phone: phone.trim(),
       });
 
       if (error) {
@@ -130,6 +148,7 @@ export default function AuthScreen() {
       await ensureCustomerBootstrap({
         authUserId: data.session.user.id,
         fullName: readSessionFullName(data.session.user.user_metadata),
+        phone: phone.trim(),
       });
 
       router.replace("/(tabs)/home");
@@ -147,13 +166,14 @@ export default function AuthScreen() {
         <Text style={{ fontWeight: "700", textAlign: "right" }}>دخول العميل</Text>
 
         <FormInput value={fullName} onChangeText={setFullName} placeholder="الاسم الكامل للتسجيل" />
-        <FormInput value={email} onChangeText={setEmail} placeholder="البريد الإلكتروني" />
+        <FormInput value={phone} onChangeText={setPhone} placeholder="رقم الهاتف للتسجيل" keyboardType="phone-pad" />
+        <FormInput value={email} onChangeText={setEmail} placeholder="البريد الإلكتروني" keyboardType="email-address" autoCapitalize="none" />
         <FormInput value={password} onChangeText={setPassword} placeholder="كلمة المرور" secureTextEntry />
 
         {message ? (
           <HelperText tone={message.includes("بنجاح") ? "success" : "danger"}>{message}</HelperText>
         ) : (
-          <HelperText>يمكن للعملاء الجدد إنشاء حساب من هنا، ويمكن للعملاء الحاليين تسجيل الدخول من النموذج نفسه.</HelperText>
+          <HelperText>رقم الهاتف مطلوب عند إنشاء الحساب فقط، ولا يتم استخدامه لتسجيل الدخول الآن.</HelperText>
         )}
 
         <PrimaryButton label={loading ? "جارٍ تسجيل الدخول..." : "تسجيل الدخول"} onPress={handleSignIn} disabled={loading} />

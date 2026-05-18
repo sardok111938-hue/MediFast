@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ImageResizeMode,
   type ImageStyle,
   type StyleProp,
   type TextStyle,
@@ -18,6 +19,7 @@ type CatalogImageProps = {
   imageStyle?: StyleProp<ImageStyle>;
   fallbackLabel?: string;
   fallbackTextStyle?: StyleProp<TextStyle>;
+  resizeMode?: ImageResizeMode;
 };
 
 export function CatalogImage({
@@ -27,6 +29,7 @@ export function CatalogImage({
   imageStyle,
   fallbackLabel = "صورة المنتج",
   fallbackTextStyle,
+  resizeMode = "cover",
 }: CatalogImageProps) {
   const [failed, setFailed] = useState(false);
 
@@ -34,7 +37,9 @@ export function CatalogImage({
     setFailed(false);
   }, [uri]);
 
-  const showFallback = failed || !uri;
+  const safeUri = uri?.trim() || null;
+const imageUri = safeUri ? `${safeUri}?v=${encodeURIComponent(safeUri)}` : null;
+const showFallback = failed || !imageUri;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -45,9 +50,9 @@ export function CatalogImage({
         </View>
       ) : (
         <Image
-          source={{ uri }}
+          source={{ uri: imageUri }}
           accessibilityLabel={alt}
-          resizeMode="cover"
+          resizeMode={resizeMode}
           style={[styles.image, imageStyle]}
           onError={() => setFailed(true)}
         />
@@ -60,7 +65,9 @@ const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
     borderRadius: 22,
-    backgroundColor: "#EFF8F2",
+    backgroundColor: "#F7FAF8",
+    alignItems: "center",
+    justifyContent: "center",
   },
   image: {
     width: "100%",
@@ -68,6 +75,8 @@ const styles = StyleSheet.create({
   },
   fallback: {
     flex: 1,
+    width: "100%",
+    height: "100%",
     minHeight: 96,
     alignItems: "center",
     justifyContent: "center",

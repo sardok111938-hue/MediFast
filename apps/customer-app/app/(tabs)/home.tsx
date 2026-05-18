@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "@medifast/ui";
@@ -63,6 +63,7 @@ function getVendorDeliveryFee(vendor: unknown) {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const productsScrollRef = useRef<ScrollView>(null);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [search, setSearch] = useState("");
   const { data: catalog, loading, error, reload } = useCustomerCatalogData();
@@ -222,10 +223,14 @@ export default function HomeScreen() {
               <EmptyCard title="لا توجد منتجات مطابقة" message="جرّب البحث باسم آخر أو تصفح الفئات." />
             ) : (
               <ScrollView
+  ref={productsScrollRef}
   horizontal
   showsHorizontalScrollIndicator={false}
   contentContainerStyle={styles.productsRow}
   style={styles.productsScroller}
+  onContentSizeChange={() => {
+    productsScrollRef.current?.scrollToEnd({ animated: false });
+  }}
 >
                 {availableProducts.map((product) => (
                   <CustomerProductCard
@@ -453,12 +458,8 @@ const styles = StyleSheet.create({
   paddingBottom: 2,
   paddingHorizontal: 2,
 },
-  productCard: {
-    transform: [{ scaleX: -1 }],
-  },
-  productsScroller: {
-    transform: [{ scaleX: -1 }],
-  },
+  productCard: {},
+  productsScroller: {},
 
   pharmacyList: {
     flexDirection: "row-reverse",
@@ -472,7 +473,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    overflow: "hidden",
     shadowColor: theme.shadows.card.shadowColor,
     shadowOpacity: 0.06,
     shadowRadius: 14,
@@ -480,10 +480,19 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   pharmacyImageWrap: {
-    width: "100%",
-    aspectRatio: 1.25,
-    borderRadius: 0,
-  },
+  width: "92%",
+  aspectRatio: 1,
+  alignSelf: "center",
+  marginTop: 8,
+  borderRadius: 18,
+  backgroundColor: "#F7FAF8",
+  padding: 12,
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+  paddingHorizontal: 4,
+  paddingVertical: 2,
+},
   pharmacyImage: {
     width: "100%",
     height: "100%",

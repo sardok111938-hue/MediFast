@@ -81,7 +81,13 @@ export default function CustomerOrderDetailScreen() {
   const deliveryHeadline = order ? getDeliveryHeadline(order) : null;
 
   return (
-    <Screen title="تفاصيل الطلب" subtitle="تابع تقدم الطلب وحالة الدفع وتحديثات التوصيل بشكل مباشر." scroll={false} backHref="/order-history" backLabel="العودة إلى الطلبات">
+    <Screen
+  title="تفاصيل الطلب"
+  subtitle="تابع تقدم الطلب وحالة الدفع وتحديثات التوصيل بشكل مباشر."
+  scroll={false}
+  backHref="/(tabs)/orders"
+  backLabel="العودة إلى الطلبات"
+>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {loading ? (
           <LoadingCard message="جارٍ تحميل الطلب..." />

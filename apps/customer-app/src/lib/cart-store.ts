@@ -32,7 +32,7 @@ function buildProductSnapshot(product: Product): CartProductSnapshot {
     name: product.name,
     description: product.description,
     price: product.price,
-    image_url: product.image_url,
+    image_url: product.image_url?.trim() ?? null,
     barcode: product.barcode ?? null,
     stock_quantity: product.stock_quantity,
     is_active: product.is_active,

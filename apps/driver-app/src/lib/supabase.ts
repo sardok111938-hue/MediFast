@@ -22,6 +22,10 @@ export function isSupabaseConfigured() {
   return Boolean(supabaseUrl && supabaseAnonKey);
 }
 
+function normalizePhone(value: string) {
+  return value.replace(/[^\d+]/g, "").trim();
+}
+
 async function waitForPersistedSession(timeoutMs = 2500): Promise<Session | null> {
   return await new Promise((resolve) => {
     const timeoutId = setTimeout(() => {
@@ -75,11 +79,71 @@ export async function signOutDriver() {
   await AsyncStorage.removeItem(authStorageKey);
 }
 
+export async function signUpDriver({
+  email,
+  password,
+  fullName,
+  phone,
+  vehicleType,
+  vehiclePlate,
+}: {
+  email: string;
+  password: string;
+  fullName: string;
+  phone: string;
+  vehicleType: string;
+  vehiclePlate: string;
+}) {
+  await signOutDriver();
+
+  const safeEmail = email.trim();
+  const safeFullName = fullName.trim();
+  const safePhone = normalizePhone(phone);
+  const safeVehicleType = vehicleType.trim();
+  const safeVehiclePlate = vehiclePlate.trim();
+
+  const authResponse = await supabase.auth.signUp({
+    email: safeEmail,
+    password,
+    options: {
+      data: {
+        full_name: safeFullName,
+        phone: safePhone,
+        role: "driver",
+      },
+    },
+  });
+
+  if (authResponse.error || !authResponse.data.user) {
+    return authResponse;
+  }
+
+  const { error } = await supabase.rpc("register_driver_account", {
+    p_full_name: safeFullName,
+    p_phone: safePhone,
+    p_vehicle_type: safeVehicleType,
+    p_vehicle_plate: safeVehiclePlate,
+  });
+
+  if (error) {
+    await signOutDriver();
+
+    return {
+      ...authResponse,
+      error,
+    };
+  }
+
+  await signOutDriver();
+
+  return authResponse;
+}
+
 export async function signInDriver(email: string, password: string) {
   await signOutDriver();
 
   const authResponse = await supabase.auth.signInWithPassword({
-    email,
+    email: email.trim(),
     password,
   });
 

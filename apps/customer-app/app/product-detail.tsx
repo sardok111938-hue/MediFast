@@ -59,6 +59,7 @@ export default function ProductDetailScreen() {
         <CatalogImage
           uri={product.image_url}
           alt={product.name}
+          resizeMode="contain"
           containerStyle={styles.productImageWrap}
           imageStyle={styles.productImage}
           fallbackTextStyle={styles.imageFallbackText}
@@ -138,14 +139,20 @@ const styles = StyleSheet.create({
     gap: theme.spacing[16],
   },
   productImageWrap: {
-    margin: theme.spacing[12],
-    marginBottom: 0,
-    borderRadius: theme.radius.lg,
-  },
-  productImage: {
-    width: "100%",
-    height: 300,
-  },
+  margin: theme.spacing[12],
+  marginBottom: 0,
+  borderRadius: 24,
+  backgroundColor: "#F7FAF8",
+  overflow: "hidden",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 16,
+},
+
+productImage: {
+  width: "100%",
+  height: 320,
+},
   heroBody: {
     padding: theme.spacing[20],
     gap: theme.spacing[16],

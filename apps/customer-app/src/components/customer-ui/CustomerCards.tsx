@@ -93,8 +93,8 @@ export function ErrorCard({
 
   return (
     <Card style={styles.stateCard}>
-      <Text style={styles.stateIcon}>!</Text>
-      <Text style={styles.stateTitle}>{t("Something went wrong")}</Text>
+      <Text style={styles.stateIcon}>تنبيه</Text>
+      <Text style={styles.stateTitle}>لم نتمكن من إكمال العملية</Text>
       <Text style={styles.stateMessage}>{t(message)}</Text>
       {onRetry ? <PrimaryButton label={retryLabel} onPress={onRetry} /> : null}
     </Card>

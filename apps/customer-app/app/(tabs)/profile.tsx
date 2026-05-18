@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import {
   Card,
@@ -22,6 +23,74 @@ import {
 } from "../../src/lib/customer-catalog";
 import { signOutCustomer, supabase, updateCustomerProfile } from "../../src/lib/supabase";
 
+type IconName = ComponentProps<typeof Ionicons>["name"];
+
+function ProfileHero({
+  fullName,
+}: {
+  fullName: string;
+}) {
+  return (
+    <View style={styles.heroShell}>
+      <Card style={styles.heroCard}>
+        <View style={styles.heroHeader}>
+          <Text style={styles.heroName}>{fullName}</Text>
+        </View>
+      </Card>
+    </View>
+  );
+}
+function SettingRow({
+  icon,
+  label,
+  value,
+  danger = false,
+  onPress,
+  disabled,
+}: {
+  icon: IconName;
+  label: string;
+  value?: string;
+  danger?: boolean;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.settingRow,
+        pressed ? styles.settingRowPressed : null,
+        disabled ? styles.settingRowDisabled : null,
+        danger ? styles.settingRowDanger : null,
+      ]}
+    >
+      <Ionicons
+        name="chevron-back"
+        size={18}
+        color={danger ? theme.colors.danger : theme.colors.muted}
+        style={styles.settingChevron}
+      />
+
+      <View style={styles.settingContent}>
+        <View style={[styles.settingIconWrap, danger ? styles.settingIconWrapDanger : null]}>
+          <Ionicons
+            name={icon}
+            size={18}
+            color={danger ? theme.colors.danger : theme.colors.primaryDark}
+          />
+        </View>
+
+        <View style={styles.settingTextWrap}>
+          <Text style={[styles.settingLabel, danger ? styles.settingLabelDanger : null]}>{label}</Text>
+          {value ? <Text style={styles.settingValue}>{value}</Text> : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { data, loading, error, reload } = useCustomerCatalogData();
@@ -33,6 +102,7 @@ export default function ProfileScreen() {
   const [profileMessage, setProfileMessage] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
 
   const addresses = useMemo(() => getSavedAddresses(data.addresses), [data.addresses]);
 
@@ -105,132 +175,278 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Screen title="الحساب" subtitle="أدر بيانات حسابك وعناوينك المحفوظة واختصارات الطلبات من مكان واحد.">
+    <Screen contentContainerStyle={{ paddingBottom: 120 }}>
       {loading ? <LoadingCard message="جارٍ تحميل بيانات الحساب..." /> : null}
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
+        
+        <ProfileHero fullName={fullName} />
+        
+      <Card style={styles.sectionCard}>
+  <View style={styles.cardHeaderRow}>
+    <SectionTitle label="بيانات الحساب" />
 
-      <Card style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{fullName.slice(0, 1).toUpperCase()}</Text>
+    <Pressable
+      onPress={() => setEditingProfile((value) => !value)}
+      style={({ pressed }) => [styles.smallEditButton, pressed ? styles.smallEditButtonPressed : null]}
+    >
+      <Ionicons name={editingProfile ? "close-outline" : "create-outline"} size={16} color={theme.colors.primaryDark} />
+      <Text style={styles.smallEditText}>{editingProfile ? "إلغاء" : "تعديل"}</Text>
+    </Pressable>
+  </View>
+
+  {editingProfile ? (
+    <View style={styles.formStack}>
+      <FormInput value={draftFullName} onChangeText={setDraftFullName} placeholder="الاسم الكامل" />
+      <FormInput value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" keyboardType="phone-pad" />
+    </View>
+  ) : (
+    <View style={styles.profileInfoPanel}>
+      <DetailRow label="الاسم" value={fullName} />
+      <DetailRow label="رقم الهاتف" value={phone || "غير مضاف"} />
+      <DetailRow label="البريد الإلكتروني" value={email} />
+      <DetailRow label="طريقة الدفع" value="Cash on Delivery" />
+    </View>
+  )}
+
+  {profileMessage ? (
+    <HelperText tone={profileMessage.includes("بنجاح") ? "success" : "danger"}>
+      {profileMessage}
+    </HelperText>
+  ) : null}
+
+  {editingProfile ? (
+    <PrimaryButton
+      label={savingProfile ? "جارٍ حفظ البيانات..." : "حفظ التغييرات"}
+      onPress={() => void handleSaveProfile()}
+      disabled={savingProfile}
+    />
+  ) : null}
+</Card>
+
+      <View style={styles.groupBlock}>
+        <View style={styles.groupHeader}>
+          <Text style={styles.groupTitle}>الإعدادات والخدمات</Text>
         </View>
-        <Text style={styles.fullName}>{fullName}</Text>
-        <Text style={styles.email}>{email}</Text>
-      </Card>
 
-      <Card>
-        <SectionTitle label="بيانات الحساب" />
-        <FormInput value={draftFullName} onChangeText={setDraftFullName} placeholder="الاسم الكامل" />
-        <FormInput value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" keyboardType="phone-pad" />
-        <DetailRow label="البريد الإلكتروني" value={email} />
-        <DetailRow label="طريقة الدفع المفضلة" value="الدفع عند الاستلام" />
+        <Card style={styles.settingsCard}>
+          <SettingRow
+  icon="home-outline"
+  label="عناويني"
+  value={
+    defaultAddress
+      ? `العنوان الافتراضي: ${formatSavedAddressLine(defaultAddress)}`
+      : addresses.length > 0
+        ? `${addresses.length} عناوين محفوظة`
+        : "أضف عنوانك الأول للتوصيل"
+  }
+  onPress={() =>
+    router.push({
+      pathname: "/address-selection",
+      params: { from: "profile" },
+    })
+  }
+/>
 
-        {profileMessage ? (
-          <HelperText tone={profileMessage.includes("بنجاح") ? "success" : "danger"}>
-            {profileMessage}
-          </HelperText>
-        ) : (
-          <HelperText>يظهر الاسم ورقم الهاتف في لوحة الإدارة وبيانات الطلبات.</HelperText>
-        )}
+          <View style={styles.rowDivider} />
 
-        <PrimaryButton
-          label={savingProfile ? "جارٍ الحفظ..." : "حفظ بيانات الحساب"}
-          onPress={() => void handleSaveProfile()}
-          disabled={savingProfile}
-        />
-      </Card>
+          <SettingRow
+            icon="navigate-outline"
+            label="تتبع آخر طلب"
+            value="الاطلاع على حالة الطلب الحالية"
+            onPress={() => router.push("/order-tracking")}
+          />
 
-      <Card>
-        <SectionTitle
-          label="العناوين المحفوظة"
-          actionLabel="إدارة"
-          onAction={() =>
-            router.push({
-              pathname: "/address-selection",
-              params: { from: "profile" },
-            })
-          }
-        />
+          <View style={styles.rowDivider} />
 
-        <Text style={styles.addressCount}>{addresses.length} عناوين محفوظة</Text>
+          <SettingRow
+            icon="receipt-outline"
+            label="سجل الطلبات"
+            value="مراجعة الطلبات السابقة بالتفصيل"
+            onPress={() => router.push("/order-history")}
+          />
+        </Card>
+      </View>
 
-        {defaultAddress ? <Text style={styles.defaultAddressLine}>{formatSavedAddressLine(defaultAddress)}</Text> : null}
-
-        {defaultAddress && hasSavedAddressCoordinates(defaultAddress) ? (
-          <HelperText tone="info">تم تحديد الموقع</HelperText>
-        ) : null}
-
-        <HelperText>حدّث عناوين التوصيل لديك باستمرار لتجربة دفع أسرع.</HelperText>
-
-        <PrimaryButton
-          label="فتح العناوين"
-          variant="secondary"
-          onPress={() =>
-            router.push({
-              pathname: "/address-selection",
-              params: { from: "profile" },
-            })
-          }
-        />
-      </Card>
-
-      <Card>
-        <SectionTitle label="إجراءات سريعة" />
-
-        <PrimaryButton label="تتبع آخر طلب" onPress={() => router.push("/order-tracking")} />
-
-        <PrimaryButton label="عرض سجل الطلبات" variant="secondary" onPress={() => router.push("/order-history")} />
-
-        <PrimaryButton
-          label={loggingOut ? "جارٍ تسجيل الخروج..." : "تسجيل الخروج"}
-          variant="ghost"
-          onPress={() => void handleLogout()}
-          disabled={loggingOut}
-        />
-      </Card>
+      <Pressable
+        onPress={() => void handleLogout()}
+        disabled={loggingOut}
+        style={({ pressed }) => [
+          styles.logoutButton,
+          pressed ? styles.logoutButtonPressed : null,
+          loggingOut ? styles.logoutButtonDisabled : null,
+        ]}
+      >
+        <Ionicons name="log-out-outline" size={18} color={theme.colors.danger} />
+        <Text style={styles.logoutText}>{loggingOut ? "جارٍ تسجيل الخروج..." : "تسجيل الخروج"}</Text>
+      </Pressable>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  profileCard: {
-    alignItems: "center",
-    backgroundColor: "#E8F7EE",
-    borderColor: "#D0E9D9",
+  heroShell: {
+    position: "relative",
   },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: theme.colors.primaryDark,
+  heroCard: {
+  backgroundColor: "#D2E8DA",
+  borderColor: "transparent",
+  paddingHorizontal: 24,
+  paddingVertical: 28,
+  borderRadius: 30,
+},
+
+heroName: {
+  color: theme.colors.text,
+  fontSize: 30,
+  fontWeight: "800",
+  textAlign: "right",
+  lineHeight: 36,
+},
+  sectionCard: {
+  backgroundColor: theme.colors.surface,
+  borderColor: "transparent",
+  borderRadius: 28,
+  padding: 18,
+  gap: 18,
+},
+  formStack: {
+    gap: theme.spacing[12],
+  },
+  groupBlock: {
+  gap: 12,
+  marginTop: 6,
+},
+  groupHeader: {
+    alignItems: "flex-end",
+    gap: theme.spacing[4],
+    paddingHorizontal: theme.spacing[4],
+  },
+  groupTitle: {
+    color: theme.colors.text,
+    fontSize: theme.typography.heading.md,
+    fontWeight: "800",
+    textAlign: "right",
+  },
+  settingsCard: {
+  backgroundColor: theme.colors.surface,
+  borderColor: "transparent",
+  borderRadius: 28,
+  paddingVertical: 6,
+  paddingHorizontal: 6,
+},
+  settingRow: {
+  minHeight: 76,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  paddingHorizontal: 14,
+  paddingVertical: 14,
+  borderRadius: 18,
+  gap: 12,
+},
+  settingRowPressed: {
+    backgroundColor: "#F5FAF7",
+  },
+  settingRowDisabled: {
+    opacity: 0.65,
+  },
+  settingRowDanger: {
+    backgroundColor: "#FFF7F7",
+  },
+  settingChevron: {
+    marginLeft: theme.spacing[4],
+  },
+  settingContent: {
+    flex: 1,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: theme.spacing[12],
+  },
+  settingIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: {
-    color: "#FFFFFF",
-    fontWeight: "800",
-    fontSize: theme.typography.heading.lg,
+  settingIconWrapDanger: {
+    backgroundColor: "#FDEDEE",
   },
-  fullName: {
+  settingTextWrap: {
+    flex: 1,
+    alignItems: "flex-end",
+    gap: theme.spacing[4],
+  },
+  settingLabel: {
     color: theme.colors.text,
-    fontWeight: "800",
-    fontSize: theme.typography.heading.lg,
+    fontSize: theme.typography.body.md,
+    fontWeight: "700",
     textAlign: "right",
   },
-  email: {
+  settingLabelDanger: {
+    color: theme.colors.danger,
+  },
+  settingValue: {
     color: theme.colors.muted,
-    fontSize: theme.typography.body.sm,
+    fontSize: theme.typography.caption.md,
+    lineHeight: theme.typography.lineHeight.compact,
     textAlign: "right",
   },
-  addressCount: {
-    color: theme.colors.text,
-    fontWeight: "800",
-    fontSize: theme.typography.body.lg,
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.border,
+    marginHorizontal: theme.spacing[10],
+    opacity: 0.6,
+  },
+  logoutButton: {
+  minHeight: 58,
+  borderRadius: 20,
+  backgroundColor: "#FFF6F6",
+  borderWidth: 0,
+  paddingHorizontal: theme.spacing[16],
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: theme.spacing[10],
+  marginTop: 4,
+},
+  logoutButtonPressed: {
+    opacity: 0.88,
+  },
+  logoutButtonDisabled: {
+    opacity: 0.65,
+  },
+  logoutText: {
+    color: theme.colors.danger,
+    fontSize: theme.typography.body.md,
+    fontWeight: "700",
     textAlign: "right",
   },
-  defaultAddressLine: {
-    color: theme.colors.text,
-    fontSize: theme.typography.body.sm,
-    lineHeight: theme.typography.lineHeight.body,
-    textAlign: "right",
-  },
+  cardHeaderRow: {
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+smallEditButton: {
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  gap: 4,
+  backgroundColor: "#F3F7F5",
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  borderRadius: 999,
+},
+
+smallEditButtonPressed: {
+  opacity: 0.8,
+},
+
+smallEditText: {
+  color: theme.colors.primaryDark,
+  fontSize: theme.typography.caption.md,
+  fontWeight: "800",
+},
+
 });

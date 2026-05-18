@@ -25,19 +25,32 @@ type VendorRow = {
   vendorId: string;
   profileId: string | null;
   authUserId: string | null;
+
   email: string | null;
+  contactEmail: string | null;
+
   profileFullName: string;
   profileRole: string | null;
+
   vendorName: string;
   slug: string | null;
+
   description: string | null;
+
+  imageUrl: string | null;
+  licenseNumber: string | null;
+
   phone: string | null;
+
   addressLine1: string | null;
   city: string | null;
   area: string | null;
+
   lat: number | null;
   lng: number | null;
+
   approvalStatus: ApprovalStatus;
+  isActive: boolean;
 };
 
 type ProfileSearchResult = {
@@ -55,11 +68,14 @@ type VendorRpcRow = {
   profile_id: string | null;
   auth_user_id: string | null;
   email: string | null;
+  contact_email: string | null;  
   profile_full_name: string | null;
   profile_role: string | null;
   vendor_name: string;
   slug: string | null;
   description: string | null;
+  image_url: string | null;
+  license_number: string | null;
   phone: string | null;
   address_line_1: string | null;
   city: string | null;
@@ -85,6 +101,9 @@ type VendorFormValues = {
   name: string;
   slug: string;
   description: string;
+  imageUrl: string;
+  licenseNumber: string;
+  contactEmail: string;
   phone: string;
   addressLine1: string;
   city: string;
@@ -99,6 +118,9 @@ const initialVendorFormValues: VendorFormValues = {
   name: "",
   slug: "",
   description: "",
+  imageUrl: "",
+  licenseNumber: "",
+  contactEmail: "",
   phone: "",
   addressLine1: "",
   city: "",
@@ -130,6 +152,15 @@ function getVendorActivationForApproval(approvalStatus: ApprovalStatus) {
   return approvalStatus === "approved";
 }
 
+function slugifyVendorName(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
 function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
   if (!vendor) {
     return initialVendorFormValues;
@@ -140,6 +171,9 @@ function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
     name: vendor.vendorName,
     slug: vendor.slug ?? "",
     description: vendor.description ?? "",
+    imageUrl: vendor.imageUrl ?? "",
+    licenseNumber: vendor.licenseNumber ?? "",
+    contactEmail: vendor.contactEmail ?? "",
     phone: vendor.phone ?? "",
     addressLine1: vendor.addressLine1 ?? "",
     city: vendor.city ?? "",
@@ -151,9 +185,9 @@ function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
 }
 
 function validateVendorForm(values: VendorFormValues) {
-  if (!values.profileId.trim()) {
-    return { error: "اختر ملفًا مرتبطًا قبل الحفظ." };
-  }
+  if (values.profileId.trim() === "" && values.approvalStatus === "approved" && !values.contactEmail.trim()) {
+  return { error: "أدخل بريدًا إلكترونيًا للتواصل عند إنشاء متجر غير مرتبط بحساب دخول." };
+}
 
   if (!values.name.trim() || !values.slug.trim() || !values.phone.trim() || !values.addressLine1.trim() || !values.city.trim() || !values.area.trim()) {
     return { error: "يرجى إكمال جميع الحقول المطلوبة للمتجر." };
@@ -172,10 +206,13 @@ function validateVendorForm(values: VendorFormValues) {
   return {
     error: null,
     payload: {
-      profileId: values.profileId.trim(),
+      profileId: values.profileId.trim() || null,
       name: values.name.trim(),
       slug: values.slug.trim(),
       description: values.description.trim(),
+      imageUrl: values.imageUrl.trim(),
+      licenseNumber: values.licenseNumber.trim(),
+      contactEmail: values.contactEmail.trim(),
       phone: values.phone.trim(),
       addressLine1: values.addressLine1.trim(),
       city: values.city.trim(),
@@ -196,11 +233,14 @@ function mapVendorRow(row: VendorRpcRow): VendorRow {
     profileId: row.profile_id ? String(row.profile_id) : null,
     authUserId: row.auth_user_id ? String(row.auth_user_id) : null,
     email: row.email ?? null,
+    contactEmail: row.contact_email ?? null,
     profileFullName: row.profile_full_name ?? "ملف غير مرتبط",
     profileRole: row.profile_role ?? null,
     vendorName: String(row.vendor_name),
     slug: row.slug ?? null,
     description: row.description ?? null,
+    imageUrl: row.image_url ?? null,
+    licenseNumber: row.license_number ?? null,
     phone: row.phone ?? null,
     addressLine1: row.address_line_1 ?? null,
     city: row.city ?? null,
@@ -208,6 +248,7 @@ function mapVendorRow(row: VendorRpcRow): VendorRow {
     lat: row.lat == null ? null : Number(row.lat),
     lng: row.lng == null ? null : Number(row.lng),
     approvalStatus: row.approval_status,
+    isActive: row.is_active,
   };
 }
 
@@ -258,7 +299,7 @@ function SelectedProfileSummary({
   const { t } = useLocale();
 
   if (!profile) {
-    return <p className="muted">{t("Choose a profile from the search results to link this vendor.")}</p>;
+    return <p className="muted">{t("يمكن ربط المتجر بحساب موجود أو تركه كمتجر مبدئي بدون تسجيل دخول.")}</p>;
   }
 
   const linkedElsewhere = Boolean(profile.existingVendorId && profile.existingVendorId !== editingVendorId);
@@ -428,6 +469,9 @@ export function AdminVendorsManager() {
           p_name: validation.payload.name,
           p_slug: validation.payload.slug,
           p_description: validation.payload.description,
+          p_image_url: validation.payload.imageUrl,
+          p_license_number: validation.payload.licenseNumber,
+          p_contact_email: validation.payload.contactEmail,
           p_phone: validation.payload.phone,
           p_address_line_1: validation.payload.addressLine1,
           p_city: validation.payload.city,
@@ -454,6 +498,9 @@ export function AdminVendorsManager() {
           p_name: validation.payload.name,
           p_slug: validation.payload.slug,
           p_description: validation.payload.description,
+          p_image_url: validation.payload.imageUrl,
+          p_license_number: validation.payload.licenseNumber,
+          p_contact_email: validation.payload.contactEmail,
           p_phone: validation.payload.phone,
           p_address_line_1: validation.payload.addressLine1,
           p_city: validation.payload.city,
@@ -496,13 +543,13 @@ export function AdminVendorsManager() {
 
   async function handleQuickVendorAction(vendor: VendorRow, approvalStatus: ApprovalStatus, successMessage: string) {
     const supabase = getSupabaseBrowserClient();
-    setActingVendorId(vendor.vendorId);
-    setFeedback(null);
+setActingVendorId(vendor.vendorId);
+setFeedback(null);
 
-    try {
-      if (!vendor.profileId) {
-        throw new Error("لا يمكن اعتماد متجر غير مرتبط بملف مستخدم. اربط المتجر بملف أولاً ثم أعد المحاولة.");
-      }
+try {
+  if (!vendor.profileId && approvalStatus === "approved" && !vendor.contactEmail) {
+    throw new Error("لا يمكن اعتماد متجر غير مرتبط بدون بريد تواصل.");
+  }
 
       const payload = {
         p_vendor_id: vendor.vendorId,
@@ -583,7 +630,7 @@ export function AdminVendorsManager() {
           {t(
             editingVendorId
               ? "Update vendor details, relink the profile if needed, and control approval state."
-              : "Link an existing profile to a vendor record without creating a new auth user."
+              : "أنشئ متجرًا مرتبطًا بحساب أو متجرًا مبدئيًا بدون تسجيل دخول للصيدليات الجديدة."
           )}
         </p>
         <form className="form-grid" onSubmit={handleProfileSearch}>
@@ -660,7 +707,21 @@ export function AdminVendorsManager() {
             <Input
               id="vendor-name"
               value={formValues.name}
-              onChange={(event) => setFormValues((current) => ({ ...current, name: event.target.value }))}
+              onChange={(event) =>
+  setFormValues((current) => {
+    const nextName = event.target.value;
+
+    return {
+      ...current,
+      name: nextName,
+      slug:
+        current.slug === "" ||
+        current.slug === slugifyVendorName(current.name)
+          ? slugifyVendorName(nextName)
+          : current.slug,
+    };
+  })
+}
               placeholder="صيدلية جرين كير"
               required
             />
@@ -676,17 +737,84 @@ export function AdminVendorsManager() {
             />
           </div>
           <div className="field">
-            <label htmlFor="vendor-description">{t("Description")}</label>
-            <textarea
-              id="vendor-description"
-              className="textarea"
-              rows={4}
-              value={formValues.description}
-              onChange={(event) => setFormValues((current) => ({ ...current, description: event.target.value }))}
-              placeholder={t("Short vendor description")}
-            />
-          </div>
+  <label htmlFor="vendor-description">{t("Description")}</label>
+  <textarea
+    id="vendor-description"
+    className="textarea"
+    rows={4}
+    value={formValues.description}
+    onChange={(event) =>
+      setFormValues((current) => ({
+        ...current,
+        description: event.target.value,
+      }))
+    }
+    placeholder={t("Short vendor description")}
+  />
+</div>
+
+
           <div className="field">
+  <label htmlFor="vendor-image-url">رابط صورة المتجر</label>
+  <Input
+    id="vendor-image-url"
+    value={formValues.imageUrl}
+    onChange={(event) =>
+      setFormValues((current) => ({
+        ...current,
+        imageUrl: event.target.value,
+      }))
+    }
+    placeholder="https://..."
+  />
+</div>
+{formValues.imageUrl ? (
+  <div className="vendor-image-preview">
+    <img
+      src={formValues.imageUrl}
+      alt="Vendor preview"
+      style={{
+        width: "100%",
+        maxWidth: 220,
+        height: 140,
+        objectFit: "cover",
+        borderRadius: 16,
+        border: "1px solid var(--border)",
+      }}
+    />
+  </div>
+) : null}
+
+<div className="field">
+  <label htmlFor="vendor-license-number">رقم الترخيص</label>
+  <Input
+    id="vendor-license-number"
+    value={formValues.licenseNumber}
+    onChange={(event) =>
+      setFormValues((current) => ({
+        ...current,
+        licenseNumber: event.target.value,
+      }))
+    }
+    placeholder="اختياري"
+  />
+</div>
+<div className="field">
+  <label htmlFor="vendor-contact-email">البريد الإلكتروني للتواصل</label>
+  <Input
+    id="vendor-contact-email"
+    value={formValues.contactEmail}
+    onChange={(event) =>
+      setFormValues((current) => ({
+        ...current,
+        contactEmail: event.target.value,
+      }))
+    }
+    placeholder="pharmacy@example.com"
+  />
+</div>
+
+<div className="field">
             <label htmlFor="vendor-phone">{t("Phone")}</label>
             <Input
               id="vendor-phone"
@@ -782,14 +910,62 @@ export function AdminVendorsManager() {
       ) : (
         <Table
           title="المتاجر"
-          headers={["معرّف المتجر", "اسم المتجر", "الملف المرتبط", "الهاتف", "المدينة / المنطقة", "الموافقة", "الإجراءات"]}
+          headers={[
+  "المتجر",
+  "المالك",
+  "الهاتف",
+  "العنوان",
+  "الترخيص",
+  "الحالة",
+  "الإجراءات",
+]}
           rows={vendors.map((vendor) => [
-            vendor.vendorId,
-            `${vendor.vendorName}${vendor.slug ? ` • ${vendor.slug}` : ""}`,
-            `${vendor.profileFullName}${vendor.email ? ` • ${vendor.email}` : ""}${vendor.authUserId ? ` • ${vendor.authUserId}` : ""}`,
-            vendor.phone ?? "-",
-            [vendor.city, vendor.area].filter(Boolean).join(" / ") || "-",
-            vendor.approvalStatus,
+  `${vendor.vendorName}${vendor.slug ? ` • ${vendor.slug}` : ""}`,
+
+  [
+  vendor.profileFullName,
+  vendor.email,
+  vendor.contactEmail,
+]
+  .filter(Boolean)
+  .join(" • "),
+
+  vendor.phone ?? "-",
+
+  [
+    vendor.addressLine1,
+    vendor.city,
+    vendor.area,
+  ]
+    .filter(Boolean)
+    .join(" • ") || "-",
+
+  vendor.licenseNumber || "-",
+
+  <div className="table-actions">
+  <Badge
+    className={
+      vendor.approvalStatus === "approved"
+        ? "success"
+        : vendor.approvalStatus === "rejected"
+          ? "danger"
+          : "warning"
+    }
+  >
+    {vendor.approvalStatus === "approved"
+      ? "معتمد"
+      : vendor.approvalStatus === "rejected"
+        ? "مرفوض"
+        : "قيد المراجعة"}
+  </Badge>
+
+  {vendor.isActive ? (
+    <Badge className="success">نشط</Badge>
+  ) : (
+    <Badge className="muted">غير نشط</Badge>
+  )}
+</div>,
+
             <div key={`${vendor.vendorId}-actions`} className="table-actions">
               <Button type="button" variant="secondary" onClick={() => startEditingVendor(vendor)} disabled={saving || actingVendorId === vendor.vendorId}>
                 تعديل

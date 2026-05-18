@@ -261,11 +261,10 @@ function mapProduct(product: QueryProduct): Product {
     name: product.name,
     description: String(product.description ?? ""),
     price: Number(product.price ?? 0),
-    image_url: String(
-  product.resolved_image_url ??
-    product.image_url ??
-    "https://placehold.co/800x800/E8F7EE/1A9C5A?text=MediFast"
-),
+    image_url:
+  product.resolved_image_url?.trim() ||
+  product.image_url?.trim() ||
+  null,
     barcode: product.barcode ?? null,
     stock_quantity: Number(product.stock_quantity ?? 0),
     is_active: Boolean(product.is_active),
@@ -385,7 +384,8 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
 console.log(
   products.map((product) => ({
     name: product.name,
-    image: product.image_url,
+    resolved: product.resolved_image_url,
+    raw: product.image_url,
   })),
 );
   }
