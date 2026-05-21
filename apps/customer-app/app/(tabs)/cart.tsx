@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
+import { getVendorById, useCustomerCatalogData } from "../../src/lib/customer-catalog";
 import { StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../../src/components/CustomerUI";
@@ -17,19 +18,31 @@ import { CatalogImage } from "../../src/components/CatalogImage";
 export default function CartScreen() {
   const router = useRouter();
   const cartItems = useCustomerCart();
+  const { data } = useCustomerCatalogData();
+
   const subtotal = getCartSubtotal(cartItems);
   const itemCount = getCartItemCount(cartItems);
   const hasItems = cartItems.length > 0;
-  const recommendedVendor = useMemo(() => cartItems[0]?.snapshot.vendor_id ?? null, [cartItems]);
+
+  const recommendedVendor = useMemo(
+    () => cartItems[0]?.snapshot.vendor_id ?? null,
+    [cartItems],
+  );
+
+  const selectedVendor = useMemo(
+    () => getVendorById(data.vendors, recommendedVendor),
+    [data.vendors, recommendedVendor],
+  );
+
   const freshness = useCartFreshness(cartItems);
 
   const selectedVendorIds = useMemo(
-  () => Array.from(new Set(cartItems.map((item) => item.snapshot.vendor_id).filter(Boolean))),
-  [cartItems]
-);
+    () => Array.from(new Set(cartItems.map((item) => item.snapshot.vendor_id).filter(Boolean))),
+    [cartItems],
+  );
 
-const hasMultipleVendors = selectedVendorIds.length > 1;
-
+  const hasMultipleVendors = selectedVendorIds.length > 1;
+  
 return (
   <Screen title="السلة" subtitle="راجع منتجاتك وعدّل الكميات ثم تابع إلى الدفع عندما تكون جاهزًا.">
     {freshness.loading ? <LoadingCard message="جارٍ التحقق من صلاحية السلة..." /> : null}
@@ -139,14 +152,26 @@ return (
             : "أضف بعض المنتجات للمتابعة."}
       </HelperText>
 
-      {!freshness.valid && hasItems ? (
-        <HelperText tone="danger">عالج مشاكل السلة الظاهرة قبل متابعة الدفع.</HelperText>
-      ) : null}
+{!freshness.valid && hasItems ? (
+  <HelperText tone="danger">
+    عالج مشاكل السلة الظاهرة قبل متابعة الدفع.
+  </HelperText>
+) : null}
 
-      <PrimaryButton
-        label="متابعة إلى الدفع"
-        onPress={() => router.push("/checkout")}
-        disabled={!hasItems || !freshness.valid || hasMultipleVendors}
+{selectedVendor && !selectedVendor.is_open ? (
+  <HelperText tone="danger">
+    الصيدلية مغلقة حالياً. يمكنك تصفح المنتجات والطلب عند فتحها.
+  </HelperText>
+) : null}
+
+<PrimaryButton
+  label="متابعة إلى الدفع"        onPress={() => router.push("/checkout")}
+        disabled={
+  !hasItems ||
+  !freshness.valid ||
+  hasMultipleVendors ||
+  (selectedVendor ? !selectedVendor.is_open : false)
+}
       />
     </Card>
   </Screen>

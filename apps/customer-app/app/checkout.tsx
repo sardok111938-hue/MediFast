@@ -6,7 +6,13 @@ import { Card, DetailRow, ErrorCard, HelperText, LoadingCard, Pill, PrimaryButto
 import { getCartItemCount, useCustomerCart } from "../src/lib/cart-store";
 import { useCartFreshness } from "../src/lib/cart-freshness";
 import { buildCheckoutPreview, placeCashOnDeliveryOrder } from "../src/lib/cod-checkout";
-import { formatSavedAddressLine, getPrimaryAddress, hasSavedAddressCoordinates, useCustomerCatalogData } from "../src/lib/customer-catalog";
+import {
+  formatSavedAddressLine,
+  getPrimaryAddress,
+  getVendorById,
+  hasSavedAddressCoordinates,
+  useCustomerCatalogData,
+} from "../src/lib/customer-catalog";
 import { formatCustomerCurrency, formatCustomerPaymentStatusLabel } from "../src/lib/customer-orders";
 import { clearCustomerCart } from "../src/lib/cart-store";
 
@@ -20,10 +26,21 @@ export default function CheckoutScreen() {
   const cartCount = getCartItemCount(cartItems);
   const freshness = useCartFreshness(cartItems);
 
+  const selectedVendor = useMemo(
+  () => getVendorById(
+    data.vendors,
+    cartItems[0]?.snapshot.vendor_id ?? null,
+  ),
+  [data.vendors, cartItems],
+);
+
   const { preview, validationError } = useMemo(() => {
     try {
       return {
-        preview: buildCheckoutPreview(cartItems),
+        preview: buildCheckoutPreview(cartItems, {
+  address,
+  vendor: selectedVendor,
+}),
         validationError: null,
       };
     } catch (nextError) {
@@ -32,7 +49,7 @@ export default function CheckoutScreen() {
         validationError: nextError instanceof Error ? nextError.message : "تعذر تجهيز الطلب.",
       };
     }
-  }, [cartItems]);
+  }, [cartItems, address, selectedVendor]);
 
   async function handlePlaceCashOrder() {
     if (!preview) {
@@ -151,20 +168,47 @@ export default function CheckoutScreen() {
         <SectionTitle label="ملخص الطلب" />
         <DetailRow label="عدد القطع" value={String(cartCount)} />
         <DetailRow label="الإجمالي الفرعي" value={formatCustomerCurrency(preview?.subtotal ?? 0)} />
-        <DetailRow label="رسوم التوصيل" value={formatCustomerCurrency(preview?.deliveryFee ?? 0)} />
+        <DetailRow
+  label="المسافة التقديرية"
+  value={
+    preview?.deliveryDistanceKm != null
+      ? `${preview.deliveryDistanceKm.toFixed(1)} كم`
+      : "—"
+  }
+/>
+
+<DetailRow
+  label="رسوم التوصيل"
+  value={formatCustomerCurrency(preview?.deliveryFee ?? 0)}
+/>
         <DetailRow label="الإجمالي" value={formatCustomerCurrency(preview?.total ?? 0)} />
         <DetailRow label="طريقة الدفع" value="الدفع عند الاستلام" />
         <DetailRow label="حالة الدفع" value={<StatusBadge label={formatCustomerPaymentStatusLabel("pending", "cash_on_delivery")} tone="warning" />} />
-        <HelperText tone="info">ستبدأ الصيدلية بتحضير الطلب أولًا، ثم يقوم السائق بتحصيل المبلغ عند باب المنزل.</HelperText>
+        
+        <HelperText tone="info">
+  يتم احتساب رسوم التوصيل النهائية تلقائياً حسب المسافة بين عنوانك والصيدلية.
+</HelperText>
         {!freshness.valid ? <HelperText tone="danger">عالج مشاكل صلاحية السلة قبل إرسال الطلب.</HelperText> : null}
         {validationError ? <HelperText tone="danger">{validationError}</HelperText> : null}
         {submissionError ? <HelperText tone="danger">{submissionError}</HelperText> : null}
       </Card>
 
+{selectedVendor && !selectedVendor.is_open ? (
+  <HelperText tone="danger">
+    الصيدلية مغلقة حالياً ولا يمكن إرسال الطلب الآن.
+  </HelperText>
+) : null}
+
       <PrimaryButton
         label={submitting ? "جارٍ إنشاء الطلب..." : "إرسال الطلب"}
         onPress={() => void handlePlaceCashOrder()}
-        disabled={!preview || !address || submitting || !freshness.valid}
+        disabled={
+  !preview ||
+  !address ||
+  submitting ||
+  !freshness.valid ||
+  (selectedVendor ? !selectedVendor.is_open : false)
+}
       />
     </Screen>
   );

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
+import * as Location from "expo-location";
 import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
 
 import {
@@ -18,6 +19,7 @@ import {
   listAvailablePickupOrders,
   listCurrentDriverOrders,
   normalizeError,
+  updateDriverLocation,
   type DriverOrder,
 } from "../../../src/lib/driver-data";
 
@@ -89,6 +91,45 @@ export default function DriverOrdersListScreen() {
       void supabase.removeChannel(availableChannel);
     };
   }, [driverId, loadOrders]);
+
+  useEffect(() => {
+  if (!driverId || orders.length === 0) {
+    return;
+  }
+
+  let isMounted = true;
+  let subscription: Location.LocationSubscription | null = null;
+
+  async function startLocationTracking() {
+    const permission = await Location.requestForegroundPermissionsAsync();
+
+    if (!isMounted || permission.status !== "granted") {
+      return;
+    }
+
+    subscription = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 15000,
+        distanceInterval: 25,
+      },
+      (location) => {
+        void updateDriverLocation({
+          driverId,
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        });
+      }
+    );
+  }
+
+  void startLocationTracking();
+
+  return () => {
+    isMounted = false;
+    subscription?.remove();
+  };
+}, [driverId, orders.length]);
 
   async function handleClaimOrder(orderId: string) {
     setClaimingOrderId(orderId);

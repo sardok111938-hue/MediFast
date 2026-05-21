@@ -38,7 +38,12 @@ export default function SearchScreen() {
   }
 
   const results = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const trimmedQuery = query.trim();
+
+if (!trimmedQuery) {
+  return [];
+}
+    const term = trimmedQuery.toLowerCase();
 
     let filtered = filterProducts(data.products, { query });
 
@@ -79,26 +84,52 @@ export default function SearchScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
     >
-      <SearchInput placeholder="ابحث عن دواء أو منتج" value={query} onChangeText={setQuery} />
+      <View style={styles.searchInputWrap}>
+  <SearchInput
+    placeholder="ابحث عن دواء أو منتج"
+    value={query}
+    onChangeText={setQuery}
+  />
 
-      <View style={styles.toolbarRow}>
-  <View style={styles.chipsRow}>
-    <FilterChip label="الأكثر صلة" active={filters.includes("relevant")} onPress={() => toggleFilter("relevant")} />
-    <FilterChip label="المتوفر" active={filters.includes("available")} onPress={() => toggleFilter("available")} />
-    <FilterChip label="الأرخص" active={filters.includes("cheaper")} onPress={() => toggleFilter("cheaper")} />
-  </View>
-
-  <Text style={styles.resultsCount}>
-    {results.length} منتج
-  </Text>
+  {query.trim().length > 0 ? (
+    <Pressable
+      style={styles.clearSearchButton}
+      onPress={() => setQuery("")}
+    >
+      <Ionicons
+        name="close-circle"
+        size={18}
+        color={theme.colors.muted}
+      />
+    </Pressable>
+  ) : null}
 </View>
+
+{query.trim().length > 0 ? (
+  <View style={styles.toolbarRow}>
+    <View style={styles.chipsRow}>
+      <FilterChip label="الأكثر صلة" active={filters.includes("relevant")} onPress={() => toggleFilter("relevant")} />
+      <FilterChip label="المتوفر" active={filters.includes("available")} onPress={() => toggleFilter("available")} />
+      <FilterChip label="الأرخص" active={filters.includes("cheaper")} onPress={() => toggleFilter("cheaper")} />
+    </View>
+
+    <Text style={styles.resultsCount}>
+      {results.length} منتج
+    </Text>
+  </View>
+) : null}
 
       {loading ? <LoadingCard message="جارٍ تحميل نتائج البحث..." /> : null}
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
 
       {!loading && !error ? (
         <>
-          {results.length === 0 ? (
+          {query.trim().length === 0 ? (
+  <EmptyCard
+    title="ابحث عن دواء أو منتج"
+    message="ابدأ بكتابة اسم المنتج أو الدواء للبحث."
+  />
+) : results.length === 0 ? (
             <EmptyCard
               title="لا توجد نتائج"
               message="جرّب كلمة مختلفة أو امسح البحث."
@@ -246,7 +277,7 @@ const styles = StyleSheet.create({
   marginLeft: theme.spacing[12],
 },
   resultList: {
-    gap: theme.spacing[14],
+    gap: theme.spacing[16],
   },
   resultCard: {
     flexDirection: "row",
@@ -304,7 +335,7 @@ const styles = StyleSheet.create({
   flexDirection: "row-reverse",
   alignItems: "center",
   justifyContent: "space-between",
-  marginTop: theme.spacing[6],
+  marginTop: theme.spacing[8],
 },
   price: {
     color: theme.colors.primaryDark,
@@ -356,5 +387,19 @@ addButtonDisabled: {
 },
 addButtonAdded: {
   backgroundColor: "#15803D",
+},
+searchInputWrap: {
+  position: "relative",
+  justifyContent: "center",
+},
+
+clearSearchButton: {
+  position: "absolute",
+  left: 14,
+  height: 32,
+  width: 32,
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 10,
 },
 });

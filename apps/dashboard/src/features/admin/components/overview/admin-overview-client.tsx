@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatPaymentStatusLabel } from "@medifast/types";
 import { Card } from "../../../../components/ui/card";
 import { EmptyState } from "../../../../components/ui/empty-state";
 import { ErrorState } from "../../../../components/ui/error-state";
@@ -14,6 +13,7 @@ import { formatCurrency } from "../../../../lib/utils/format-currency";
 import { OrderStatusBadge } from "../../../orders/components/order-status-badge";
 import type { AsyncState, OverviewData } from "../shared/admin-types";
 import { fetchCount, normalizeError, readCategoryName, readName, readSingle } from "../shared/admin-utils";
+import { formatOrderNumber, formatPaymentStatusLabel } from "@medifast/types";
 
 async function loadOverviewData(): Promise<OverviewData> {
   const supabase = getSupabaseBrowserClient();
@@ -75,7 +75,7 @@ async function loadOverviewData(): Promise<OverviewData> {
       title: "أحدث الطلبات",
       headers: ["الطلب", "العميل", "المتجر", "الحالة"],
       rows: (ordersResult.data ?? []).map((order) => [
-        String(order.id),
+        formatOrderNumber(String(order.id)),
         readName((readSingle(order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile), "العميل"),
         readCategoryName(order.vendor as { name?: string } | { name?: string }[] | null),
         <OrderStatusBadge key={`overview-order-${order.id}`} status={String(order.order_status)} />,

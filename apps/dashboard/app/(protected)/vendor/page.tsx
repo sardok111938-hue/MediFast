@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatPaymentStatusLabel } from "@medifast/types";
+import { formatOrderNumber, formatPaymentStatusLabel } from "@medifast/types";
 import { DashboardShell } from "../../../src/components/app-shell/dashboard-shell";
 import { Card } from "../../../src/components/ui/card";
 import { EmptyState } from "../../../src/components/ui/empty-state";
@@ -123,18 +123,25 @@ export default async function VendorDashboardPage() {
             <p className="muted order-card-subtitle">أهم مؤشرات التنفيذ اليومية.</p>
           </div>
           <div className="detail-meta">
-            <div className="detail-block">
-              <strong>تحصيل نقدي معلق</strong>
-              <span>{overview.orderCounts.codPending}</span>
-            </div>
-            <div className="detail-block">
-              <strong>تحصيل نقدي مكتمل</strong>
-              <span>{overview.orderCounts.codCollected}</span>
-            </div>
-            <div className="detail-block">
-              <strong>جاهزة للاستلام</strong>
-              <span>{overview.orderCounts.readyForPickup}</span>
-            </div>
+  <div className="detail-block">
+    <strong>تحصيل نقدي معلق</strong>
+    <span>{overview.orderCounts.codPending}</span>
+  </div>
+
+  <div className="detail-block">
+    <strong>تحصيل نقدي مكتمل</strong>
+    <span>{overview.orderCounts.codCollected}</span>
+  </div>
+
+  <div className="detail-block">
+    <strong>متوسط قيمة الطلب</strong>
+    <span>{formatCurrency(overview.orderCounts.averageOrderValue, "en-GB")}</span>
+  </div>
+
+  <div className="detail-block">
+    <strong>جاهزة للاستلام</strong>
+    <span>{overview.orderCounts.readyForPickup}</span>
+  </div>
           </div>
         </Card>
 
@@ -160,6 +167,10 @@ export default async function VendorDashboardPage() {
               <strong>مخزون منخفض</strong>
               <span>{overview.productCounts.lowStock}</span>
             </div>
+            <div className="detail-block">
+  <strong>القيمة التقريبية للمخزون</strong>
+  <span>{formatCurrency(overview.productCounts.catalogValue, "en-GB")}</span>
+</div>
           </div>
         </Card>
 
@@ -192,7 +203,7 @@ export default async function VendorDashboardPage() {
           title="أحدث الطلبات"
           headers={["رقم الطلب", "العميل", "الإجمالي", "حالة الدفع", "عنوان التوصيل", "حالة الطلب"]}
           rows={overview.recentOrders.map((order) => [
-            order.id,
+            formatOrderNumber(order.id),
             order.customer_name,
             formatCurrency(order.total, "en-GB"),
             formatPaymentStatusLabel(order.payment_status, order.payment_method),

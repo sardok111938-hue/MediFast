@@ -7,6 +7,7 @@ import {
   formatCustomerDate,
   formatCustomerPaymentStatusLabel,
   formatOrderStatusLabel,
+  isActiveCustomerOrder,
   loadCurrentCustomerOrders,
   normalizeCustomerOrderError,
   orderStatusTone,
@@ -25,7 +26,7 @@ export default function OrderTrackingScreen() {
 
     try {
       const result = await loadCurrentCustomerOrders();
-      setLatestOrder(result.orders[0] ?? null);
+      setLatestOrder(result.orders.find(isActiveCustomerOrder) ?? null);
     } catch (nextError) {
       setLatestOrder(null);
       setError(normalizeCustomerOrderError(nextError));
@@ -62,7 +63,7 @@ export default function OrderTrackingScreen() {
               })
             }
           />
-          <PrimaryButton label="فتح الطلبات" onPress={() => router.push("/order-history")} variant="secondary" />
+          <PrimaryButton label="فتح الطلبات" onPress={() => router.push("/(tabs)/orders")} variant="secondary" />
         </Card>
       ) : null}
       {!loading && !error && !latestOrder ? (

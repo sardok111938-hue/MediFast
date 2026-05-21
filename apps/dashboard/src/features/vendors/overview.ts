@@ -14,6 +14,7 @@ type VendorOverviewOrderRow = {
 type VendorOverviewProductRow = {
   id: string;
   name: string;
+  price: number;
   stock_quantity: number;
   is_active: boolean;
 };
@@ -33,14 +34,16 @@ export type VendorOverviewData = {
     readyForPickup: number;
     delivered: number;
     codPending: number;
+    averageOrderValue: number;
     codCollected: number;
   };
   productCounts: {
-    active: number;
-    inactive: number;
-    lowStock: number;
-    outOfStock: number;
-  };
+  active: number;
+  inactive: number;
+  lowStock: number;
+  outOfStock: number;
+  catalogValue: number;
+};
   recentOrders: VendorOverviewOrderRow[];
   stockAlerts: VendorOverviewProductRow[];
 };
@@ -99,6 +102,7 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
         readyForPickup: 0,
         delivered: 0,
         codPending: 0,
+        averageOrderValue: 0,
         codCollected: 0,
       },
       productCounts: {
@@ -106,6 +110,7 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
         inactive: 0,
         lowStock: 0,
         outOfStock: 0,
+        catalogValue: 0,
       },
       recentOrders: [],
       stockAlerts: [],
@@ -144,7 +149,7 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
       .order("created_at", { ascending: false }),
     supabase
       .from("products")
-      .select("id, name, stock_quantity, is_active")
+      .select("id, name, price, stock_quantity, is_active")
       .eq("vendor_id", vendorId)
       .order("created_at", { ascending: false }),
   ]);
@@ -182,12 +187,15 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
   }));
 
   const products = (productsData ?? []).map((product) => ({
-    id: String(product.id),
-    name: String(product.name ?? ""),
-    stock_quantity: Number(product.stock_quantity ?? 0),
-    is_active: Boolean(product.is_active),
-  }));
-
+  id: String(product.id),
+  name: String(product.name ?? ""),
+  price: Number(product.price ?? 0),
+  stock_quantity: Number(product.stock_quantity ?? 0),
+  is_active: Boolean(product.is_active),
+}));
+const deliveredOrders = recentOrders.filter(
+  (order) => order.order_status === "delivered"
+);
   return {
     hasVendor: true,
     vendorName: String(vendorData?.name ?? "صيدلية"),
@@ -203,13 +211,18 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
       readyForPickup: recentOrders.filter((order) => order.order_status === "ready_for_pickup").length,
       delivered: recentOrders.filter((order) => order.order_status === "delivered").length,
       codPending: recentOrders.filter((order) => order.payment_method === "cash_on_delivery" && order.payment_status === "pending").length,
-      codCollected: recentOrders.filter((order) => order.payment_method === "cash_on_delivery" && order.payment_status === "collected").length,
+      averageOrderValue: deliveredOrders.length > 0
+  ? deliveredOrders.reduce((total, order) => total + order.total, 0) / deliveredOrders.length
+  : 0,      codCollected: recentOrders.filter((order) => order.payment_method === "cash_on_delivery" && order.payment_status === "collected").length,
     },
     productCounts: {
       active: products.filter((product) => product.is_active).length,
       inactive: products.filter((product) => !product.is_active).length,
       lowStock: products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <= 10).length,
       outOfStock: products.filter((product) => product.is_active && product.stock_quantity <= 0).length,
+      catalogValue: products
+  .filter((product) => product.is_active)
+  .reduce((total, product) => total + product.price * product.stock_quantity, 0),
     },
     recentOrders: recentOrders.slice(0, 6),
     stockAlerts: products.filter((product) => product.is_active && product.stock_quantity <= 10).slice(0, 6),

@@ -48,9 +48,9 @@ function mapProduct(product: QueryProduct): Product {
     description: String(product.description ?? ""),
     price: Number(product.price ?? 0),
     image_url:
-      product.resolved_image_url?.trim() ||
-      product.image_url?.trim() ||
-      null,
+  product.resolved_image_url?.trim() ||
+  product.image_url?.trim() ||
+  "",
     barcode: product.barcode ?? null,
     stock_quantity: Number(product.stock_quantity ?? 0),
     is_active: Boolean(product.is_active),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatPaymentStatusLabel } from "@medifast/types";
+import { formatOrderNumber, formatPaymentStatusLabel } from "@medifast/types";
 import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { LoadingState } from "../../../components/ui/loading-state";
@@ -292,7 +292,7 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
 
       setFeedback({
         type: "success",
-        message: `تم تحديث الطلب ${orderId} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
+        message: `تم تحديث الطلب ${formatOrderNumber(orderId)} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
       });
       await loadOrders();
     } catch (nextError) {
@@ -428,7 +428,7 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
         title="سجل الطلبات"
         headers={["معرّف الطلب", "العميل", "العناصر", "الإجمالي", "حالة الدفع", "عنوان التوصيل", "حالة الطلب", "تاريخ الإنشاء"]}
         rows={historyOrders.map((order) => [
-          order.id,
+          formatOrderNumber(order.id),
           order.customerName,
           `${order.items.length} عنصر`,
           formatCurrency(order.total, intlLocale),
@@ -462,7 +462,7 @@ function VendorOrderCard({
     <Card className="medical-panel">
       <div className="inline-actions split-actions">
         <div>
-          <h3 className="order-card-title">{`${t("Order")} ${order.id}`}</h3>
+          <h3 className="order-card-title">{`${t("Order")} ${formatOrderNumber(order.id)}`}</h3>
           <p className="muted order-card-subtitle">{`${t("Customer:")} ${order.customerName}`}</p>
         </div>
         <OrderStatusBadge status={order.orderStatus} />

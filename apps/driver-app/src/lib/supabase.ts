@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { fetchProfileRole } from "@medifast/supabase";
+import { registerDriverPushToken } from "./notifications";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -192,7 +193,11 @@ export async function signInDriver(email: string, password: string) {
       error: driverError ?? new Error("حساب السائق بانتظار الاعتماد من الإدارة."),
     };
   }
-
+try {
+  await registerDriverPushToken(String(driverId));
+} catch (error) {
+  console.log("DRIVER PUSH TOKEN REGISTER ERROR", error);
+}
   return authResponse;
 }
 

@@ -43,7 +43,10 @@ export async function listDrivers(): Promise<DriverRow[]> {
 
 export async function listAvailableApprovedDrivers(): Promise<DriverRow[]> {
   const drivers = await listDrivers();
-  return drivers.filter((driver) => driver.is_available && driver.approval_status === "approved");
+
+  return drivers
+    .filter((driver) => driver.is_available && driver.approval_status === "approved")
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
 }
 
 export function getDriversTableModel(drivers: DriverRow[]): TableModel {

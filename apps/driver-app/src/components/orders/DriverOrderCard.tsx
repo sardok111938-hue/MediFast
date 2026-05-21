@@ -198,7 +198,9 @@ export function DriverRouteBlock({
         </View>
 
         <View style={styles.routeText}>
-          <Text style={[styles.routeLabel, isRTL ? styles.textRight : null]}>{t("Pickup")}</Text>
+          <Text style={[styles.routeLabel, isRTL ? styles.textRight : null]}>
+  منطقة الصيدلية
+</Text>
           <Text style={[styles.routeValue, isRTL ? styles.textRight : null]} numberOfLines={compact ? 1 : 2}>
             {pickup}
           </Text>
@@ -211,7 +213,9 @@ export function DriverRouteBlock({
         </View>
 
         <View style={styles.routeText}>
-          <Text style={[styles.routeLabel, isRTL ? styles.textRight : null]}>{t("Dropoff")}</Text>
+          <Text style={[styles.routeLabel, isRTL ? styles.textRight : null]}>
+  منطقة التسليم
+</Text>
           <Text style={[styles.routeValue, isRTL ? styles.textRight : null]} numberOfLines={compact ? 1 : 2}>
             {dropoff}
           </Text>
@@ -256,29 +260,50 @@ export function DriverOrderCard({
   footer?: ReactNode;
   compact?: boolean;
 }) {
-  return (
-    <DriverListCard
-      title={vendorName}
-      subtitle={customerName}
-      meta={<DriverMetaPill>{orderRef}</DriverMetaPill>}
-      badge={<DriverBadge label={statusLabel} tone={statusTone} />}
-      action={action}
-      footer={footer}
-      compact={compact}
-    >
-      <DriverRoutePreview pickup={pickupAddress} dropoff={dropoffAddress} compact={compact} />
-      {utilities ? <View style={styles.cardUtilities}>{utilities}</View> : null}
-    </DriverListCard>
-  );
-}
 
+return (
+  <DriverListCard
+    title={null}
+    subtitle={null}
+    meta={<DriverMetaPill>{orderRef}</DriverMetaPill>}
+    badge={<DriverBadge label={statusLabel} tone={statusTone} />}
+    action={action}
+    footer={footer}
+    compact={compact}
+  >
+    <View style={styles.orderIdentityGrid}>
+      <View style={styles.orderIdentityCard}>
+        <Text style={[styles.listCardTitle, styles.textRight]} numberOfLines={2}>
+          الصيدلية: {vendorName}
+        </Text>
+        <Text style={[styles.listCardSubtitle, styles.textRight]} numberOfLines={2}>
+          {pickupAddress}
+        </Text>
+      </View>
+
+      <View style={styles.orderIdentityCard}>
+        <Text style={[styles.listCardTitle, styles.textRight]} numberOfLines={2}>
+          العميل: {customerName}
+        </Text>
+        <Text style={[styles.listCardSubtitle, styles.textRight]} numberOfLines={2}>
+          {dropoffAddress}
+        </Text>
+      </View>
+    </View>
+
+    <DriverRoutePreview pickup={pickupAddress} dropoff={dropoffAddress} compact={compact} />
+
+    {utilities ? <View style={styles.cardUtilities}>{utilities}</View> : null}
+  </DriverListCard>
+);
+}
 const styles = StyleSheet.create({
   textRight: {
     textAlign: "right",
   },
   listCardHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "flex-end",
     justifyContent: "space-between",
     gap: 10,
   },
@@ -291,17 +316,17 @@ const styles = StyleSheet.create({
     gap: theme.spacing[4],
   },
   listCardTitle: {
-    fontSize: theme.typography.body.lg,
-    fontWeight: "800",
-    color: theme.colors.text,
-    lineHeight: 23,
-  },
+  fontSize: 17,
+  fontWeight: "800",
+  color: theme.colors.text,
+  lineHeight: 24,
+},
   listCardSubtitle: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.body.sm,
-    lineHeight: 19,
-    fontWeight: "600",
-  },
+  color: theme.colors.muted,
+  fontSize: 13,
+  lineHeight: 20,
+  fontWeight: "600",
+},
   badgeSlot: {
     flexShrink: 0,
     maxWidth: 128,
@@ -338,7 +363,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
   },
   metaPill: {
-    backgroundColor: "#F4F8F6",
+    backgroundColor: "#EEF4F1",
     borderRadius: 999,
     paddingHorizontal: theme.spacing[8],
     paddingVertical: theme.spacing[4],
@@ -477,7 +502,7 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
   },
   routeBlock: {
-    backgroundColor: "#F8FBF9",
+    backgroundColor: "#FFFFFF",
     borderRadius: theme.radius.md,
     padding: 10,
     gap: 7,
@@ -542,4 +567,27 @@ const styles = StyleSheet.create({
   actionBarRtl: {
     flexDirection: "row-reverse",
   },
+orderIdentityGrid: {
+  gap: 14,
+  marginBottom: 4,
+},
+
+orderIdentityCard: {
+  backgroundColor: "#F8FBF9",
+  borderRadius: 18,
+
+  borderWidth: 1,
+  borderColor: "#EDF2EF",
+
+  paddingHorizontal: 14,
+  paddingVertical: 12,
+
+  gap: 4,
+  alignItems: "flex-end",
+},
+identityLabel: {
+  fontSize: theme.typography.caption.sm,
+  fontWeight: "800",
+  color: theme.colors.muted,
+},
 });

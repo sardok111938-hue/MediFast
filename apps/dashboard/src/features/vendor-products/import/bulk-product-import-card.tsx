@@ -61,6 +61,27 @@ export function BulkProductImportCard({ categories, onImportComplete }: BulkProd
   const previewRows = parseResult?.rows.slice(0, 5) ?? [];
   const clientErrors = clientValidation?.errors.slice(0, 10) ?? [];
   const hasReadyRows = (clientValidation?.validRows.length ?? 0) > 0;
+  const hasBlockingErrors = (clientValidation?.errors.length ?? 0) > 0;
+
+  function downloadTemplate() {
+  const csv = [
+    "name,description,category_slug,price,stock_quantity,barcode,image_url",
+    "باراسيتامول 500 مجم,مسكن وخافض حرارة,pain-relief,4.50,20,6290000000000,https://example.com/product.jpg",
+  ].join("\n");
+
+  const blob = new Blob([`\uFEFF${csv}`], {
+    type: "text/csv;charset=utf-8",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "medifast-products-template.csv";
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
 
   async function handleSelectedFile(file: File) {
     setIsParsing(true);
@@ -194,10 +215,18 @@ export function BulkProductImportCard({ categories, onImportComplete }: BulkProd
               : "سيتم تجاهل الصفوف الفارغة بالكامل والتحقق من كل صف على حدة."}
         </div>
         <div className="inline-actions">
-          <Button type="button" className="secondary-button" onClick={resetImportState} disabled={isParsing || isImporting}>
-            مسح
-          </Button>
-          <Button type="button" onClick={() => void handleImport()} disabled={!hasReadyRows || isParsing || isImporting}>
+  <Button type="button" className="secondary-button" onClick={downloadTemplate} disabled={isParsing || isImporting}>
+    تحميل قالب CSV
+  </Button>
+
+  <Button type="button" className="secondary-button" onClick={resetImportState} disabled={isParsing || isImporting}>
+    مسح
+  </Button>
+          <Button
+  type="button"
+  onClick={() => void handleImport()}
+  disabled={!hasReadyRows || hasBlockingErrors || isParsing || isImporting}
+>
             {isImporting ? "جارٍ الاستيراد..." : "استيراد المنتجات"}
           </Button>
         </div>

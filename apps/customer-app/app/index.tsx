@@ -1,12 +1,28 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Card, HelperText, Pill, PrimaryButton, Screen } from "../src/components/CustomerUI";
+import { registerCustomerPushToken } from "../src/lib/notifications";
 import { ensureCustomerBootstrap, isSupabaseConfigured, supabase } from "../src/lib/supabase";
 
 function readSessionFullName(userMetadata: Record<string, unknown> | null | undefined) {
   const fullName = userMetadata?.full_name;
 
   return typeof fullName === "string" ? fullName : null;
+}
+
+async function bootstrapCustomerSession(session: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>) {
+  const bootstrap = await ensureCustomerBootstrap({
+    authUserId: session.user.id,
+    fullName: readSessionFullName(session.user.user_metadata),
+  });
+
+  try {
+    await registerCustomerPushToken(bootstrap.customerId);
+  } catch (error) {
+    console.log("CUSTOMER PUSH TOKEN ERROR", error);
+  }
+
+  return bootstrap;
 }
 
 export default function SplashScreen() {
@@ -31,22 +47,20 @@ export default function SplashScreen() {
         return;
       }
 
-try {
-  await ensureCustomerBootstrap({
-    authUserId: session.user.id,
-    fullName: readSessionFullName(session.user.user_metadata),
-  });
+      try {
+        await bootstrapCustomerSession(session);
 
-  if (!cancelled) {
-    router.replace("/(tabs)/home");
-  }
-} catch (error) {
-  if (!cancelled) {
-    console.log("CUSTOMER BOOTSTRAP ERROR", error);
-    setSessionError(error instanceof Error ? error.message : JSON.stringify(error));
-    setCheckingSession(false);
-  }
-}    }
+        if (!cancelled) {
+          router.replace("/(tabs)/home");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.log("CUSTOMER BOOTSTRAP ERROR", error);
+          setSessionError(error instanceof Error ? error.message : JSON.stringify(error));
+          setCheckingSession(false);
+        }
+      }
+    }
 
     void checkSession();
 
@@ -64,10 +78,7 @@ try {
 
     if (session) {
       try {
-        await ensureCustomerBootstrap({
-          authUserId: session.user.id,
-          fullName: readSessionFullName(session.user.user_metadata),
-        });
+        await bootstrapCustomerSession(session);
 
         router.replace("/(tabs)/home");
       } catch (error) {

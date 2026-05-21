@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useFocusEffect } from "expo-router";
+import { formatOrderNumber } from "@medifast/types";import { useRouter, useFocusEffect } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { Card, EmptyCard, ErrorCard, HelperText, ListCard, LoadingCard, PrimaryButton, Screen, SectionTitle, StatusBadge } from "../../src/components/CustomerUI";
 import {
+  isActiveCustomerOrder,
   loadCurrentCustomerOrders,
   formatCustomerCurrency,
   formatCustomerDate,
@@ -22,7 +23,7 @@ export default function OrderHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const latestOrder = useMemo(() => orders[0] ?? null, [orders]);
+  const latestOrder = useMemo(() => orders.find(isActiveCustomerOrder) ?? null, [orders]);
 
   const loadOrders = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (mode === "refresh") {
@@ -69,6 +70,8 @@ export default function OrderHistoryScreen() {
 
   return (
     <Screen
+  title="طلباتي"
+  subtitle="تابع جميع طلباتك وحالات التوصيل والدفع."
   scroll={false}
 >
       <ScrollView
@@ -89,8 +92,7 @@ export default function OrderHistoryScreen() {
           />
         ) : (
           <>
-            {latestOrder &&
-latestOrder.orderStatus !== "delivered" ? (
+            {latestOrder ? (
               <Card style={styles.highlightCard}>
 
   <View style={styles.heroCompactHeader}>
@@ -140,7 +142,7 @@ latestOrder.orderStatus !== "delivered" ? (
             {orders.map((order) => (
               <ListCard
                 key={order.id}
-                title={`طلب #${order.id.slice(0, 8).toUpperCase()}`}
+                title={`طلب #${formatOrderNumber(order.id).toUpperCase()}`}
                 subtitle={order.vendorName}
                 badge={<StatusBadge label={formatOrderStatusLabel(order.orderStatus)} tone={orderStatusTone(order.orderStatus)} />}
                 onPress={() =>
@@ -150,26 +152,70 @@ latestOrder.orderStatus !== "delivered" ? (
                   })
                 }
               >
-                <View style={styles.summaryGrid}>
-                  <View style={styles.summaryTile}>
-                    <Text style={styles.summaryLabel}>الإجمالي</Text>
-                    <Text style={styles.summaryValue}>{formatCustomerCurrency(order.total)}</Text>
-                  </View>
-                  <View style={styles.summaryTile}>
-                    <Text style={styles.summaryLabel}>الدفع</Text>
-                    <Text style={styles.summaryValue}>{formatCustomerPaymentStatusLabel(order.paymentStatus, order.paymentMethod)}</Text>
-                  </View>
-                </View>
-                <Text style={styles.metaText}>
+<View style={styles.summaryGrid}>
+  <View style={styles.summaryTile}>
+    <Text style={styles.summaryLabel}>
+       المنتجات
+    </Text>
+
+    <Text style={styles.summaryValue}>
+      {formatCustomerCurrency(
+        order.total - (order.deliveryFee ?? 0)
+      )}
+    </Text>
+  </View>
+
+  <View style={styles.summaryTile}>
+    <Text style={styles.summaryLabel}>
+       التوصيل
+    </Text>
+
+    <Text style={styles.summaryValue}>
+      {formatCustomerCurrency(order.deliveryFee ?? 0)}
+    </Text>
+  </View>
+
+  <View
+    style={[
+      styles.summaryTile,
+      styles.summaryTilePrimary,
+    ]}
+  >
+    <Text
+      style={[
+        styles.summaryLabel,
+      ]}
+    >
+      الإجمالي 
+    </Text>
+
+    <Text
+      style={[
+        styles.summaryValue,
+      ]}
+    >
+      {formatCustomerCurrency(order.total)}
+    </Text>
+  </View>
+</View>
+
+<Text style={styles.metaText}>
   {order.deliveryAddress}
+</Text>
+
+<Text style={styles.metaText}>
+  {order.deliveryDistanceKm != null
+    ? `المسافة: ${order.deliveryDistanceKm.toFixed(1)} كم`
+    : ""}
 </Text>
 
 <Text style={styles.metaText}>
   {formatCustomerDate(order.createdAt)}
 </Text>
+
                 <PrimaryButton
                   label="عرض التفاصيل"
-                  variant="outline"
+                  variant="secondary"
                   onPress={() =>
                     router.push({
                       pathname: "/orders/[orderId]",
@@ -197,29 +243,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   highlightCard: {
-    backgroundColor: "#E8F7EE",
-    borderColor: "#D0E9D9",
+    backgroundColor: "#F3FAF6",
+    borderColor: "#D8ECDD",
+    gap: theme.spacing[12],
   },
   highlightTitle: {
     color: theme.colors.text,
-    fontWeight: "800",
-    fontSize: theme.typography.heading.lg,
+    fontWeight: "900",
+    fontSize: theme.typography.body.lg,
     textAlign: "right",
   },
-  highlightRow: {
-    gap: theme.spacing[8],
-  },
   summaryGrid: {
+    flexDirection: "row-reverse",
     gap: 10,
   },
   summaryTile: {
+    flex: 1,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.lg,
     padding: theme.spacing[12],
     backgroundColor: theme.colors.background,
     gap: 4,
   },
+  summaryTilePrimary: {
+  borderColor: theme.colors.primary,
+  borderWidth: 2,
+},
   summaryLabel: {
     color: theme.colors.muted,
     fontSize: theme.typography.caption.md,
@@ -233,67 +283,36 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   latestLabel: {
-  color: theme.colors.primary,
-  fontSize: theme.typography.caption.md,
-  fontWeight: "800",
-  textAlign: "right",
-},
-
-highlightCard: {
-  backgroundColor: "#F3FAF6",
-  borderColor: "#D8ECDD",
-  gap: theme.spacing[12],
-},
-
-summaryGrid: {
-  flexDirection: "row-reverse",
-  gap: 10,
-},
-
-summaryTile: {
-  flex: 1,
-  borderWidth: 1,
-  borderColor: theme.colors.border,
-  borderRadius: theme.radius.lg,
-  padding: theme.spacing[12],
-  backgroundColor: theme.colors.background,
-  gap: 4,
-},
-metaText: {
-  color: theme.colors.muted,
-  fontSize: theme.typography.body.sm,
-  lineHeight: 20,
-  textAlign: "right",
-},
-heroCompactHeader: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: theme.spacing[12],
-},
-
-heroLeftMeta: {
-  alignItems: "flex-start",
-  gap: 6,
-  maxWidth: "48%",
-},
-
-heroRightInfo: {
-  flex: 1,
-  alignItems: "flex-end",
-  gap: 4,
-},
-
-heroDate: {
-  color: theme.colors.muted,
-  fontSize: theme.typography.caption.md,
-  fontWeight: "700",
-},
-
-highlightTitle: {
-  color: theme.colors.text,
-  fontWeight: "900",
-  fontSize: theme.typography.body.lg,
-  textAlign: "right",
-},
+    color: theme.colors.primary,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "800",
+    textAlign: "right",
+  },
+  metaText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.body.sm,
+    lineHeight: 20,
+    textAlign: "right",
+  },
+  heroCompactHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: theme.spacing[12],
+  },
+  heroLeftMeta: {
+    alignItems: "flex-start",
+    gap: 6,
+    maxWidth: "48%",
+  },
+  heroRightInfo: {
+    flex: 1,
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  heroDate: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "700",
+  },
 });

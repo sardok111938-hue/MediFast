@@ -290,15 +290,25 @@ function VendorProductForm({
   const { t } = useLocale();
   const [values, setValues] = useState<ProductFormValues>(buildFormValues(product, categories));
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(product?.image_url ?? null);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
     setValues(buildFormValues(product, categories));
     setImageFile(null);
+    setPreviewUrl(product?.image_url ?? null);
     setMessage(null);
     setMessageType(null);
   }, [categories, product, mode]);
+
+  useEffect(() => {
+  return () => {
+    if (previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  };
+}, [previewUrl]);
 
   const topLevelCategories = useMemo(() => getTopLevelCategoryOptions(categories), [categories]);
   const childCategories = useMemo(() => getChildCategoryOptions(categories, values.parent_category_id), [categories, values.parent_category_id]);
@@ -333,6 +343,7 @@ function VendorProductForm({
       if (mode === "create") {
         setValues(emptyFormValues);
         setImageFile(null);
+        setPreviewUrl(null);
         event.currentTarget.reset();
       }
     } catch (error) {
@@ -435,14 +446,45 @@ function VendorProductForm({
       <div className="field">
         <label htmlFor={`${mode}-image`}>{t("Image Upload")}</label>
         <input
-          id={`${mode}-image`}
-          type="file"
-          accept="image/*"
-          className="input"
-          onChange={(event) => {
-            setImageFile(event.target.files?.[0] ?? null);
-          }}
-        />
+  id={`${mode}-image`}
+  type="file"
+  accept="image/*"
+  className="input"
+  onChange={(event) => {
+    const file = event.target.files?.[0] ?? null;
+
+    setImageFile(file);
+
+    if (file) {
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+    } else {
+      setPreviewUrl(product?.image_url ?? null);
+    }
+  }}
+/>
+{previewUrl ? (
+  <div
+    style={{
+      marginTop: 12,
+      display: "flex",
+      justifyContent: "flex-start",
+    }}
+  >
+    <img
+      src={previewUrl}
+      alt="معاينة المنتج"
+      style={{
+        width: 120,
+        height: 120,
+        objectFit: "cover",
+        borderRadius: 16,
+        border: "1px solid #DCEBDF",
+        backgroundColor: "#F8FCF8",
+      }}
+    />
+  </div>
+) : null}
         {product?.image_url ? <p className="muted">{t("Current image saved in Supabase storage.")}</p> : <p className="muted">{t("Image upload is optional.")}</p>}
       </div>
       {message ? <p className={messageType === "error" ? "danger" : "success"}>{message}</p> : null}

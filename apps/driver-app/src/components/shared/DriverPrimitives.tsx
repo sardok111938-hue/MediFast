@@ -50,7 +50,7 @@ export function DriverScreen({
   scroll = true,
   compactHeader = false,
 }: {
-  title: string;
+  title?: string;
   subtitle?: string;
   children: ReactNode;
   action?: ReactNode;
@@ -58,11 +58,19 @@ export function DriverScreen({
   compactHeader?: boolean;
 }) {
   const content = (
-    <View style={styles.content}>
-      <DriverTopBar title={title} subtitle={subtitle} action={action} compact={compactHeader} />
-      {children}
-    </View>
-  );
+  <View style={styles.content}>
+    {title ? (
+      <DriverTopBar
+        title={title}
+        subtitle={subtitle}
+        action={action}
+        compact={compactHeader}
+      />
+    ) : null}
+
+    {children}
+  </View>
+);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>

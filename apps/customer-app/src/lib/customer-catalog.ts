@@ -25,6 +25,7 @@ type QueryCategory = {
 type QueryVendor = {
   id: string;
   name: string;
+  phone?: string | null;
   address_line_1?: string | null;
   address_line_2?: string | null;
   city?: string | null;
@@ -32,6 +33,17 @@ type QueryVendor = {
   image_url?: string | null;
   is_active?: boolean | null;
   approval_status?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  delivery_radius_km?: number | null;
+  vendor_operating_hours?: QueryOperatingHour[] | null;
+};
+
+type QueryOperatingHour = {
+  day_of_week: number;
+  opens_at?: string | null;
+  closes_at?: string | null;
+  is_closed?: boolean | null;
 };
 
 type QueryProduct = {
@@ -231,6 +243,78 @@ function normalizeQuery(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
+function getLibyaDateParts() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Tripoli",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const weekday = parts.find((part) => part.type === "weekday")?.value;
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+
+  const dayByLabel: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  return {
+    day: dayByLabel[weekday ?? ""] ?? new Date().getDay(),
+    minutes: hour * 60 + minute,
+  };
+}
+
+function readTimeMinutes(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText ?? 0);
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+}
+
+function isVendorOpen(hours?: QueryOperatingHour[] | null) {
+  if (!hours || hours.length === 0) {
+    return false;
+  }
+
+  const { day, minutes } = getLibyaDateParts();
+  const todayHours = hours.find((hour) => hour.day_of_week === day);
+
+  if (
+    !todayHours ||
+    todayHours.is_closed ||
+    !todayHours.opens_at ||
+    !todayHours.closes_at
+  ) {
+    return false;
+  }
+
+  const opensAtMinutes = readTimeMinutes(todayHours.opens_at);
+  const closesAtMinutes = readTimeMinutes(todayHours.closes_at);
+
+  if (opensAtMinutes === null || closesAtMinutes === null) {
+    return false;
+  }
+
+  return minutes >= opensAtMinutes && minutes < closesAtMinutes;
+}
+
 function getEmptyCatalogData(): CustomerCatalogData {
   return {
     categories: [],
@@ -245,11 +329,23 @@ function mapVendor(vendor: QueryVendor): Vendor {
   return {
     id: vendor.id,
     name: vendor.name,
+    phone: vendor.phone ?? null,
     address: [vendor.address_line_1, vendor.address_line_2, vendor.area, vendor.city].filter(Boolean).join("، "),
     rating: 0,
     eta_minutes: 0,
-    is_open: Boolean(vendor.is_active),
-    image_url: vendor.image_url ?? null,
+    is_open:
+      Boolean(vendor.is_active) &&
+      isVendorOpen(vendor.vendor_operating_hours),
+      image_url: vendor.image_url ?? null,
+      lat: vendor.lat ?? null,
+      lng: vendor.lng ?? null,
+      delivery_radius_km: vendor.delivery_radius_km ?? null,
+      operating_hours: vendor.vendor_operating_hours?.map((hour) => ({
+      day_of_week: hour.day_of_week,
+      opens_at: hour.opens_at ?? null,
+      closes_at: hour.closes_at ?? null,
+      is_closed: Boolean(hour.is_closed),
+    })) ?? [],
   };
 }
 
@@ -264,7 +360,7 @@ function mapProduct(product: QueryProduct): Product {
     image_url:
   product.resolved_image_url?.trim() ||
   product.image_url?.trim() ||
-  null,
+  "",
     barcode: product.barcode ?? null,
     stock_quantity: Number(product.stock_quantity ?? 0),
     is_active: Boolean(product.is_active),
@@ -347,7 +443,27 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
       .order("name", { ascending: true }),
     supabase
       .from("vendors")
-      .select("id, name, address_line_1, address_line_2, city, area, image_url, is_active, approval_status")
+.select(`
+  id,
+  name,
+  phone,
+  address_line_1,
+  address_line_2,
+  city,
+  area,
+  image_url,
+  is_active,
+  approval_status,
+  lat,
+  lng,
+  delivery_radius_km,
+  vendor_operating_hours (
+    day_of_week,
+    opens_at,
+    closes_at,
+    is_closed
+  )
+`)
       .eq("is_active", true)
       .eq("approval_status", "approved"),
     loadCustomerAddresses(),
@@ -380,14 +496,6 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
     products = ((productsData ?? []) as QueryProduct[])
   .filter((product) => !product.category_id || categoryIds.has(String(product.category_id)))
   .map(mapProduct);
-
-console.log(
-  products.map((product) => ({
-    name: product.name,
-    resolved: product.resolved_image_url,
-    raw: product.image_url,
-  })),
-);
   }
 
   return {
@@ -463,6 +571,62 @@ export function formatSavedAddressLine(address: Pick<Address, "line_1">) {
 
 export function hasSavedAddressCoordinates(address: Pick<Address, "lat" | "lng">) {
   return typeof address.lat === "number" && typeof address.lng === "number";
+}
+
+function readCoordinate(value?: number | null) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export function calculateDistanceKm(
+  from: Pick<Address, "lat" | "lng"> | null | undefined,
+  to: Pick<Vendor, "lat" | "lng"> | null | undefined,
+) {
+  const fromLat = readCoordinate(from?.lat ?? null);
+  const fromLng = readCoordinate(from?.lng ?? null);
+  const toLat = readCoordinate(to?.lat ?? null);
+  const toLng = readCoordinate(to?.lng ?? null);
+
+  if (fromLat === null || fromLng === null || toLat === null || toLng === null) {
+    return null;
+  }
+
+  const earthRadiusKm = 6371;
+  const latDistance = ((toLat - fromLat) * Math.PI) / 180;
+  const lngDistance = ((toLng - fromLng) * Math.PI) / 180;
+
+  const a =
+    Math.sin(latDistance / 2) * Math.sin(latDistance / 2) +
+    Math.cos((fromLat * Math.PI) / 180) *
+      Math.cos((toLat * Math.PI) / 180) *
+      Math.sin(lngDistance / 2) *
+      Math.sin(lngDistance / 2);
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function formatDistanceKm(distanceKm: number | null) {
+  if (distanceKm === null) {
+    return "المسافة غير متاحة";
+  }
+
+  if (distanceKm < 1) {
+    return `${Math.round(distanceKm * 1000)} م`;
+  }
+
+  return `${distanceKm.toFixed(1)} كم`;
+}
+
+export function isVendorWithinDeliveryRadius(
+  address: Pick<Address, "lat" | "lng"> | null | undefined,
+  vendor: Pick<Vendor, "lat" | "lng" | "delivery_radius_km"> | null | undefined,
+) {
+  const distanceKm = calculateDistanceKm(address, vendor);
+
+  if (distanceKm === null) {
+    return true;
+  }
+
+  return distanceKm <= Number(vendor?.delivery_radius_km ?? 8);
 }
 
 export function getCategoryById(categories: Category[], categoryId?: string | null) {

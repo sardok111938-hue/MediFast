@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { formatOrderNumber } from "@medifast/types";
+import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import {
   Card,
@@ -79,7 +80,17 @@ export default function CustomerOrderDetailScreen() {
   }, [customerId, loadOrder, orderId]);
 
   const deliveryHeadline = order ? getDeliveryHeadline(order) : null;
+const handleCallDriver = useCallback(async () => {
+  if (!order?.driverPhone) {
+    return;
+  }
 
+  try {
+    await Linking.openURL(`tel:${order.driverPhone}`);
+  } catch {
+    // ignore for now
+  }
+}, [order?.driverPhone]);
   return (
     <Screen
   title="تفاصيل الطلب"
@@ -98,7 +109,9 @@ export default function CustomerOrderDetailScreen() {
         ) : (
           <>
             <Card style={styles.statusCard}>
-              <Text style={styles.orderNumber}>{`الطلب ${order.id}`}</Text>
+              <Text style={styles.orderNumber}>
+  {`الطلب #${formatOrderNumber(order.id).toUpperCase()}`}
+</Text>
               <Text style={styles.vendorName}>{order.vendorName}</Text>
               <View style={styles.badgeStack}>
                 <StatusBadge label={formatOrderStatusLabel(order.orderStatus)} tone={orderStatusTone(order.orderStatus)} />
@@ -112,7 +125,26 @@ export default function CustomerOrderDetailScreen() {
 
             <Card>
               <SectionTitle label="حالة التوصيل" />
-              <DetailRow label="السائق" value={order.driverName ?? "بانتظار تعيين السائق"} />
+              <View style={styles.driverSection}>
+  <DetailRow
+    label="السائق"
+    value={order.driverName ?? "بانتظار تعيين السائق"}
+  />
+
+  {order.driverVehicleType ? (
+    <DetailRow
+      label="نوع المركبة"
+      value={order.driverVehicleType}
+    />
+  ) : null}
+
+  {order.driverPhone ? (
+    <PrimaryButton
+      label={`اتصال بالسائق (${order.driverPhone})`}
+      onPress={() => void handleCallDriver()}
+    />
+  ) : null}
+</View>
               <DetailRow label="عنوان التوصيل" value={order.deliveryAddress} />
               <DetailRow label="تاريخ الإنشاء" value={formatCustomerDate(order.createdAt)} />
             </Card>
@@ -158,13 +190,6 @@ export default function CustomerOrderDetailScreen() {
             </Card>
 
             <Card>
-              <SectionTitle label="الدفع والإجماليات" />
-              <DetailRow label="الإجمالي" value={formatCustomerCurrency(order.total)} />
-              <DetailRow label="طريقة الدفع" value="الدفع عند الاستلام" />
-              <DetailRow label="حالة الدفع" value={formatCustomerPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} />
-            </Card>
-
-            <Card>
               <SectionTitle label="المنتجات" />
               {order.items.length === 0 ? (
                 <HelperText>لم يتم العثور على منتجات داخل هذا الطلب.</HelperText>
@@ -179,6 +204,42 @@ export default function CustomerOrderDetailScreen() {
                 ))
               )}
             </Card>
+
+<Card>
+  <SectionTitle label="الدفع والإجماليات" />
+
+  <DetailRow
+    label="المسافة"
+    value={
+      order.deliveryDistanceKm != null
+        ? `${order.deliveryDistanceKm.toFixed(1)} كم`
+        : "—"
+    }
+  />
+
+  <DetailRow
+    label="رسوم التوصيل"
+    value={formatCustomerCurrency(order.deliveryFee ?? 0)}
+  />
+
+  <DetailRow
+    label="الإجمالي"
+    value={formatCustomerCurrency(order.total)}
+  />
+
+  <DetailRow
+    label="طريقة الدفع"
+    value="الدفع عند الاستلام"
+  />
+
+  <DetailRow
+    label="حالة الدفع"
+    value={formatCustomerPaymentStatusLabel(
+      order.paymentStatus,
+      order.paymentMethod
+    )}
+  />
+  </Card>
 
             <PrimaryButton label="العودة للبحث" variant="secondary" onPress={() => router.push("/search")} />
           </>
@@ -284,4 +345,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     textAlign: "right",
   },
+  driverSection: {
+  gap: theme.spacing[12],
+},
 });

@@ -16,6 +16,13 @@ export type OrderStatus =
 export type PaymentMethod = "cash_on_delivery";
 export type PaymentStatus = "pending" | "collected";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
+export function formatOrderNumber(orderId?: string | null) {
+  if (!orderId) {
+    return "—";
+  }
+
+  return `${orderId.slice(0, 8)}#`;
+}
 
 export function formatCurrencyLYD(value: number | string | null | undefined) {
   const amount = Number(value ?? 0);
@@ -70,6 +77,12 @@ export interface Category {
   image_url?: string | null;
   is_active?: boolean | null;
 }
+export interface VendorOperatingHour {
+  day_of_week: number;
+  opens_at: string | null;
+  closes_at: string | null;
+  is_closed: boolean;
+}
 
 export interface Vendor {
   id: string;
@@ -79,8 +92,11 @@ export interface Vendor {
   eta_minutes: number;
   is_open: boolean;
   image_url?: string | null;
+  operating_hours?: VendorOperatingHour[];
+  lat?: number | null;
+  lng?: number | null;
+  delivery_radius_km?: number | null;
 }
-
 export interface Product {
   id: string;
   vendor_id: string;

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { Product, Vendor } from "@medifast/types";
 import { theme } from "@medifast/ui";
 import { useRouter } from "expo-router";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -15,6 +15,7 @@ import {
 import { CatalogImage } from "./CatalogImage";
 import { addProductToCart } from "../lib/cart-store";
 import { formatCustomerCurrency } from "../lib/customer-orders";
+import { isFavoriteProduct, toggleFavoriteProduct } from "../lib/favorites";
 
 type CustomerProductCardProps = {
   product: Product;
@@ -32,6 +33,21 @@ function CustomerProductCardComponent({
   const router = useRouter();
 
   const [added, setAdded] = useState(false);
+  const [favorite, setFavorite] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void isFavoriteProduct(product.id).then((value) => {
+      if (mounted) {
+        setFavorite(value);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [product.id]);
 
   const handlePress = useCallback(() => {
     router.push({
@@ -41,56 +57,74 @@ function CustomerProductCardComponent({
   }, [product.id, router]);
 
   const handleAddToCart = useCallback(() => {
-  if (product.stock_quantity <= 0) {
-    return;
-  }
+    if (product.stock_quantity <= 0) {
+      return;
+    }
 
-  addProductToCart(product, 1);
-  setAdded(true);
+    addProductToCart(product, 1);
+    setAdded(true);
 
-  setTimeout(() => {
-    setAdded(false);
-  }, 900);
-}, [product]);
+    setTimeout(() => {
+      setAdded(false);
+    }, 900);
+  }, [product]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    const result = await toggleFavoriteProduct(product.id);
+    setFavorite(result.isFavorite);
+  }, [product.id]);
 
   return (
-  <View style={[{ width }, style]}>
-    <View style={styles.card}>
-      <Pressable style={styles.cardPressArea} onPress={handlePress}>
-        <View style={styles.imageContainer}>
-          <CatalogImage
-            uri={product.image_url}
-            alt={product.name}
-            fallbackLabel="منتج"
-            containerStyle={styles.imageWrap}
-            imageStyle={styles.image}
-            resizeMode="contain"
+    <View style={[{ width }, style]}>
+      <View style={styles.card}>
+        <Pressable style={styles.cardPressArea} onPress={handlePress}>
+          <View style={styles.imageContainer}>
+            <CatalogImage
+              uri={product.image_url}
+              alt={product.name}
+              fallbackLabel="منتج"
+              containerStyle={styles.imageWrap}
+              imageStyle={styles.image}
+              resizeMode="contain"
+            />
+          </View>
+
+          <View style={styles.body}>
+            <Text style={styles.name} numberOfLines={2}>
+              {product.name}
+            </Text>
+
+            <Text style={styles.price} numberOfLines={1}>
+              {formatCustomerCurrency(product.price)}
+            </Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={10}
+          style={styles.favoriteButton}
+          onPress={handleToggleFavorite}
+        >
+          <Ionicons
+            name={favorite ? "heart" : "heart-outline"}
+            size={17}
+            color={favorite ? "#E5484D" : theme.colors.muted}
           />
-        </View>
+        </Pressable>
 
-        <View style={styles.body}>
-          <Text style={styles.name} numberOfLines={2}>
-            {product.name}
-          </Text>
-
-          <Text style={styles.price} numberOfLines={1}>
-            {formatCustomerCurrency(product.price)}
-          </Text>
-        </View>
-      </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        hitSlop={10}
-        style={[styles.addButton, product.stock_quantity <= 0 ? styles.addButtonDisabled : null]}
-        disabled={product.stock_quantity <= 0}
-        onPress={handleAddToCart}
-      >
-        <Ionicons name={added ? "checkmark" : "add"} size={18} color="#FFFFFF" />
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={10}
+          style={[styles.addButton, product.stock_quantity <= 0 ? styles.addButtonDisabled : null]}
+          disabled={product.stock_quantity <= 0}
+          onPress={handleAddToCart}
+        >
+          <Ionicons name={added ? "checkmark" : "add"} size={18} color="#FFFFFF" />
+        </Pressable>
+      </View>
     </View>
-  </View>
-);
+  );
 }
 
 export const CustomerProductCard = memo(CustomerProductCardComponent);
@@ -114,47 +148,69 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
   cardPressArea: {
-  gap: theme.spacing[8],
-},
+    gap: theme.spacing[8],
+  },
   imageContainer: {
     position: "relative",
   },
   imageWrap: {
-  width: "100%",
-  aspectRatio: 1,
-  borderRadius: 18,
-  backgroundColor: "#F7FAF8",
-  padding: 10,
-  alignItems: "center",
-  justifyContent: "center",
-  overflow: "hidden",
-},
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 18,
+    backgroundColor: "#F7FAF8",
+    padding: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  image: {
+    width: "92%",
+    height: "92%",
+  },
+  favoriteButton: {
+    position: "absolute",
+    right: 10,
+    top: 10,
+    zIndex: 20,
 
-image: {
-  width: "92%",
-  height: "92%",
-},
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1,
+    borderColor: "#E5EEE9",
+
+    alignItems: "center",
+    justifyContent: "center",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
   addButton: {
-  position: "absolute",
-  left: 10,
-  bottom: 10,
-  zIndex: 20,
+    position: "absolute",
+    left: 10,
+    bottom: 10,
+    zIndex: 20,
 
-  width: 26,
-  height: 26,
-  borderRadius: 17,
+    width: 26,
+    height: 26,
+    borderRadius: 17,
 
-  backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
 
-  alignItems: "center",
-  justifyContent: "center",
+    alignItems: "center",
+    justifyContent: "center",
 
-  shadowColor: "#000",
-  shadowOpacity: 0.12,
-  shadowRadius: 6,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 3,
-},
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   addButtonDisabled: {
     opacity: 0.42,
   },
@@ -162,18 +218,18 @@ image: {
     gap: 6,
   },
   name: {
-  color: theme.colors.text,
-  fontSize: 12,
-  fontWeight: "900",
-  lineHeight: 16,
-  textAlign: "right",
-  minHeight: 32,
-},
-price: {
-  color: theme.colors.primaryDark,
-  fontSize: 13,
-  fontWeight: "900",
-  textAlign: "right",
-  lineHeight: 16,
-},
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 16,
+    textAlign: "right",
+    minHeight: 32,
+  },
+  price: {
+    color: theme.colors.primaryDark,
+    fontSize: 13,
+    fontWeight: "900",
+    textAlign: "right",
+    lineHeight: 16,
+  },
 });

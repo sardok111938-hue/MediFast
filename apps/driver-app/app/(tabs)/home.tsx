@@ -65,12 +65,8 @@ export default function DriverDashboardScreen() {
   const freshnessText = summary.latestAssignedAt ? `آخر توصيل ${formatDate(summary.latestAssignedAt)}` : "محدّث الآن";
 
   return (
-    <DriverScreen
-      title={driver?.fullName ? `أهلًا ${driver.fullName}` : "الرئيسية"}
-      subtitle={freshnessText}
-      compactHeader
-    >
-      {loading ? (
+<DriverScreen>
+    {loading ? (
         <DriverLoadingCard message="جارٍ تحميل لوحة السائق..." />
       ) : error ? (
         <DriverErrorCard message={error} onRetry={() => void handleRefresh()} />

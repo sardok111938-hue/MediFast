@@ -135,22 +135,29 @@ function formatAddress(
   }>
 ) {
   const address = readSingle(value);
+
   if (!address) {
-    return "العنوان غير متاح";
+    return "المنطقة غير متاحة";
   }
 
-  return [
-    address.line_1 ?? address.address_line_1,
-    address.line_2 ?? address.address_line_2,
-    address.area,
-    address.city,
-  ]
-    .filter(Boolean)
-    .join("، ") || "العنوان غير متاح";
+  return (
+    [address.area, address.city]
+      .filter(Boolean)
+      .join(" - ") ||
+    address.line_1 ||
+    address.address_line_1 ||
+    "المنطقة غير متاحة"
+  );
 }
+  
+function readCustomerName(
+  value: SingleRecord<{ profile?: SingleRecord<{ full_name?: string }> }>,
+  fallback: string
+) {
+  const customer = readSingle(value);
+  const profile = readSingle(customer?.profile);
 
-function readCustomerName(value: SingleRecord<{ profile?: SingleRecord<{ full_name?: string }> }>, fallback: string) {
-  return readName(readSingle(value)?.profile, fallback);
+  return profile?.full_name?.trim() || fallback;
 }
 
 function readCustomerPhone(value: SingleRecord<{ profile?: SingleRecord<{ phone?: string | null }> }>) {
@@ -390,21 +397,24 @@ export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
       vendor:vendors(
         name,
         phone,
-        address_line_1,
-        address_line_2,
         city,
         area,
+        address_line_1,
+        address_line_2,
         lat,
         lng
       ),
-      customer:customers(
-        profile:profiles(full_name, phone)
-      ),
-      address:addresses(
-  line_1,
-  lat,
-  lng
+      customer:customers!orders_customer_id_fkey(
+  profile:profiles!customers_user_id_fkey(
+    full_name,
+    phone
+  )
 ),
+      address:addresses!orders_delivery_address_id_fkey(
+        line_1,
+        lat,
+        lng
+      ),
       items:order_items(
         id,
         quantity,
@@ -439,17 +449,20 @@ export async function listCurrentDriverOrders(driverId: string): Promise<DriverO
       vendor:vendors(
         name,
         phone,
-        address_line_1,
-        address_line_2,
         city,
         area,
+        address_line_1,
+        address_line_2,
         lat,
         lng
       ),
-      customer:customers(
-        profile:profiles(full_name, phone)
-      ),
-      address:addresses(
+      customer:customers!orders_customer_id_fkey(
+  profile:profiles!customers_user_id_fkey(
+    full_name,
+    phone
+  )
+),
+      address:addresses!orders_delivery_address_id_fkey(
   line_1,
   lat,
   lng
@@ -510,22 +523,24 @@ export async function getDriverOrderDetail(driverId: string, orderId: string): P
       vendor:vendors(
         name,
         phone,
-        address_line_1,
-        address_line_2,
         city,
         area,
+        address_line_1,
+        address_line_2,
         lat,
         lng
       ),
-      customer:customers(
-        profile:profiles(full_name, phone)
-      ),
-      address:addresses(
+      customer:customers!orders_customer_id_fkey(
+  profile:profiles!customers_user_id_fkey(
+    full_name,
+    phone
+  )
+),
+address:addresses!orders_delivery_address_id_fkey(
   line_1,
   lat,
   lng
-),
-      items:order_items(
+),      items:order_items(
         id,
         quantity,
         unit_price,
@@ -542,6 +557,24 @@ export async function getDriverOrderDetail(driverId: string, orderId: string): P
   }
 
   return data ? mapOrder(data as DriverOrderQueryRow) : null;
+}
+
+export async function updateDriverLocation(input: {
+  driverId: string;
+  lat: number;
+  lng: number;
+}) {
+  const { error } = await supabase
+    .from("drivers")
+    .update({
+      current_lat: input.lat,
+      current_lng: input.lng,
+    })
+    .eq("id", input.driverId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function updateDriverOrderStatus(input: {

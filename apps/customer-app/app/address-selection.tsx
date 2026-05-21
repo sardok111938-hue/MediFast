@@ -67,8 +67,8 @@ export default function AddressSelectionScreen() {
   const [selectedLat, setSelectedLat] = useState<number | null>(null);
   const [selectedLng, setSelectedLng] = useState<number | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
-  const [mapCenterLat, setMapCenterLat] = useState(24.7136);
-  const [mapCenterLng, setMapCenterLng] = useState(46.6753);
+  const [mapCenterLat, setMapCenterLat] = useState(32.8872);
+  const [mapCenterLng, setMapCenterLng] = useState(13.1913);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
@@ -80,10 +80,17 @@ export default function AddressSelectionScreen() {
 
   useEffect(() => {
   async function loadLinkedOrderAddresses() {
-    const { data: rows, error } = await supabase
-      .from("orders")
-      .select("delivery_address_id")
-      .not("delivery_address_id", "is", null);
+    const customerId = await loadCustomerId().catch(() => null);
+
+if (!customerId) {
+  return;
+}
+
+const { data: rows, error } = await supabase
+  .from("orders")
+  .select("delivery_address_id")
+  .eq("customer_id", customerId)
+  .not("delivery_address_id", "is", null);
 
     if (error) {
       return;
@@ -201,10 +208,11 @@ export default function AddressSelectionScreen() {
     const customerId = await loadCustomerId();
 
     const { data: linkedOrders, error: linkedOrdersError } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("delivery_address_id", addressId)
-      .limit(1);
+  .from("orders")
+  .select("id")
+  .eq("customer_id", customerId)
+  .eq("delivery_address_id", addressId)
+  .limit(1);
 
     if (linkedOrdersError) throw linkedOrdersError;
 
@@ -289,6 +297,7 @@ export default function AddressSelectionScreen() {
 
   return (
     <Screen
+  title="العناوين"
   backHref={backHref}
   backLabel={backLabel}
   contentContainerStyle={{ paddingBottom: 120 }}
@@ -306,12 +315,10 @@ export default function AddressSelectionScreen() {
       <Card>
         <SectionTitle label="إضافة عنوان جديد" />
         <FormInput
-          value={addressForm.line1}
-          onChangeText={updateAddressLine}
-          placeholder="اكتب عنوانك بالتفصيل"
-          multiline
-          numberOfLines={4}
-        />
+  value={addressForm.line1}
+  onChangeText={updateAddressLine}
+  placeholder="اكتب عنوانك"
+/>
 <PrimaryButton
   label="اختيار الموقع من الخريطة"
   variant="secondary"
@@ -319,10 +326,10 @@ export default function AddressSelectionScreen() {
   disabled={creatingAddress || savingAddressId !== null}
 />
         <HelperText tone={selectedLat !== null && selectedLng !== null ? "success" : "info"}>
-          {selectedLat !== null && selectedLng !== null
-            ? `تم تحديد الموقع: ${selectedLat.toFixed(6)}, ${selectedLng.toFixed(6)}`
-            : "لم يتم تحديد الموقع"}
-        </HelperText>
+  {selectedLat !== null && selectedLng !== null
+    ? `Lat: ${selectedLat.toFixed(6)} | Lng: ${selectedLng.toFixed(6)}`
+    : "لم يتم تحديد الموقع"}
+</HelperText>
 
         <PrimaryButton
           label={creatingAddress ? "جارٍ حفظ العنوان..." : "حفظ العنوان"}
@@ -430,14 +437,16 @@ export default function AddressSelectionScreen() {
         </View>
 
         <View style={styles.addressCopy}>
-          <Text style={styles.addressLine}>{formatSavedAddressLine(address)}</Text>
+  <Text style={styles.addressLine}>
+    {formatSavedAddressLine(address)}
+  </Text>
 
-          <Text style={styles.addressMeta}>
-            {hasSavedAddressCoordinates(address)
-              ? "تم تحديد الموقع على الخريطة"
-              : "لم يتم تحديد الموقع"}
-          </Text>
-        </View>
+  <Text style={styles.addressMeta}>
+  {hasSavedAddressCoordinates(address)
+    ? `Lat: ${Number(address.lat).toFixed(4)} | Lng: ${Number(address.lng).toFixed(4)}`
+    : "لم يتم تحديد الموقع"}
+</Text>
+</View>
 
         {isDefault ? (
           <View style={styles.defaultBadge}>
@@ -466,12 +475,6 @@ export default function AddressSelectionScreen() {
         );
       })}
 
-      <Card>
-        <SectionTitle label="الخطوة التالية" />
-        <Text style={styles.nextStepText}>بعد اختيار العنوان أو إضافته يمكنك العودة إلى الدفع أو متابعة تصفح المنتجات.</Text>
-        <PrimaryButton label={nextStepPrimaryLabel} onPress={() => router.replace(backHref as never)} />
-        <PrimaryButton label="متابعة التسوق" variant="secondary" onPress={() => router.push("/search")} />
-      </Card>
     </Screen>
   );
 }
@@ -572,6 +575,11 @@ defaultBadge: {
   paddingVertical: 7,
   borderRadius: 999,
   alignSelf: "flex-start",
+},
+defaultBadgeText: {
+  color: theme.colors.primaryDark,
+  fontSize: theme.typography.caption.sm,
+  fontWeight: "800",
 },
 
 addressCardInner: {

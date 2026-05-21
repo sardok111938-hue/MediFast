@@ -48,6 +48,7 @@ type VendorRow = {
 
   lat: number | null;
   lng: number | null;
+  deliveryRadiusKm: number | null;
 
   approvalStatus: ApprovalStatus;
   isActive: boolean;
@@ -82,6 +83,7 @@ type VendorRpcRow = {
   area: string | null;
   lat: number | string | null;
   lng: number | string | null;
+  delivery_radius_km: number | string | null;
   approval_status: ApprovalStatus;
   is_active: boolean;
 };
@@ -110,6 +112,7 @@ type VendorFormValues = {
   area: string;
   lat: string;
   lng: string;
+  deliveryRadiusKm: string;
   approvalStatus: ApprovalStatus;
 };
 
@@ -127,6 +130,7 @@ const initialVendorFormValues: VendorFormValues = {
   area: "",
   lat: "",
   lng: "",
+  deliveryRadiusKm: "20",
   approvalStatus: "pending",
 };
 
@@ -180,6 +184,7 @@ function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
     area: vendor.area ?? "",
     lat: vendor.lat == null ? "" : String(vendor.lat),
     lng: vendor.lng == null ? "" : String(vendor.lng),
+    deliveryRadiusKm: vendor.deliveryRadiusKm == null ? "20" : String(vendor.deliveryRadiusKm),
     approvalStatus: vendor.approvalStatus,
   };
 }
@@ -202,6 +207,10 @@ function validateVendorForm(values: VendorFormValues) {
   if (lng.error) {
     return { error: lng.error };
   }
+  const deliveryRadius = parseOptionalNumber(values.deliveryRadiusKm);
+if (deliveryRadius.error) {
+  return { error: "قيمة نطاق التوصيل غير صحيحة." };
+}
 
   return {
     error: null,
@@ -219,6 +228,7 @@ function validateVendorForm(values: VendorFormValues) {
       area: values.area.trim(),
       lat: lat.value,
       lng: lng.value,
+      deliveryRadiusKm: deliveryRadius.value ?? 20,
       setLat: lat.provided,
       setLng: lng.provided,
       approvalStatus: values.approvalStatus,
@@ -247,6 +257,7 @@ function mapVendorRow(row: VendorRpcRow): VendorRow {
     area: row.area ?? null,
     lat: row.lat == null ? null : Number(row.lat),
     lng: row.lng == null ? null : Number(row.lng),
+    deliveryRadiusKm: row.delivery_radius_km == null ? null : Number(row.delivery_radius_km),
     approvalStatus: row.approval_status,
     isActive: row.is_active,
   };
@@ -345,6 +356,7 @@ export function AdminVendorsManager() {
   const [selectedProfile, setSelectedProfile] = useState<ProfileSearchResult | null>(null);
   const [editingVendorId, setEditingVendorId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingVendorImage, setUploadingVendorImage] = useState(false);
   const [actingVendorId, setActingVendorId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -436,7 +448,69 @@ export function AdminVendorsManager() {
       phone: current.phone || profile.phone || "",
     }));
   }
+async function handleVendorImageUpload(file: File | null) {
+  if (!file) {
+    return;
+  }
 
+  setFeedback(null);
+
+  if (!file.type.startsWith("image/")) {
+    setFeedback({
+      type: "error",
+      message: "يرجى اختيار ملف صورة صالح.",
+    });
+    return;
+  }
+
+  const maxSizeMb = 5;
+  if (file.size > maxSizeMb * 1024 * 1024) {
+    setFeedback({
+      type: "error",
+      message: "حجم الصورة يجب ألا يتجاوز 5MB.",
+    });
+    return;
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  setUploadingVendorImage(true);
+
+  try {
+    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const safeName = crypto.randomUUID();
+    const path = `vendors/${safeName}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("vendor-images")
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage.from("vendor-images").getPublicUrl(path);
+
+    setFormValues((current) => ({
+      ...current,
+      imageUrl: data.publicUrl,
+    }));
+
+    setFeedback({
+      type: "success",
+      message: "تم رفع صورة المتجر بنجاح.",
+    });
+  } catch (error) {
+    setFeedback({
+      type: "error",
+      message: normalizeError(error),
+    });
+  } finally {
+    setUploadingVendorImage(false);
+  }
+}
   async function handleSaveVendor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback(null);
@@ -754,7 +828,25 @@ try {
 </div>
 
 
-          <div className="field">
+<div className="field">
+  <label htmlFor="vendor-image-upload">صورة المتجر</label>
+  <Input
+    id="vendor-image-upload"
+    type="file"
+    accept="image/*"
+    disabled={uploadingVendorImage || saving}
+    onChange={(event) => {
+      const file = event.target.files?.[0] ?? null;
+      void handleVendorImageUpload(file);
+      event.target.value = "";
+    }}
+  />
+  <p className="muted">
+    {uploadingVendorImage ? "جارٍ رفع الصورة..." : "ارفع صورة للمتجر، وسيتم حفظ الرابط تلقائيًا."}
+  </p>
+</div>
+
+<div className="field">
   <label htmlFor="vendor-image-url">رابط صورة المتجر</label>
   <Input
     id="vendor-image-url"
@@ -765,9 +857,10 @@ try {
         imageUrl: event.target.value,
       }))
     }
-    placeholder="https://..."
+    placeholder="سيظهر الرابط تلقائيًا بعد رفع الصورة"
   />
 </div>
+
 {formValues.imageUrl ? (
   <div className="vendor-image-preview">
     <img
@@ -784,7 +877,6 @@ try {
     />
   </div>
 ) : null}
-
 <div className="field">
   <label htmlFor="vendor-license-number">رقم الترخيص</label>
   <Input
@@ -872,6 +964,25 @@ try {
               placeholder="46.6753"
             />
           </div>
+          <p className="muted">
+  يمكن نسخ الإحداثيات مباشرة من Google Maps.
+</p>
+
+<div className="field">
+  <label htmlFor="vendor-delivery-radius">نطاق التوصيل (كم)</label>
+  <Input
+    id="vendor-delivery-radius"
+    value={formValues.deliveryRadiusKm}
+    onChange={(event) =>
+      setFormValues((current) => ({
+        ...current,
+        deliveryRadiusKm: event.target.value,
+      }))
+    }
+    placeholder="20"
+  />
+  <p className="muted">الحد الأقصى لمسافة التوصيل بالكيلومتر.</p>
+</div>
           <div className="field">
             <label htmlFor="vendor-approval">{t("Approval Status")}</label>
             <select
@@ -890,17 +1001,30 @@ try {
           {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{t(feedback.message)}</p> : null}
           {selectedProfileLinkedElsewhere ? <p className="danger">{t("This profile is already linked to another vendor.")}</p> : null}
 
-          <div className="actions">
-            <Button type="submit" disabled={selectedProfileLinkedElsewhere} loading={saving}>
-              {saving ? "جارٍ الحفظ..." : editingVendorId ? "حفظ تعديلات المتجر" : "حفظ المتجر"}
-            </Button>
-            {editingVendorId ? (
-              <Button type="button" variant="secondary" onClick={resetForm} disabled={saving}>
-                إلغاء التعديل
-              </Button>
-            ) : null}
-          </div>
-        </form>
+<div className="actions">
+  <Button
+    type="submit"
+    disabled={selectedProfileLinkedElsewhere || uploadingVendorImage}
+    loading={saving || uploadingVendorImage}
+  >
+    {saving || uploadingVendorImage
+      ? "جارٍ الحفظ..."
+      : editingVendorId
+        ? "حفظ تعديلات المتجر"
+        : "حفظ المتجر"}
+  </Button>
+
+  {editingVendorId ? (
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={resetForm}
+      disabled={saving || uploadingVendorImage}
+    >
+      إلغاء التعديل
+    </Button>
+  ) : null}
+</div>        </form>
       </Card>
 
       {vendors.length === 0 ? (
@@ -932,13 +1056,16 @@ try {
 
   vendor.phone ?? "-",
 
-  [
-    vendor.addressLine1,
-    vendor.city,
-    vendor.area,
-  ]
-    .filter(Boolean)
-    .join(" • ") || "-",
+[
+  vendor.addressLine1,
+  vendor.city,
+  vendor.area,
+  vendor.deliveryRadiusKm
+    ? `${vendor.deliveryRadiusKm} كم`
+    : null,
+]
+  .filter(Boolean)
+  .join(" • ") || "-",
 
   vendor.licenseNumber || "-",
 

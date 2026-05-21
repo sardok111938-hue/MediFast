@@ -15,98 +15,115 @@ export function VendorSettingsForm({ vendor }: { vendor: VendorSettingsData }) {
   const [city, setCity] = useState(vendor.city);
   const [area, setArea] = useState(vendor.area);
   const [imageUrl, setImageUrl] = useState(vendor.image_url);
+
+  const [lat, setLat] = useState(vendor.lat);
+  const [lng, setLng] = useState(vendor.lng);
+  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(vendor.delivery_radius_km);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-async function resizeImageToSquare(file: File): Promise<Blob> {
-  const image = document.createElement("img");
-  const objectUrl = URL.createObjectURL(file);
+  async function resizeImageToSquare(file: File): Promise<Blob> {
+    const image = document.createElement("img");
+    const objectUrl = URL.createObjectURL(file);
 
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error("تعذر قراءة الصورة."));
-    image.src = objectUrl;
-  });
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("تعذر قراءة الصورة."));
+      image.src = objectUrl;
+    });
 
-  const size = 800;
+    const size = 800;
 
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
 
-  const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
 
-  if (!ctx) {
-    URL.revokeObjectURL(objectUrl);
-    throw new Error("تعذر تجهيز الصورة.");
-  }
-
-  ctx.fillStyle = "#F7FAF8";
-  ctx.fillRect(0, 0, size, size);
-
-  const scale = Math.min(size / image.width, size / image.height);
-
-  const width = image.width * scale;
-  const height = image.height * scale;
-
-  const x = (size - width) / 2;
-  const y = (size - height) / 2;
-
-  ctx.drawImage(image, x, y, width, height);
-
-  URL.revokeObjectURL(objectUrl);
-
-  return await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("تعذر ضغط الصورة."));
-        }
-      },
-      "image/jpeg",
-      0.82,
-    );
-  });
-}
-
-async function handleImageUpload(file: File) {
-  setLoading(true);
-  setMessage("");
-
-  try {
-    const supabase = getSupabaseBrowserClient();
-
-    const optimizedImage = await resizeImageToSquare(file);
-
-    const filePath = `${vendor.id}/profile-${Date.now()}.jpg`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("vendor-images")
-      .upload(filePath, optimizedImage, {
-        contentType: "image/jpeg",
-        upsert: true,
-      });
-
-    if (uploadError) {
-      setMessage(uploadError.message);
-      return;
+    if (!ctx) {
+      URL.revokeObjectURL(objectUrl);
+      throw new Error("تعذر تجهيز الصورة.");
     }
 
-    const { data } = supabase.storage
-      .from("vendor-images")
-      .getPublicUrl(filePath);
+    ctx.fillStyle = "#F7FAF8";
+    ctx.fillRect(0, 0, size, size);
 
-    setImageUrl(data.publicUrl);
+    const scale = Math.min(size / image.width, size / image.height);
 
-    setMessage("تم رفع الصورة. اضغط حفظ لتحديث المتجر.");
-  } catch (error) {
-    setMessage(error instanceof Error ? error.message : "تعذر رفع الصورة.");
-  } finally {
-    setLoading(false);
+    const width = image.width * scale;
+    const height = image.height * scale;
+
+    const x = (size - width) / 2;
+    const y = (size - height) / 2;
+
+    ctx.drawImage(image, x, y, width, height);
+
+    URL.revokeObjectURL(objectUrl);
+
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("تعذر ضغط الصورة."));
+          }
+        },
+        "image/jpeg",
+        0.82,
+      );
+    });
   }
-}
+
+  async function handleImageUpload(file: File) {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      if (!file.type.startsWith("image/")) {
+        setMessage("يرجى اختيار ملف صورة صالح.");
+        setLoading(false);
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage("حجم الصورة يجب ألا يتجاوز 5MB.");
+        setLoading(false);
+        return;
+      }
+
+      const optimizedImage = await resizeImageToSquare(file);
+
+      const filePath = `${vendor.id}/profile-${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("vendor-images")
+        .upload(filePath, optimizedImage, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        setMessage(uploadError.message);
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from("vendor-images")
+        .getPublicUrl(filePath);
+
+      setImageUrl(data.publicUrl);
+
+      setMessage("تم رفع الصورة. اضغط حفظ لتحديث المتجر.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر رفع الصورة.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -127,10 +144,18 @@ async function handleImageUpload(file: File) {
       city: city.trim(),
       area: area.trim(),
       imageUrl: imageUrl.trim(),
+      lat: lat.trim(),
+      lng: lng.trim(),
+      deliveryRadiusKm: deliveryRadiusKm.trim(),
     });
 
     setLoading(false);
-    setMessage(result.success ? "تم حفظ إعدادات المتجر بنجاح." : result.error ?? "تعذر حفظ إعدادات المتجر.");
+
+    setMessage(
+      result.success
+        ? "تم حفظ إعدادات المتجر بنجاح."
+        : result.error ?? "تعذر حفظ إعدادات المتجر.",
+    );
   }
 
   return (
@@ -152,7 +177,7 @@ async function handleImageUpload(file: File) {
             style={{
               width: 96,
               height: 96,
-              objectFit: "contain",
+              objectFit: "cover",
               objectPosition: "center",
               backgroundColor: "#F7FAF8",
               padding: 6,
@@ -179,9 +204,12 @@ async function handleImageUpload(file: File) {
         )}
 
         <div>
-          <strong style={{ display: "block", fontSize: 18 }}>{name || "اسم المتجر"}</strong>
+          <strong style={{ display: "block", fontSize: 18 }}>
+            {name || "اسم المتجر"}
+          </strong>
+
           <p className="muted" style={{ margin: "6px 0 0" }}>
-            أضف رابط صورة مؤقتًا. رفع الصور من الجهاز يمكن إضافته لاحقًا.
+            قم برفع صورة شعار أو واجهة المتجر لتظهر للعملاء داخل التطبيق.
           </p>
         </div>
       </div>
@@ -194,26 +222,84 @@ async function handleImageUpload(file: File) {
           width: "100%",
         }}
       >
-        <Input placeholder="اسم المتجر / الصيدلية" value={name} onChange={(event) => setName(event.target.value)} />
+        <Input
+          placeholder="اسم المتجر / الصيدلية"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+
         <input
-  type="file"
-  accept="image/*"
-  onChange={(event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      void handleImageUpload(file);
-    }
-  }}
-/>
-        <Input placeholder="رقم الهاتف" value={phone} onChange={(event) => setPhone(event.target.value)} />
-        <Input placeholder="المدينة" value={city} onChange={(event) => setCity(event.target.value)} />
-        <Input placeholder="المنطقة" value={area} onChange={(event) => setArea(event.target.value)} />
-        <Input placeholder="العنوان" value={addressLine1} onChange={(event) => setAddressLine1(event.target.value)} />
-        <Input placeholder="وصف مختصر للمتجر" value={description} onChange={(event) => setDescription(event.target.value)} />
+          type="file"
+          accept="image/*"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+
+            if (file) {
+              void handleImageUpload(file);
+            }
+          }}
+        />
+
+        <Input
+          placeholder="رقم الهاتف"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+        />
+
+        <Input
+          placeholder="المدينة"
+          value={city}
+          onChange={(event) => setCity(event.target.value)}
+        />
+
+        <Input
+          placeholder="المنطقة"
+          value={area}
+          onChange={(event) => setArea(event.target.value)}
+        />
+
+        <Input
+          placeholder="العنوان"
+          value={addressLine1}
+          onChange={(event) => setAddressLine1(event.target.value)}
+        />
+
+        <Input
+          placeholder="خط العرض Latitude"
+          value={lat}
+          onChange={(event) => setLat(event.target.value)}
+        />
+
+        <Input
+          placeholder="خط الطول Longitude"
+          value={lng}
+          onChange={(event) => setLng(event.target.value)}
+        />
+
+        <Input
+          placeholder="نطاق التوصيل بالكيلومتر"
+          value={deliveryRadiusKm}
+          onChange={(event) => setDeliveryRadiusKm(event.target.value)}
+        />
+
+        <Input
+          placeholder="وصف مختصر للمتجر"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+        />
       </div>
 
+      <p className="muted" style={{ margin: 0 }}>
+        مثال الإحداثيات:
+        {" "}
+        32.887 / 13.191
+      </p>
+
       {message ? (
-        <p className={message.includes("بنجاح") ? "success" : "danger"} style={{ margin: 0 }}>
+        <p
+          className={message.includes("بنجاح") ? "success" : "danger"}
+          style={{ margin: 0 }}
+        >
           {message}
         </p>
       ) : null}

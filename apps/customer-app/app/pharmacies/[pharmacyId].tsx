@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import type { Product, Vendor } from "@medifast/types";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, Linking } from "react-native";
 import { theme } from "@medifast/ui";
-import type { Product } from "@medifast/types";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../../src/components/CustomerUI";
 import {
@@ -15,7 +15,43 @@ import {
   useCustomerCatalogData,
   getCategoryTheme,
   buildPharmacyCategoryTree,
+  calculateDistanceKm,
+  formatDistanceKm,
+  getPrimaryAddress,
 } from "../../src/lib/customer-catalog";
+
+const dayLabels = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+function formatOpeningTime(value?: string | null) {
+  if (!value) return "";
+
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText ?? 0);
+
+  const suffix = hour >= 12 ? "م" : "ص";
+  const displayHour = hour % 12 || 12;
+
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+function formatOpeningHours(hours?: Vendor["operating_hours"]) {
+  if (!hours || hours.length === 0) {
+    return "ساعات العمل غير متاحة";
+  }
+
+  return [...hours]
+    .sort((left, right) => left.day_of_week - right.day_of_week)
+    .map((hour) => {
+      const day = dayLabels[hour.day_of_week] ?? "";
+      const time = hour.is_closed
+        ? "مغلق"
+        : `${formatOpeningTime(hour.opens_at)} - ${formatOpeningTime(hour.closes_at)}`;
+
+      return `${day}: ${time}`;
+    })
+    .join(" • ");
+}
 
 function getPharmacyProducts(products: Product[], pharmacyId?: string | null) {
   if (!pharmacyId) {
@@ -29,6 +65,49 @@ function getCoverImage(products: Product[]) {
   return products.find((product) => product.image_url)?.image_url ?? null;
 }
 
+function formatCompactOpeningHours(hours?: Vendor["operating_hours"]) {
+  if (!hours || hours.length === 0) {
+    return ["ساعات العمل غير متاحة"];
+  }
+
+  const workingDays = hours.filter((hour) => !hour.is_closed);
+  const fridayHours = workingDays.find((hour) => hour.day_of_week === 5);
+  const otherDays = workingDays.filter((hour) => hour.day_of_week !== 5);
+
+  const lines: string[] = [];
+
+  const firstDay = otherDays[0];
+
+  const sameOtherDays =
+    firstDay &&
+    otherDays.length > 0 &&
+    otherDays.every(
+      (hour) =>
+        hour.opens_at === firstDay.opens_at &&
+        hour.closes_at === firstDay.closes_at,
+    );
+
+  if (sameOtherDays && firstDay) {
+    lines.push(
+      `السبت - الخميس: ${formatOpeningTime(firstDay.opens_at)} - ${formatOpeningTime(firstDay.closes_at)}`,
+    );
+  } else {
+    for (const hour of otherDays) {
+      lines.push(
+        `${dayLabels[hour.day_of_week]}: ${formatOpeningTime(hour.opens_at)} - ${formatOpeningTime(hour.closes_at)}`,
+      );
+    }
+  }
+
+  if (fridayHours) {
+    lines.push(
+      `الجمعة: ${formatOpeningTime(fridayHours.opens_at)} - ${formatOpeningTime(fridayHours.closes_at)}`,
+    );
+  }
+
+  return lines;
+}
+
 export default function PharmacyDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ pharmacyId?: string | string[] }>();
@@ -36,6 +115,7 @@ export default function PharmacyDetailScreen() {
   const { data, loading, error, reload } = useCustomerCatalogData();
   const [isFavourite, setIsFavourite] = useState(false);
   const [favouriteLoading, setFavouriteLoading] = useState(false);
+  const [showOpeningHours, setShowOpeningHours] = useState(false);
 
   useEffect(() => {
     if (!pharmacyId) {
@@ -81,6 +161,26 @@ export default function PharmacyDetailScreen() {
   );
 
   const productCount = pharmacyProducts.length;
+  const primaryAddress = getPrimaryAddress(
+  data.addresses,
+  data.defaultAddressId,
+);
+
+const distanceKm = calculateDistanceKm(
+  primaryAddress,
+  pharmacy,
+);
+
+const estimatedDeliveryFee =
+  distanceKm === null
+    ? null
+    : distanceKm <= 3
+      ? 3
+      : distanceKm <= 8
+        ? 5
+        : distanceKm <= 15
+          ? 8
+          : 12;
 
   if (loading) {
     return (
@@ -151,46 +251,159 @@ export default function PharmacyDetailScreen() {
       </View>
 
       <View style={styles.headerCard}>
-        <View style={styles.titleRow}>
-          <View style={styles.titleCopy}>
-            <Text style={styles.pharmacyName}>{pharmacy.name}</Text>
-            <Text style={styles.pharmacyAddress} numberOfLines={2}>
-              {pharmacy.address || "صيدلية معتمدة"}
-            </Text>
-          </View>
+<View style={styles.titleRow}>
+  <View style={styles.titleCopy}>
+    <Text style={styles.pharmacyName}>{pharmacy.name}</Text>
 
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>{pharmacy.is_open ? "مفتوحة" : "غير متاحة"}</Text>
-          </View>
-        </View>
+    <Text style={styles.pharmacyAddress} numberOfLines={2}>
+      {pharmacy.address || "صيدلية معتمدة"}
+    </Text>
+  </View>
 
-        <View style={styles.quickStats}>
-          <View style={styles.quickStat}>
-            <Ionicons name="cube-outline" size={17} color={theme.colors.primaryDark} />
-            <Text style={styles.quickStatValue}>{productCount}</Text>
-            <Text style={styles.quickStatLabel}>منتج</Text>
-          </View>
+  <View style={styles.statusBlock}>
+    <View
+      style={[
+        styles.statusPill,
+        pharmacy.is_open
+          ? styles.statusPillOpen
+          : styles.statusPillClosed,
+      ]}
+    >
+      <Text
+        style={[
+          styles.statusText,
+          pharmacy.is_open
+            ? styles.statusTextOpen
+            : styles.statusTextClosed,
+        ]}
+      >
+        {pharmacy.is_open ? "مفتوحة الآن" : "مغلقة حالياً"}
+      </Text>
+    </View>
 
-          <View style={styles.quickStatDivider} />
+    <Pressable
+      style={styles.hoursToggle}
+      onPress={() =>
+        setShowOpeningHours((current) => !current)
+      }
+    >
+      <Ionicons
+        name="time-outline"
+        size={14}
+        color={theme.colors.primaryDark}
+      />
 
-          <View style={styles.quickStat}>
-            <Ionicons name="grid-outline" size={17} color={theme.colors.primaryDark} />
-            <Text style={styles.quickStatValue}>{categoryCards.length}</Text>
-            <Text style={styles.quickStatLabel}>فئات</Text>
-          </View>
+      <Text style={styles.hoursToggleText}>
+  عن الصيدلية
+</Text>
 
-          <View style={styles.quickStatDivider} />
+      <Ionicons
+        name={
+          showOpeningHours
+            ? "chevron-up"
+            : "chevron-down"
+        }
+        size={14}
+        color={theme.colors.primaryDark}
+      />
+    </Pressable>
+  </View>
+</View>
 
-          <View style={styles.quickStat}>
-            <Ionicons name="time-outline" size={17} color={theme.colors.primaryDark} />
-            <Text style={styles.quickStatValue}>30-45</Text>
-            <Text style={styles.quickStatLabel}>دقيقة</Text>
-          </View>
-        </View>
-      </View>
+{showOpeningHours ? (
+  <View style={styles.openingHoursDropdown}>
+    <Text style={styles.aboutSectionTitle}>ساعات العمل</Text>
+{formatCompactOpeningHours(pharmacy.operating_hours).map((line) => (
+  <Text key={line} style={styles.inlineOpeningHours}>
+    {line}
+  </Text>
+))}
 
-      <View style={styles.sectionHeader}>
-        <SectionTitle label="الفئات المتاحة" />
+    {pharmacy.phone ? (
+      <>
+        <View style={styles.aboutDivider} />
+
+        <Text style={styles.aboutSectionTitle}>التواصل</Text>
+
+        <Pressable
+          style={styles.contactRow}
+          onPress={() => {
+            void Linking.openURL(`tel:${pharmacy.phone}`);
+          }}
+        >
+          <Ionicons name="call-outline" size={15} color={theme.colors.primaryDark} />
+
+          <Text style={styles.inlineOpeningHours}>
+            الهاتف: {pharmacy.phone}
+          </Text>
+        </Pressable>
+      </>
+    ) : null}
+  </View>
+) : null}
+
+<View style={styles.quickStats}>
+  <View style={styles.quickStat}>
+    <Ionicons name="cube-outline" size={17} color={theme.colors.primaryDark} />
+    <Text style={styles.quickStatValue}>{productCount}</Text>
+    <Text style={styles.quickStatLabel}>منتج</Text>
+  </View>
+
+  <View style={styles.quickStatDivider} />
+
+  <View style={styles.quickStat}>
+    <Ionicons name="grid-outline" size={17} color={theme.colors.primaryDark} />
+    <Text style={styles.quickStatValue}>{categoryCards.length}</Text>
+    <Text style={styles.quickStatLabel}>فئات</Text>
+  </View>
+
+  <View style={styles.quickStatDivider} />
+
+<View style={styles.quickStat}>
+  <Ionicons
+    name="location-outline"
+    size={17}
+    color={theme.colors.primaryDark}
+  />
+
+  <Text style={styles.quickStatValue}>
+    {distanceKm !== null
+      ? formatDistanceKm(distanceKm)
+      : "—"}
+  </Text>
+
+  <Text style={styles.quickStatLabel}>
+    المسافة
+  </Text>
+</View>
+
+<View style={styles.quickStatDivider} />
+
+<View style={styles.quickStat}>
+  <Ionicons
+    name="bicycle-outline"
+    size={17}
+    color={theme.colors.primaryDark}
+  />
+
+  <Text style={styles.quickStatValue}>
+    {estimatedDeliveryFee !== null
+      ? `${estimatedDeliveryFee} د.ل`
+      : "—"}
+  </Text>
+
+  <Text style={styles.quickStatLabel}>
+    التوصيل
+  </Text>
+</View>
+
+
+</View>
+
+</View>
+
+<View style={styles.sectionHeader}>
+          <SectionTitle label="الفئات المتاحة" />
         <Text style={styles.sectionHint}>اختر فئة لعرض المنتجات من كل الصيدليات</Text>
       </View>
 
@@ -321,7 +534,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     padding: theme.spacing[16],
-    gap: theme.spacing[14],
+    gap: theme.spacing[16],
   },
   titleRow: {
     flexDirection: "row-reverse",
@@ -361,7 +574,7 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     borderRadius: 20,
     backgroundColor: "#F7FAF8",
-    padding: theme.spacing[10],
+    padding: theme.spacing[12],
   },
   quickStat: {
     flex: 1,
@@ -423,5 +636,83 @@ categoryDescription: {
   fontSize: 10,
   fontWeight: "800",
   textAlign: "center",
+},
+statusPillOpen: {
+  backgroundColor: "#E4F4EA",
+  borderWidth: 1,
+  borderColor: "#CDEBDD",
+},
+
+statusPillClosed: {
+  backgroundColor: "#FDECEC",
+  borderWidth: 1,
+  borderColor: "#F5CACA",
+},
+
+statusTextOpen: {
+  color: "#127244",
+},
+
+statusTextClosed: {
+  color: "#B42318",
+},
+statusBlock: {
+  alignItems: "flex-end",
+  gap: 8,
+},
+
+openingHoursDropdown: {
+  borderRadius: 16,
+  backgroundColor: "#F7FAF8",
+  borderWidth: 1,
+  borderColor: "#E3EEE7",
+  padding: theme.spacing[12],
+  gap: 6,
+  alignItems: "flex-end",
+},
+
+hoursToggle: {
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  gap: 5,
+  paddingVertical: 4,
+},
+
+hoursToggleText: {
+  color: theme.colors.primaryDark,
+  fontSize: 11,
+  fontWeight: "900",
+},
+
+inlineOpeningHours: {
+  color: theme.colors.muted,
+  fontSize: 11,
+  fontWeight: "700",
+  lineHeight: 18,
+  textAlign: "right",
+},
+openingHoursList: {
+  gap: 4,
+  alignItems: "flex-end",
+},
+contactRow: {
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 6,
+  marginTop: 10,
+},
+aboutSectionTitle: {
+  color: theme.colors.text,
+  fontSize: 12,
+  fontWeight: "900",
+  textAlign: "right",
+},
+
+aboutDivider: {
+  height: 1,
+  alignSelf: "stretch",
+  backgroundColor: "#E3EEE7",
+  marginVertical: 6,
 },
 });

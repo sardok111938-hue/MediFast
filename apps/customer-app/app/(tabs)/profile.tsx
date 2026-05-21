@@ -116,9 +116,9 @@ export default function ProfileScreen() {
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user;
 
-      if (!user) {
-        return;
-      }
+if (!user) {
+  return;
+}
 
       setEmail(user.email ?? "customer@example.com");
 
@@ -175,7 +175,11 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Screen contentContainerStyle={{ paddingBottom: 120 }}>
+    <Screen
+  title="الملف الشخصي"
+  subtitle="إدارة الحساب والعناوين والطلبات المحفوظة."
+  contentContainerStyle={{ paddingBottom: 120 }}
+>
       {loading ? <LoadingCard message="جارٍ تحميل بيانات الحساب..." /> : null}
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
         
@@ -262,8 +266,26 @@ export default function ProfileScreen() {
             icon="receipt-outline"
             label="سجل الطلبات"
             value="مراجعة الطلبات السابقة بالتفصيل"
-            onPress={() => router.push("/order-history")}
+            onPress={() => router.push("/(tabs)/orders")}
           />
+
+          <View style={styles.rowDivider} />
+
+<SettingRow
+  icon="heart-outline"
+  label="المفضلة"
+  value="المنتجات المحفوظة للرجوع إليها بسرعة"
+  onPress={() => router.push("/favorites")}
+/>
+
+<View style={styles.rowDivider} />
+
+<SettingRow
+  icon="storefront-outline"
+  label="صيدلياتي المفضلة"
+  value="الصيدليات التي تحفظها للطلب السريع"
+  onPress={() => router.push("/favorite-pharmacies")}
+/>
         </Card>
       </View>
 
@@ -301,6 +323,14 @@ heroName: {
   fontWeight: "800",
   textAlign: "right",
   lineHeight: 36,
+},
+heroHeader: {
+  alignItems: "flex-end",
+  gap: theme.spacing[8],
+},
+
+profileInfoPanel: {
+  gap: theme.spacing[12],
 },
   sectionCard: {
   backgroundColor: theme.colors.surface,
@@ -396,7 +426,7 @@ heroName: {
   rowDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: theme.colors.border,
-    marginHorizontal: theme.spacing[10],
+    marginHorizontal: theme.spacing[12],
     opacity: 0.6,
   },
   logoutButton: {
@@ -408,7 +438,7 @@ heroName: {
   flexDirection: "row-reverse",
   alignItems: "center",
   justifyContent: "center",
-  gap: theme.spacing[10],
+  gap: theme.spacing[12],
   marginTop: 4,
 },
   logoutButtonPressed: {
