@@ -87,6 +87,7 @@ export interface VendorOperatingHour {
 export interface Vendor {
   id: string;
   name: string;
+  phone?: string | null;
   address: string;
   rating: number;
   eta_minutes: number;
