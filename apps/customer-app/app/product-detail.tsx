@@ -5,7 +5,7 @@ import { theme } from "@medifast/ui";
 import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, Pill, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../src/components/CustomerUI";
 import { addProductToCart } from "../src/lib/cart-store";
 import { getCategoryPathLabel, getProductById, getVendorById, useCustomerCatalogData } from "../src/lib/customer-catalog";
-import { formatCustomerCurrency } from "../src/lib/customer-orders";
+import { formatCustomerCurrency } from "../src/features/orders/customer-orders";
 import { CatalogImage } from "../src/components/CatalogImage";
 
 export default function ProductDetailScreen() {

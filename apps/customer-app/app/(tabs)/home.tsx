@@ -9,7 +9,8 @@ import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle 
 import {
   listCustomerFavoriteVendorIds,
   toggleCustomerFavoriteVendor,
-} from "../../src/lib/vendor-favorites";
+} from "../../src/features/favorites/vendor-favorites";
+
 import {
   buildPharmacyCategoryTree,
   getCategoryIcon,

@@ -14,8 +14,8 @@ import {
 } from "react-native";
 import { CatalogImage } from "./CatalogImage";
 import { addProductToCart } from "../lib/cart-store";
-import { formatCustomerCurrency } from "../lib/customer-orders";
-import { isFavoriteProduct, toggleFavoriteProduct } from "../lib/favorites";
+import { formatCustomerCurrency } from "../features/orders/customer-orders";
+import { isFavoriteProduct, toggleFavoriteProduct } from "../features/favorites/favorites";
 
 type CustomerProductCardProps = {
   product: Product;

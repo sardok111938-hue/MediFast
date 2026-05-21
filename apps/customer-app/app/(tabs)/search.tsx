@@ -6,7 +6,7 @@ import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, SearchInput } from "../../src/components/CustomerUI";
 import { filterProducts, getVendorById, useCustomerCatalogData } from "../../src/lib/customer-catalog";
-import { formatCustomerCurrency } from "../../src/lib/customer-orders";
+import { formatCustomerCurrency } from "../../src/features/orders/customer-orders";
 import { addProductToCart } from "../../src/lib/cart-store";
 
 type SearchFilter = "relevant" | "available" | "cheaper";

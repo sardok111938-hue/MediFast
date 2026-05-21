@@ -12,7 +12,7 @@ import {
   useCustomerCart,
 } from "../../src/lib/cart-store";
 import { useCartFreshness } from "../../src/lib/cart-freshness";
-import { formatCustomerCurrency } from "../../src/lib/customer-orders";
+import { formatCustomerCurrency } from "../../src/features/orders/customer-orders";
 import { CatalogImage } from "../../src/components/CatalogImage";
 
 export default function CartScreen() {
