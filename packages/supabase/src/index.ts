@@ -59,4 +59,5 @@ export async function upsertCustomerProfile(client: SupabaseClient, authUserId: 
 
 export const storageBuckets = {
   productImages: "product-images",
+  prescriptions: "prescriptions",
 };

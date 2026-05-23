@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { CustomerProductCard } from "../../src/components/CustomerProductCard";
@@ -27,11 +27,10 @@ import type { ComponentProps } from "react";
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 const heroContent = {
-  title: "اطلب دواءك بسهولة",
-  subtitle: "صيدليات موثوقة وتوصيل سريع",
-  image:
-    "https://static.wixstatic.com/media/11062b_fa8407d9fd264511b7461f607519747c~mv2.jpg/v1/fill/w_740,h_493,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/11062b_fa8407d9fd264511b7461f607519747c~mv2.jpg",
+  title: "من الصيدلية إليك مباشرة",
 };
+
+const shifaLogo = require("../../assets/images/shifa-logo.jpg");
 
 function getVendorProducts<T extends { vendor_id: string }>(products: T[], vendorId: string) {
   return products.filter((product) => product.vendor_id === vendorId);
@@ -122,7 +121,6 @@ useEffect(() => {
   }
 
 const promotedVendor = catalog.vendors[0] ?? null;
-const heroIllustrationUrl = heroContent.image;
 const parentCategories = useMemo(
     () => buildPharmacyCategoryTree(catalog.categories).parents,
     [catalog.categories],
@@ -134,7 +132,7 @@ const parentCategories = useMemo(
   }, [catalog.products]);
 
   return (
-    <Screen title="" subtitle="">
+    <Screen>
       <Pressable
         style={styles.heroBanner}
         onPress={() =>
@@ -148,40 +146,77 @@ const parentCategories = useMemo(
           )
         }
       >
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroTitle} numberOfLines={2}>
-            {heroContent.title}
-          </Text>
-<Text style={styles.heroText} numberOfLines={1}>
-  {catalog.vendors.length} {heroContent.subtitle}
-</Text>
-        </View>
+<View style={styles.heroContent}>
+  <View style={styles.heroTopRow}>
+    <View style={styles.heroCopy}>
+      <Text style={styles.heroTitle} numberOfLines={2}>
+        {heroContent.title}
+      </Text>
+    </View>
 
-        <CatalogImage
-          uri={heroIllustrationUrl}
-          alt={promotedVendor?.name ?? "صيدلية"}
-          fallbackLabel="MediFast"
-          containerStyle={styles.heroImageWrap}
-          imageStyle={styles.heroImage}
-        />
-      </Pressable>
+    <View style={styles.heroLogoWrap}>
+      <Image
+        source={shifaLogo}
+        style={styles.heroLogoImage}
+        resizeMode="cover"
+      />
+    </View>
+  </View>
 
-      <View style={styles.searchBox}>
-        <Pressable onPress={openSearch}>
-          <Ionicons name="search-outline" size={20} color={theme.colors.muted} />
-        </Pressable>
+  <View style={styles.heroActionsRow}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.heroActionButton,
+        pressed ? styles.heroActionPressed : null,
+      ]}
+      onPress={() => router.push("/prescriptions/new")}
+    >
+      <Ionicons
+        name="document-text-outline"
+        size={16}
+        color={theme.colors.primaryDark}
+      />
 
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="ابحث عن دواء أو منتج"
-          placeholderTextColor={theme.colors.muted}
-          style={styles.searchInput}
-          textAlign="right"
-          returnKeyType="search"
-          onSubmitEditing={openSearch}
-        />
-      </View>
+      <Text style={styles.heroActionText}>رفع وصفة</Text>
+    </Pressable>
+
+    <Pressable
+      style={({ pressed }) => [
+        styles.heroActionButton,
+        pressed ? styles.heroActionPressed : null,
+      ]}
+      onPress={openSearch}
+    >
+      <Ionicons
+        name="search-outline"
+        size={16}
+        color={theme.colors.primaryDark}
+      />
+
+      <Text style={styles.heroActionText}>ابحث</Text>
+    </Pressable>
+  </View>
+</View>
+</Pressable>
+
+{/*
+<View style={styles.searchBox}>
+  <Pressable onPress={openSearch}>
+    <Ionicons name="search-outline" size={20} color={theme.colors.muted} />
+  </Pressable>
+
+  <TextInput
+    value={search}
+    onChangeText={setSearch}
+    placeholder="ابحث عن دواء أو منتج"
+    placeholderTextColor={theme.colors.muted}
+    style={styles.searchInput}
+    textAlign="right"
+    returnKeyType="search"
+    onSubmitEditing={openSearch}
+  />
+</View>
+*/}
 
       {loading ? <LoadingCard message="جارٍ تحميل المنتجات..." /> : null}
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
@@ -441,69 +476,42 @@ const parentCategories = useMemo(
 
 
 const styles = StyleSheet.create({
-  heroBanner: {
-    minHeight: 96,
-    borderRadius: 24,
-    paddingVertical: theme.spacing[12],
-    paddingHorizontal: theme.spacing[16],
-    backgroundColor: "#ECF8F1",
-    borderWidth: 1,
-    borderColor: "#D7ECDD",
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: theme.spacing[12],
-    overflow: "hidden",
-  },
-  heroCopy: {
-    flex: 1,
-    gap: 8,
-  },
-  heroKicker: {
-    color: theme.colors.primaryDark,
-    fontSize: theme.typography.caption.sm,
-    fontWeight: "900",
-    textAlign: "right",
-  },
-  heroTitle: {
-    color: theme.colors.text,
-    fontSize: theme.typography.heading.md,
-    lineHeight: 23,
-    fontWeight: "900",
-    textAlign: "right",
-  },
-  heroText: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.caption.md,
-    fontWeight: "700",
-    textAlign: "right",
-  },
-  heroImageWrap: {
-    width: 120,
-    height: 130,
-    borderRadius: 30,
-    backgroundColor: "rgba(255,255,255,0.82)",
-    shadowColor: theme.shadows.card.shadowColor,
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
-  },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-  },
-  searchBox: {
-    minHeight: 54,
-    marginTop: theme.spacing[12],
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing[12],
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: theme.spacing[8],
-  },
+heroBanner: {
+  marginTop: 6,
+  minHeight: 62,
+  borderRadius: 20,
+  paddingVertical: 8,
+  paddingHorizontal: 14,
+  backgroundColor: "#ECF8F1",
+  borderWidth: 1,
+  borderColor: "#D7ECDD",
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  overflow: "hidden",
+},
+
+heroCopy: {
+  flex: 1,
+  alignItems: "flex-end",
+  justifyContent: "center",
+},
+heroTitle: {
+  color: theme.colors.primaryDark,
+  fontSize: 17,
+  lineHeight: 26,
+  fontWeight: "900",
+  letterSpacing: 0.3,
+  textAlign: "right",
+},
+
+heroText: {
+  color: theme.colors.muted,
+  fontSize: theme.typography.caption.sm,
+  fontWeight: "700",
+  textAlign: "right",
+},
   searchInput: {
     flex: 1,
     color: theme.colors.text,
@@ -768,5 +776,89 @@ const styles = StyleSheet.create({
   shadowOffset: { width: 0, height: 3 },
 
   elevation: 3,
+},
+quickActionsRow: {
+  marginTop: theme.spacing[10],
+  flexDirection: "row-reverse",
+  gap: 10,
+},
+
+quickActionButton: {
+  flex: 1,
+  minHeight: 46,
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: "#D7ECDD",
+  backgroundColor: "#F7FBF8",
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 7,
+},
+
+quickActionButtonPressed: {
+  opacity: 0.86,
+  transform: [{ scale: 0.99 }],
+},
+
+quickActionText: {
+  color: theme.colors.primaryDark,
+  fontSize: theme.typography.caption.md,
+  fontWeight: "900",
+  textAlign: "center",
+},
+heroLogoWrap: {
+  width: 86,
+  height: 68,
+  marginBottom: -32,
+  borderRadius: 16,
+  backgroundColor: "#FFFFFF",
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+},
+
+heroLogoImage: {
+  width: "100%",
+  height: "100%",
+},
+heroActionsRow: {
+  marginTop: 2,
+  flexDirection: "row-reverse",
+  gap: 8,
+},
+
+heroActionButton: {
+  minHeight: 35,
+  borderRadius: 999,
+  paddingHorizontal: 10,
+  backgroundColor: "#FFFFFF",
+  borderWidth: 1,
+  borderColor: "#D7ECDD",
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 4,
+},
+
+heroActionPressed: {
+  opacity: 0.86,
+},
+
+heroActionText: {
+  color: theme.colors.primaryDark,
+  fontSize: 12,
+  fontWeight: "900",
+},
+heroTopRow: {
+  width: "100%",
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+},
+heroContent: {
+  flex: 1,
+  justifyContent: "center",
 },
 });

@@ -2,6 +2,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
+import Constants from "expo-constants";
 
 export async function registerDriverPushToken(driverId: string) {
   if (!Device.isDevice) {
@@ -30,7 +31,9 @@ export async function registerDriverPushToken(driverId: string) {
   let token: string | null = null;
 
   try {
-    const tokenResponse = await Notifications.getExpoPushTokenAsync();
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({
+  projectId: Constants.expoConfig?.extra?.eas?.projectId,
+});
     token = tokenResponse.data;
   } catch (error) {
     console.log("DRIVER PUSH TOKEN FETCH ERROR", error);

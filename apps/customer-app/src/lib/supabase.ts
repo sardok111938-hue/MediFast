@@ -155,6 +155,35 @@ export function subscribeToCustomerOrders(
     .subscribe();
 }
 
+export function subscribeToCustomerPrescriptionRequests(
+  customerId: string,
+  onChange: (payload: unknown) => void
+) {
+  return supabase
+    .channel(`customer-prescriptions-${customerId}-${Date.now()}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "prescription_requests",
+        filter: `customer_id=eq.${customerId}`,
+      },
+      onChange
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "prescription_quotes",
+        filter: `customer_id=eq.${customerId}`,
+      },
+      onChange
+    )
+    .subscribe();
+}
+
 export function subscribeToOrderTracking(
   orderId: string,
   onChange: (payload: unknown) => void

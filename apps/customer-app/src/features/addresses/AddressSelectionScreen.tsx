@@ -126,12 +126,6 @@ const { data: rows, error } = await supabase
     setAddressForm({ line1: value });
   }
 
-  function navigateAfterSuccess() {
-    if (from === "checkout") {
-      router.replace("/checkout");
-    }
-  }
-
   async function openMapPicker() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
@@ -191,7 +185,21 @@ const { data: rows, error } = await supabase
       setSelectedAddressId(addressId);
       setSaveSuccess("تم اختيار عنوان التوصيل بنجاح.");
       await reload();
-      navigateAfterSuccess();
+      if (from === "checkout") {
+  router.replace("/checkout");
+  return;
+}
+
+if (from === "prescription") {
+  router.replace({
+    pathname: "/prescriptions/new",
+    params: {
+      selectedAddressId: addressId,
+    },
+  });
+
+  return;
+}
     } catch (nextError) {
       setSaveError(normalizeAddressError(nextError, "تعذر حفظ العنوان."));
     } finally {
@@ -287,7 +295,21 @@ const { data: rows, error } = await supabase
       setSelectedAddressId(createdAddressId);
       setSaveSuccess("تمت إضافة العنوان وتعيينه عنوانًا افتراضيًا.");
       await reload();
-      navigateAfterSuccess();
+      if (from === "checkout") {
+  router.replace("/checkout");
+  return;
+}
+
+if (from === "prescription") {
+  router.replace({
+    pathname: "/prescriptions/new",
+    params: {
+      selectedAddressId: createdAddressId,
+    },
+  });
+
+  return;
+}
     } catch (nextError) {
       setSaveError(normalizeAddressError(nextError, "تعذر إضافة العنوان الجديد."));
     } finally {

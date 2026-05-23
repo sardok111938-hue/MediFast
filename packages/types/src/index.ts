@@ -16,6 +16,13 @@ export type OrderStatus =
 export type PaymentMethod = "cash_on_delivery";
 export type PaymentStatus = "pending" | "collected";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export type PrescriptionRequestStatus =
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "cancelled";
+  
 export function formatOrderNumber(orderId?: string | null) {
   if (!orderId) {
     return "—";
@@ -134,6 +141,47 @@ export interface Address {
   created_at?: string;
 }
 
+export interface PrescriptionRequest {
+  id: string;
+  customer_id: string;
+  vendor_id: string;
+  address_id: string;
+  image_path: string;
+  note: string | null;
+  vendor_note: string | null;
+  status: PrescriptionRequestStatus;
+  created_at: string;
+  updated_at: string;
+  responded_at: string | null;
+}
+
+export interface PrescriptionQuote {
+  id: string;
+  prescription_request_id: string;
+  vendor_id: string;
+  customer_id: string;
+  status: PrescriptionQuoteStatus;
+  vendor_note: string | null;
+  customer_note: string | null;
+  subtotal: number;
+  created_at: string;
+  updated_at: string;
+  accepted_at: string | null;
+}
+
+export interface PrescriptionQuoteItem {
+  id: string;
+  quote_id: string;
+  product_id: string | null;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  availability_status: PrescriptionQuoteItemAvailability;
+  note: string | null;
+  created_at: string;
+}
+
 export interface CartItem {
   id: string;
   product_id: string;
@@ -183,3 +231,15 @@ export interface DashboardStat {
   value: string;
   hint: string;
 }
+
+export type PrescriptionQuoteStatus =
+  | "draft"
+  | "sent"
+  | "accepted"
+  | "rejected"
+  | "expired";
+
+export type PrescriptionQuoteItemAvailability =
+  | "available"
+  | "unavailable"
+  | "substitute";

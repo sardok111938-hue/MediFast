@@ -21,6 +21,7 @@ export type CustomerOrder = {
   paymentStatus: string;
   orderStatus: string;
   createdAt: string;
+  deliveredAt: string | null;
   driverName: string | null;
   driverPhone: string | null;
   driverVehicleType: string | null;
@@ -56,6 +57,7 @@ type CustomerOrderQueryRow = {
   payment_status?: unknown;
   order_status?: unknown;
   created_at?: unknown;
+  delivered_at?: unknown;
   vendor?: SingleRecord<{ name?: string }>;
   address?: SingleRecord<{ line_1?: string; lat?: number | null; lng?: number | null }>;
   driver?: SingleRecord<{
@@ -145,6 +147,7 @@ function mapOrder(order: CustomerOrderQueryRow): CustomerOrder {
     paymentStatus: String(order.payment_status ?? ""),
     orderStatus: String(order.order_status ?? ""),
     createdAt: String(order.created_at ?? ""),
+    deliveredAt: order.delivered_at ? String(order.delivered_at) : null,
     driverName:
   driverProfile?.full_name?.trim()
     ? driverProfile.full_name
@@ -384,6 +387,7 @@ const CUSTOMER_ORDER_SELECT = `
   payment_status,
   order_status,
   created_at,
+  delivered_at,
   vendor:vendors(name),
   address:addresses!orders_delivery_address_id_fkey(
     line_1,

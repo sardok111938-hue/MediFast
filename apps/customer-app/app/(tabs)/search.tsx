@@ -124,13 +124,52 @@ if (!trimmedQuery) {
 
       {!loading && !error ? (
         <>
-          {query.trim().length === 0 ? (
-  <EmptyCard
-    title="ابحث عن دواء أو منتج"
-    message="ابدأ بكتابة اسم المنتج أو الدواء للبحث."
-  />
-) : results.length === 0 ? (
-            <EmptyCard
+{query.trim().length === 0 ? (
+  <View style={styles.searchGuideCard}>
+    <View style={styles.searchGuideIcon}>
+      <Ionicons name="search-outline" size={24} color={theme.colors.primaryDark} />
+    </View>
+
+    <Text style={styles.suggestedTitle}>عمّا تبحث اليوم؟</Text>
+
+    <Text style={styles.suggestedSubtitle}>
+      اختر من الاقتراحات السريعة أو اكتب اسم الدواء في الأعلى
+    </Text>
+
+    <View style={styles.quickSearchGrid}>
+{[
+  { label: "مسكنات", icon: "medkit-outline" },
+  { label: "فيتامينات", icon: "nutrition-outline" },
+  { label: "أدوية البرد", icon: "thermometer-outline" },
+  { label: "قياس السكر", icon: "fitness-outline" },
+  { label: "العناية بالبشرة", icon: "sparkles-outline" },
+  { label: "الحساسية", icon: "leaf-outline" },
+  { label: "المعدة", icon: "body-outline" },
+  { label: "الأطفال", icon: "happy-outline" },
+  { label: "الشعر", icon: "cut-outline" },
+  { label: "الجروح", icon: "bandage-outline" },
+  { label: "العيون", icon: "eye-outline" },
+  { label: "الضغط", icon: "heart-outline" },
+].map((item) => (        <Pressable
+          key={item.label}
+          style={({ pressed }) => [
+            styles.quickSearchChip,
+            pressed ? styles.quickSearchChipPressed : null,
+          ]}
+          onPress={() => setQuery(item.label)}
+        >
+          <Ionicons
+            name={item.icon as keyof typeof Ionicons.glyphMap}
+            size={17}
+            color={theme.colors.primaryDark}
+          />
+
+          <Text style={styles.quickSearchText}>{item.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  </View>
+) : results.length === 0 ? (              <EmptyCard
               title="لا توجد نتائج"
               message="جرّب كلمة مختلفة أو امسح البحث."
               action={<PrimaryButton label="مسح البحث" onPress={() => setQuery("")} />}
@@ -401,5 +440,80 @@ clearSearchButton: {
   alignItems: "center",
   justifyContent: "center",
   zIndex: 10,
+},
+searchGuideCard: {
+  marginTop: theme.spacing[24],
+  borderRadius: 28,
+  borderWidth: 1,
+  borderColor: "#DDEBE2",
+  backgroundColor: "#F7FBF8",
+  paddingHorizontal: theme.spacing[18],
+  paddingVertical: theme.spacing[22],
+  alignItems: "center",
+  shadowColor: theme.shadows.card.shadowColor,
+  shadowOpacity: 0.05,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 7 },
+  elevation: 1,
+},
+
+searchGuideIcon: {
+  width: 52,
+  height: 52,
+  borderRadius: 26,
+  backgroundColor: theme.colors.accent,
+  alignItems: "center",
+  justifyContent: "center",
+  marginBottom: theme.spacing[12],
+},
+
+suggestedTitle: {
+  color: theme.colors.text,
+  fontSize: theme.typography.heading.md,
+  fontWeight: "900",
+  textAlign: "center",
+},
+
+suggestedSubtitle: {
+  marginTop: 6,
+  marginBottom: theme.spacing[18],
+  color: theme.colors.muted,
+  fontSize: theme.typography.caption.md,
+  lineHeight: 20,
+  fontWeight: "700",
+  textAlign: "center",
+},
+
+quickSearchGrid: {
+  width: "100%",
+  flexDirection: "row-reverse",
+  flexWrap: "wrap",
+  justifyContent: "center",
+  gap: theme.spacing[10],
+},
+
+quickSearchChip: {
+  minHeight: 42,
+  borderRadius: 999,
+  borderWidth: 1,
+  borderColor: "#D7ECDD",
+  backgroundColor: theme.colors.surface,
+  paddingHorizontal: theme.spacing[12],
+  paddingVertical: theme.spacing[9],
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  gap: 6,
+},
+
+quickSearchChipPressed: {
+  opacity: 0.82,
+  transform: [{ scale: 0.98 }],
+},
+
+quickSearchText: {
+  color: theme.colors.primaryDark,
+  fontSize: theme.typography.caption.md,
+  fontWeight: "900",
+  textAlign: "center",
 },
 });

@@ -6,7 +6,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "expo-notifications"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.medifast.customer"
@@ -16,6 +19,13 @@
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bd7cfa35-229b-4966-8b6d-526c14f5bed8"
+      }
+    },
+    "owner": "sardokky"
   }
 }

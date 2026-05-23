@@ -24,6 +24,7 @@ export const ADMIN_ROUTES = [
 export const VENDOR_ROUTES = [
   { href: "/vendor", label: "Dashboard" },
   { href: "/vendor/orders", label: "Orders" },
+  { href: "/vendor/prescriptions", label: "الوصفات الطبية" },
   { href: "/vendor/products", label: "Products" },
   { href: "/vendor/inventory", label: "Inventory" },
 ] as const;

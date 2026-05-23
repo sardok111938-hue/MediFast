@@ -271,6 +271,15 @@ if (!user) {
 
           <View style={styles.rowDivider} />
 
+          <SettingRow
+            icon="document-text-outline"
+            label="رفع وصفة طبية"
+            value="إرسال صورة الوصفة إلى صيدلية قريبة"
+            onPress={() => router.push("/prescriptions/new")}
+          />
+
+          <View style={styles.rowDivider} />
+
 <SettingRow
   icon="heart-outline"
   label="المفضلة"

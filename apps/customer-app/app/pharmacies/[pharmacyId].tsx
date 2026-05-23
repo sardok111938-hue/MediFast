@@ -404,7 +404,7 @@ const estimatedDeliveryFee =
 
 <View style={styles.sectionHeader}>
           <SectionTitle label="الفئات المتاحة" />
-        <Text style={styles.sectionHint}>اختر فئة لعرض المنتجات من كل الصيدليات</Text>
+        <Text style={styles.sectionHint}>اختر فئة لعرض منتجات هذه الصيدلية فقط</Text>
       </View>
 
       {categoryCards.length === 0 ? (
