@@ -32,6 +32,8 @@ import {
 import type { AdminProductManagerData, AsyncState, ProductFormValues } from "../shared/admin-types";
 import { normalizeError } from "../shared/admin-utils";
 
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+
 function mapProductRow(product: Record<string, unknown>): ProductRow {
   return {
     id: String(product.id),
@@ -40,6 +42,7 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     name: String(product.name),
     description: product.description ? String(product.description) : null,
     price: Number(product.price ?? 0),
+    low_stock_threshold: Number(product.low_stock_threshold ?? DEFAULT_LOW_STOCK_THRESHOLD),
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
@@ -78,6 +81,7 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
     barcode,
     is_active,
     image_url,
+    low_stock_threshold,
     resolved_image_url
   `)
   .eq("is_active", true)
@@ -690,12 +694,49 @@ function AdminProductsManager() {
       ) : (
         <Table
           title="المنتجات"
-          headers={["الاسم", "الفئة", "السعر", "الإجراءات"]}
+          headers={["الاسم", "الفئة", "السعر", "المخزون", "الإجراءات"]}
           rows={products.map((product) => [
-            product.name,
+            <div key={product.id} className="stack-xs">
+  <span>{product.name}</span>
+
+  {(product.stock_quantity ?? 0) <=
+  (product.low_stock_threshold ?? DEFAULT_LOW_STOCK_THRESHOLD) ? (
+    <div
+  style={{
+    marginTop: 6,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "4px 10px",
+    borderRadius: 999,
+    backgroundColor: "#FEE2E2",
+    color: "#B91C1C",
+    border: "1px solid #FCA5A5",
+    fontWeight: 700,
+    fontSize: 12,
+    width: "fit-content",
+  }}
+>
+  ⚠️ مخزون منخفض
+</div>
+
+  ) : null}
+</div>,
             getCategoryPathDisplayName(categories, product.category_id),
-            `${formatCurrency(product.price)}${product.image_url ? " • الصورة جاهزة" : " • لا توجد صورة"}`,
-            <div key={`${product.id}-actions`} className="table-actions">
+`${formatCurrency(product.price)}${product.image_url ? " • الصورة جاهزة" : " • لا توجد صورة"}`,
+<div
+  style={{
+    fontWeight: 700,
+    color:
+      product.stock_quantity <=
+      (product.low_stock_threshold ?? DEFAULT_LOW_STOCK_THRESHOLD)
+        ? "#B91C1C"
+        : "#166534",
+  }}
+>
+  {product.stock_quantity}
+</div>,
+<div key={`${product.id}-actions`} className="table-actions">
               <Button className="secondary-button" onClick={() => setEditingProductId(product.id)} disabled={saving || deletingId === product.id}>
                 تعديل
               </Button>

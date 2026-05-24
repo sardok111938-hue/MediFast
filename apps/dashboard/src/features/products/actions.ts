@@ -110,6 +110,7 @@ export async function vendorCreateProductAction(input: {
   categoryId: string;
   imageUrl: string | null;
   stockQuantity: number;
+  lowStockThreshold: number;
 }): Promise<ProductActionResult> {
   const result = await callProductRpc("vendor_create_product", {
     p_category_id: input.categoryId,
@@ -118,6 +119,7 @@ export async function vendorCreateProductAction(input: {
     p_name: input.name,
     p_price: input.price,
     p_stock_quantity: input.stockQuantity,
+    p_low_stock_threshold: input.lowStockThreshold,
   });
 
   if (result.success) {
@@ -135,7 +137,9 @@ export async function vendorUpdateProductAction(input: {
   categoryId: string;
   imageUrl: string | null;
   stockQuantity: number;
+  lowStockThreshold: number;
 }): Promise<ProductActionResult> {
+  
   const result = await callProductRpc("vendor_update_product", {
     p_product_id: input.productId,
     p_name: input.name,
@@ -146,6 +150,7 @@ export async function vendorUpdateProductAction(input: {
     p_image_url: input.imageUrl,
     p_set_image: true,
     p_stock_quantity: input.stockQuantity,
+    p_low_stock_threshold: input.lowStockThreshold,
   });
 
   if (result.success) {

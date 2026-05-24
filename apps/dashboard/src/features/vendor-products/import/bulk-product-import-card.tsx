@@ -165,10 +165,10 @@ export function BulkProductImportCard({ categories, onImportComplete }: BulkProd
       <div className="split-actions">
         <div>
           <h3 className="order-card-title">رفع ملف المنتجات</h3>
-          <p className="muted order-card-subtitle">
-            ارفع ملف CSV أو XLSX بالأعمدة التالية: name, description, category_slug, price, stock_quantity, barcode, image_url.
-          </p>
-        </div>
+<p className="muted order-card-subtitle">
+  استورد المنتجات دفعة واحدة باستخدام ملف CSV أو XLSX يحتوي على:
+  اسم المنتج، الوصف، الفئة، السعر، الكمية، الباركود، ورابط الصورة.
+</p>        </div>
       </div>
 
       <input

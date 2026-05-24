@@ -20,8 +20,13 @@ export function PageHeader({
   return (
     <section className="hero">
       {badge ? <Badge>{badge}</Badge> : null}
+
       <h1>{t(title)}</h1>
-      <p className="muted">{t(description)}</p>
+
+      <p className="muted">
+        {t(description)}
+      </p>
+
       {children}
     </section>
   );

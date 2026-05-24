@@ -206,7 +206,7 @@ export function subscribeToAssignedOrders(driverId: string, onChange: (payload: 
     .channel(`driver-orders-${driverId}`)
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "orders", filter: `driver_id=eq.${driverId}` },
+      { event: "UPDATE", schema: "public", table: "orders", filter: `driver_id=eq.${driverId}` },
       onChange
     )
     .subscribe();
@@ -217,7 +217,7 @@ export function subscribeToAvailablePickupOrders(onChange: (payload: unknown) =>
     .channel("driver-available-pickups")
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "orders", filter: "order_status=eq.ready_for_pickup" },
+      { event: "INSERT", schema: "public", table: "orders", filter: "order_status=eq.ready_for_pickup" },
       onChange
     )
     .subscribe();

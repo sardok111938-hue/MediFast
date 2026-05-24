@@ -324,61 +324,27 @@ const { data, error } = await supabase
 
   const rows = (data ?? []) as PrescriptionRequestQueryRow[];
 
-const customerIds = [...new Set(rows.map((row) => row.customer_id))];
-const addressIds = [...new Set(rows.map((row) => row.address_id))];
+const mappedRows = rows.map((row) => {
+  const customer = readPrescriptionCustomer(row.customers);
 
-const { data: customersData } = await supabase
-  .from("customers")
-  .select(`
-    id,
-    profiles (
-      full_name,
-      phone
-    )
-  `)
-  .in("id", customerIds);
-
-const { data: addressesData } = await supabase
-  .from("addresses")
-  .select("id, line_1")
-  .in("id", addressIds);
-
-const customersById = new Map(
-  (customersData ?? []).map((customer) => [String(customer.id), customer])
-);
-
-const addressesById = new Map(
-  (addressesData ?? []).map((address) => [String(address.id), address])
-);
-
-  const mappedRows = await Promise.all(
-    rows.map(async (row) => {
-      const { data: signedUrlData } = await supabase.storage
-        .from("prescriptions")
-        .createSignedUrl(row.image_path, 60 * 10);
-
-        const customer = readPrescriptionCustomer(customersById.get(row.customer_id));
-const address = addressesById.get(row.address_id);
-
-      return {
-        id: row.id,
-        customer_id: row.customer_id,
-        vendor_id: row.vendor_id,
-        address_id: row.address_id,
-        image_path: row.image_path,
-        note: row.note,
-        vendor_note: row.vendor_note,
-        status: row.status,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        responded_at: row.responded_at,
-        signedImageUrl: signedUrlData?.signedUrl ?? null,
-        addressLine: readPrescriptionAddressLine(address),
-        customerName: customer.customerName,
-        customerPhone: customer.customerPhone,
-      };
-    })
-  );
+  return {
+    id: row.id,
+    customer_id: row.customer_id,
+    vendor_id: row.vendor_id,
+    address_id: row.address_id,
+    image_path: row.image_path,
+    note: row.note,
+    vendor_note: row.vendor_note,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    responded_at: row.responded_at,
+    signedImageUrl: null,
+    addressLine: readPrescriptionAddressLine(row.addresses),
+    customerName: customer.customerName,
+    customerPhone: customer.customerPhone,
+  };
+});
 
   return {
     data: mappedRows,
@@ -390,17 +356,85 @@ export async function getVendorPrescriptionRequest(requestId: string): Promise<{
   data: VendorPrescriptionRequestRow | null;
   error: Error | null;
 }> {
-  const result = await listVendorPrescriptionRequests();
+  const supabase = await getSupabaseServerClient();
 
-  if (result.error) {
+  const { data: vendorIdData } = await supabase
+    .rpc("get_vendor_id")
+    .single();
+
+  const vendorId =
+    vendorIdData && typeof vendorIdData === "string"
+      ? vendorIdData
+      : null;
+
+  if (!vendorId) {
     return {
       data: null,
-      error: result.error,
+      error: new Error("Vendor account not found."),
     };
   }
 
+  const { data, error } = await supabase
+    .from("prescription_requests")
+    .select(`
+      id,
+      customer_id,
+      vendor_id,
+      address_id,
+      image_path,
+      note,
+      vendor_note,
+      status,
+      created_at,
+      updated_at,
+      responded_at,
+      addresses (
+        line_1
+      ),
+      customers (
+        profiles (
+          full_name,
+          phone
+        )
+      )
+    `)
+    .eq("id", requestId)
+    .eq("vendor_id", vendorId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return {
+      data: null,
+      error: error ?? new Error("Prescription request not found."),
+    };
+  }
+
+  const row = data as PrescriptionRequestQueryRow;
+
+  const { data: signedUrlData } = await supabase.storage
+    .from("prescriptions")
+    .createSignedUrl(row.image_path, 60 * 10);
+
+  const customer = readPrescriptionCustomer(row.customers);
+
   return {
-    data: result.data.find((request) => request.id === requestId) ?? null,
+    data: {
+      id: row.id,
+      customer_id: row.customer_id,
+      vendor_id: row.vendor_id,
+      address_id: row.address_id,
+      image_path: row.image_path,
+      note: row.note,
+      vendor_note: row.vendor_note,
+      status: row.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      responded_at: row.responded_at,
+      signedImageUrl: signedUrlData?.signedUrl ?? null,
+      addressLine: readPrescriptionAddressLine(row.addresses),
+      customerName: customer.customerName,
+      customerPhone: customer.customerPhone,
+    },
     error: null,
   };
 }

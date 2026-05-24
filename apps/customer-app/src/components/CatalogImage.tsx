@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
+import { Image } from "expo-image";
 import {
-  Image,
   StyleSheet,
   Text,
   View,
-  type ImageResizeMode,
   type ImageStyle,
   type StyleProp,
   type TextStyle,
@@ -19,7 +18,7 @@ type CatalogImageProps = {
   imageStyle?: StyleProp<ImageStyle>;
   fallbackLabel?: string;
   fallbackTextStyle?: StyleProp<TextStyle>;
-  resizeMode?: ImageResizeMode;
+  resizeMode?: "cover" | "contain" | "fill" | "none" | "scale-down";
 };
 
 export function CatalogImage({
@@ -33,13 +32,12 @@ export function CatalogImage({
 }: CatalogImageProps) {
   const [failed, setFailed] = useState(false);
 
+  const safeUri = uri?.trim() || null;
+  const showFallback = failed || !safeUri;
+
   useEffect(() => {
     setFailed(false);
-  }, [uri]);
-
-  const safeUri = uri?.trim() || null;
-const imageUri = safeUri ? `${safeUri}?v=${encodeURIComponent(safeUri)}` : null;
-const showFallback = failed || !imageUri;
+  }, [safeUri]);
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -50,9 +48,11 @@ const showFallback = failed || !imageUri;
         </View>
       ) : (
         <Image
-          source={{ uri: imageUri }}
+          source={{ uri: safeUri }}
           accessibilityLabel={alt}
-          resizeMode={resizeMode}
+          cachePolicy="disk"
+          contentFit={resizeMode}
+          transition={120}
           style={[styles.image, imageStyle]}
           onError={() => setFailed(true)}
         />

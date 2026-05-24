@@ -18,6 +18,7 @@ import {
   calculateDistanceKm,
   formatDistanceKm,
   getPrimaryAddress,
+  loadVendorProducts,
 } from "../../src/lib/customer-catalog";
 
 const dayLabels = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
@@ -116,20 +117,64 @@ export default function PharmacyDetailScreen() {
   const [isFavourite, setIsFavourite] = useState(false);
   const [favouriteLoading, setFavouriteLoading] = useState(false);
   const [showOpeningHours, setShowOpeningHours] = useState(false);
+  const [pharmacyProducts, setPharmacyProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!pharmacyId) {
-      return;
-    }
+  if (!pharmacyId) {
+    return;
+  }
 
-    void (async () => {
-      try {
-        setIsFavourite(await isFavouriteVendor(pharmacyId));
-      } catch (error) {
-        console.error(error);
+  void (async () => {
+    try {
+      setIsFavourite(await isFavouriteVendor(pharmacyId));
+    } catch (error) {
+      console.error(error);
+    }
+  })();
+}, [pharmacyId]);
+
+useEffect(() => {
+  if (!pharmacyId) {
+  setPharmacyProducts([]);
+  return;
+}
+
+const currentPharmacyId = pharmacyId;
+let cancelled = false;
+
+  async function loadProducts() {
+    try {
+      setProductsLoading(true);
+      setProductsError(null);
+
+      const products = await loadVendorProducts(currentPharmacyId);
+
+      if (!cancelled) {
+        setPharmacyProducts(products);
       }
-    })();
-  }, [pharmacyId]);
+    } catch (error) {
+      if (!cancelled) {
+        setProductsError(
+          error instanceof Error
+            ? error.message
+            : "تعذر تحميل منتجات الصيدلية.",
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setProductsLoading(false);
+      }
+    }
+  }
+
+  void loadProducts();
+
+  return () => {
+    cancelled = true;
+  };
+}, [pharmacyId]);
 
   async function handleToggleFavourite() {
     if (!pharmacyId || favouriteLoading) {
@@ -148,7 +193,6 @@ export default function PharmacyDetailScreen() {
   }
 
   const pharmacy = useMemo(() => getVendorById(data.vendors, pharmacyId), [data.vendors, pharmacyId]);
-  const pharmacyProducts = useMemo(() => getPharmacyProducts(data.products, pharmacyId), [data.products, pharmacyId]);
 
   const categoryCards = useMemo(
   () => buildPharmacyCategoryTree(data.categories).parents.slice(0, 6),
@@ -182,7 +226,7 @@ const estimatedDeliveryFee =
           ? 8
           : 12;
 
-  if (loading) {
+  if (loading || productsLoading) {
     return (
       <Screen title="الصيدلية" subtitle="جارٍ تجهيز بيانات الصيدلية." backHref="/home" backLabel="العودة">
         <LoadingCard message="جارٍ تحميل الصيدلية..." />
@@ -190,10 +234,10 @@ const estimatedDeliveryFee =
     );
   }
 
-  if (error) {
+  if (error || productsError) {
     return (
       <Screen title="الصيدلية" subtitle="تعذر تحميل بيانات الصيدلية." backHref="/home" backLabel="العودة">
-        <ErrorCard message={error} onRetry={() => void reload()} />
+        <ErrorCard message={error ?? productsError ?? ""} onRetry={() => void reload()} />
       </Screen>
     );
   }

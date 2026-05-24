@@ -483,11 +483,11 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
   if (activeVendorIds.length > 0) {
     const { data: productsData, error: productsError } = await supabase
       .from("products_with_global_images")
-      .select("id, vendor_id, category_id, name, description, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
+      .select("id, vendor_id, category_id, name, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
       .eq("is_active", true)
       .gt("stock_quantity", 0)
       .in("vendor_id", activeVendorIds)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
 
     if (productsError) {
       throw productsError;
@@ -505,6 +505,77 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
     addresses: addressData.addresses,
     defaultAddressId: addressData.defaultAddressId,
   };
+}
+export async function searchProducts(query: string): Promise<Product[]> {
+  const term = query.trim();
+
+  if (!term) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("products_with_global_images")
+    .select("id, vendor_id, category_id, name, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
+    .eq("is_active", true)
+    .gt("stock_quantity", 0)
+    .or(`name.ilike.%${term}%,barcode.ilike.%${term}%`)
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as QueryProduct[]).map(mapProduct);
+}
+
+export async function loadVendorProducts(vendorId: string): Promise<Product[]> {
+  if (!vendorId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("products_with_global_images")
+    .select("id, vendor_id, category_id, name, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
+    .eq("is_active", true)
+    .gt("stock_quantity", 0)
+    .eq("vendor_id", vendorId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as QueryProduct[]).map(mapProduct);
+}
+
+export async function loadCategoryProducts(
+  categoryIds: string[],
+  pharmacyId?: string | null,
+): Promise<Product[]> {
+  if (categoryIds.length === 0) {
+    return [];
+  }
+
+  let query = supabase
+    .from("products_with_global_images")
+    .select("id, vendor_id, category_id, name, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
+    .eq("is_active", true)
+    .gt("stock_quantity", 0)
+    .in("category_id", categoryIds)
+    .order("created_at", { ascending: false });
+
+  if (pharmacyId) {
+    query = query.eq("vendor_id", pharmacyId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as QueryProduct[]).map(mapProduct);
 }
 
 export function useCustomerCatalogData() {
@@ -885,9 +956,7 @@ export function filterProducts(products: Product[], input: { categories?: Catego
     const matchesCategory = !categoryIds || categoryIds.has(product.category_id);
     const matchesQuery =
       !normalizedQuery ||
-      normalizeQuery(product.name).includes(normalizedQuery) ||
-      normalizeQuery(product.description).includes(normalizedQuery) ||
-      normalizeQuery(product.barcode ?? "").includes(normalizedQuery);
+      normalizeQuery(product.name).includes(normalizedQuery);
 
     return matchesCategory && matchesQuery;
   });

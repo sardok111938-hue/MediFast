@@ -7,17 +7,14 @@ export const ROUTES = {
 
 export const ADMIN_ROUTES = [
   { href: "/admin/overview", label: "Overview" },
-  { href: "/admin/assignments", label: "Assignments" },
   { href: "/admin/drivers", label: "Drivers" },
   { href: "/admin/vendors", label: "Vendors" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/support", label: "Support" },
-  { href: "/admin/coupons", label: "Coupons" },
   { href: "/admin/delivery-fees", label: "Delivery Fees" },
+  { href: "/admin/coupons", label: "Coupons" },
   { href: "/admin/settings", label: "Settings" },
 ] as const;
 

@@ -382,47 +382,39 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
   };
 }
 
+const DRIVER_ORDER_LIST_SELECT = `
+  id,
+  total,
+  delivery_fee,
+  payment_method,
+  payment_status,
+  order_status,
+  notes,
+  created_at,
+  vendor:vendors(
+    name,
+    city,
+    area,
+    lat,
+    lng
+  ),
+  customer:customers!orders_customer_id_fkey(
+    profile:profiles!customers_user_id_fkey(
+      full_name,
+      phone
+    )
+  ),
+  address:addresses!orders_delivery_address_id_fkey(
+    line_1,
+    lat,
+    lng
+  )
+`;
+
 export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
   const { data, error } = await supabase
     .from("orders")
-    .select(`
-      id,
-      total,
-      delivery_fee,
-      payment_method,
-      payment_status,
-      order_status,
-      notes,
-      created_at,
-      vendor:vendors(
-        name,
-        phone,
-        city,
-        area,
-        address_line_1,
-        address_line_2,
-        lat,
-        lng
-      ),
-      customer:customers!orders_customer_id_fkey(
-  profile:profiles!customers_user_id_fkey(
-    full_name,
-    phone
-  )
-),
-      address:addresses!orders_delivery_address_id_fkey(
-        line_1,
-        lat,
-        lng
-      ),
-      items:order_items(
-        id,
-        quantity,
-        unit_price,
-        total_price,
-        product:products!order_items_product_id_fkey(name)
-      )
-    `)
+    .select(DRIVER_ORDER_LIST_SELECT)
     .eq("order_status", "ready_for_pickup")
     .is("driver_id", null)
     .order("created_at", { ascending: true });
@@ -437,44 +429,7 @@ export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
 export async function listCurrentDriverOrders(driverId: string): Promise<DriverOrder[]> {
   const { data, error } = await supabase
     .from("orders")
-    .select(`
-      id,
-      total,
-      delivery_fee,
-      payment_method,
-      payment_status,
-      order_status,
-      notes,
-      created_at,
-      vendor:vendors(
-        name,
-        phone,
-        city,
-        area,
-        address_line_1,
-        address_line_2,
-        lat,
-        lng
-      ),
-      customer:customers!orders_customer_id_fkey(
-  profile:profiles!customers_user_id_fkey(
-    full_name,
-    phone
-  )
-),
-      address:addresses!orders_delivery_address_id_fkey(
-  line_1,
-  lat,
-  lng
-),
-      items:order_items(
-        id,
-        quantity,
-        unit_price,
-        total_price,
-        product:products!order_items_product_id_fkey(name)
-      )
-    `)
+    .select(DRIVER_ORDER_LIST_SELECT)
     .eq("driver_id", driverId)
     .in("order_status", ["assigned", "on_the_way"])
     .order("created_at", { ascending: false });

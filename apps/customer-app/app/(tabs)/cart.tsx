@@ -196,14 +196,14 @@ return (
 const styles = StyleSheet.create({
 itemCard: {
   gap: theme.spacing[8],
-  paddingVertical: theme.spacing[10],
+  paddingVertical: theme.spacing[12],
   paddingHorizontal: theme.spacing[12],
 },
 
 itemRow: {
   flexDirection: "row-reverse",
   alignItems: "center",
-  gap: theme.spacing[10],
+  gap: theme.spacing[12],
 },
 
 itemImage: {

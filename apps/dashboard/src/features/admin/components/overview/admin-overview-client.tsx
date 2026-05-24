@@ -15,43 +15,64 @@ import type { AsyncState, OverviewData } from "../shared/admin-types";
 import { fetchCount, normalizeError, readCategoryName, readName, readSingle } from "../shared/admin-utils";
 import { formatOrderNumber, formatPaymentStatusLabel } from "@medifast/types";
 
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+
 async function loadOverviewData(): Promise<OverviewData> {
   const supabase = getSupabaseBrowserClient();
-  const [vendorsCount, driversCount, customersCount, productsCount, categoriesCount, ordersCount, ordersResult, productsResult] =
+  const [
+  vendorsCount,
+  driversCount,
+  customersCount,
+  productsCount,
+  categoriesCount,
+  ordersCount,
+  pendingVendorsCount,
+  ordersResult,
+  productsResult,
+] =
     await Promise.all([
       fetchCount("vendors"),
       fetchCount("drivers"),
       fetchCount("customers"),
       fetchCount("products"),
-      fetchCount("categories"),
+      supabase
+  .from("categories")
+  .select("*", { count: "exact", head: true })
+  .is("parent_id", null),
       fetchCount("orders"),
       supabase
-        .from("orders")
-        .select(`
-          id,
-          order_status,
-          total,
-          created_at,
-          vendor:vendors(name),
-          customer:customers(
-            profile:profiles(full_name)
-          )
-        `)
-        .order("created_at", { ascending: false })
-        .limit(5),
+  .from("vendors")
+  .select("*", { count: "exact", head: true })
+  .eq("approval_status", "pending"),
       supabase
-        .from("products")
-        .select(`
-          id,
-          name,
-          price,
-          stock_quantity,
-          is_active,
-          category:categories(name, name_ar)
-        `)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(5),
+  .from("orders")
+  .select(`
+    id,
+    order_status,
+    total,
+    created_at,
+    vendor:vendors(name),
+    customer:customers(
+      profile:profiles(full_name)
+    )
+  `)
+  .order("created_at", { ascending: false })
+  .limit(5),
+      supabase
+  .from("products")
+  .select(`
+    id,
+    name,
+    price,
+    stock_quantity,
+    low_stock_threshold,
+    is_active,
+    category:categories(name, name_ar)
+  `)
+  .eq("is_active", true)
+  .gt("stock_quantity", 0)
+  .order("stock_quantity", { ascending: true })
+  .limit(5),
     ]);
 
   if (ordersResult.error) {
@@ -63,15 +84,45 @@ async function loadOverviewData(): Promise<OverviewData> {
   }
 
   return {
-    stats: [
-      { label: "المتاجر", value: `${vendorsCount}`, hint: "شركاء الصيدليات النشطون في السوق" },
-      { label: "السائقون", value: `${driversCount}`, hint: "حسابات التوصيل المتاحة للتشغيل" },
-      { label: "العملاء", value: `${customersCount}`, hint: "ملفات جاهزة لطلبات متكررة" },
-      { label: "المنتجات", value: `${productsCount}`, hint: "عناصر الكتالوج المتزامنة من Supabase" },
-      { label: "الفئات", value: `${categoriesCount}`, hint: "حالة تنظيم الكتالوج" },
-      { label: "الطلبات", value: `${ordersCount}`, hint: "إجمالي سجلات الطلبات المتعقبة" },
-    ],
-    ordersTable: {
+stats: [
+  {
+    label: "الصيدليات",
+    value: `${vendorsCount}`,
+    hint: "إجمالي الصيدليات",
+  },
+  {
+    label: "بانتظار الاعتماد",
+    value: `${pendingVendorsCount.count ?? 0}`,
+    hint: "صيدليات تحتاج مراجعة",
+  },
+  {
+    label: "السائقون",
+    value: `${driversCount}`,
+    hint: "إجمالي السائقين",
+  },
+  {
+    label: "العملاء",
+    value: `${customersCount}`,
+    hint: "إجمالي العملاء",
+  },
+  {
+    label: "الفئات",
+    value: `${categoriesCount.count ?? 0}`,
+    hint: "الفئات الرئيسية",
+  },
+  {
+    label: "المنتجات",
+    value: `${productsCount}`,
+    hint: "إجمالي المنتجات",
+  },
+  {
+    label: "الطلبات",
+    value: `${ordersCount}`,
+    hint: "إجمالي الطلبات",
+  },
+],
+
+ordersTable: {
       title: "أحدث الطلبات",
       headers: ["الطلب", "العميل", "المتجر", "الحالة"],
       rows: (ordersResult.data ?? []).map((order) => [
@@ -82,13 +133,33 @@ async function loadOverviewData(): Promise<OverviewData> {
       ]),
     },
     productsTable: {
-      title: "أحدث المنتجات",
+      title: "مخزون منخفض",
       headers: ["المنتج", "الفئة", "السعر", "المخزون"],
-      rows: (productsResult.data ?? []).map((product) => [
+      rows: (productsResult.data ?? [])
+  .filter(
+    (product) =>
+      Number(product.stock_quantity ?? 0) <=
+      Number(
+        product.low_stock_threshold ??
+          DEFAULT_LOW_STOCK_THRESHOLD,
+      ),
+  )
+  .slice(0, 5)
+  .map((product) => [
         String(product.name),
         readCategoryName(product.category as { name?: string } | { name?: string }[] | null),
         formatCurrency(Number(product.price ?? 0)),
-        `${Number(product.stock_quantity ?? 0)}`,
+        <div
+  style={{
+    fontWeight: 700,
+    color:
+      Number(product.stock_quantity ?? 0) <= DEFAULT_LOW_STOCK_THRESHOLD
+        ? "#B91C1C"
+        : "#166534",
+  }}
+>
+  {Number(product.stock_quantity ?? 0)}
+</div>
       ]),
     },
   };

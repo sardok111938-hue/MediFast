@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImageManipulator from "expo-image-manipulator";
 import { theme } from "@medifast/ui";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -45,13 +46,28 @@ useEffect(() => {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85,
+      quality: 0.7,
       allowsEditing: true,
     });
 
-    if (!result.canceled) {
-      setImageUri(result.assets[0]?.uri ?? null);
-    }
+if (!result.canceled) {
+  const selectedUri = result.assets[0]?.uri;
+
+  if (!selectedUri) {
+    return;
+  }
+
+  const compressed = await ImageManipulator.manipulateAsync(
+    selectedUri,
+    [{ resize: { width: 1600 } }],
+    {
+      compress: 0.72,
+      format: ImageManipulator.SaveFormat.JPEG,
+    },
+  );
+
+  setImageUri(compressed.uri);
+}
   }
 
   function continueToPharmacies() {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "../../../../src/components/app-shell/dashboard-shell";
 import { Card } from "../../../../src/components/ui/card";
@@ -7,17 +8,90 @@ import { PageHeader } from "../../../../src/components/ui/page-header";
 import { dashboardNavigation } from "../../../../src/lib/config/navigation";
 import { vendorUpdateProductStockAction } from "../../../../src/features/products/actions";
 import { listVendorProducts } from "../../../../src/features/products/queries";
+import { getSupabaseServerClient } from "../../../../src/lib/supabase/server";
+
+const PAGE_SIZE = 25;
+
+type InventoryStatus = "all" | "ok" | "low" | "out";
 
 export default async function VendorInventoryPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ success?: string; error?: string }>;
+  searchParams?: Promise<{
+    success?: string;
+    error?: string;
+    q?: string;
+    status?: InventoryStatus;
+    page?: string;
+  }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+
+  const query = String(resolvedSearchParams?.q ?? "").trim();
+  const status = resolvedSearchParams?.status ?? "all";
+  const currentPage = Math.max(Number(resolvedSearchParams?.page ?? "1"), 1);
+
   const products = await listVendorProducts();
+  const supabase = await getSupabaseServerClient();
+
+  const { data: inventorySettings } = await supabase
+    .from("platform_settings")
+    .select("value")
+    .eq("key", "inventory")
+    .maybeSingle();
+
+  const defaultLowStockThreshold =
+    typeof inventorySettings?.value === "object" &&
+    inventorySettings.value !== null &&
+    "default_low_stock_threshold" in inventorySettings.value
+      ? Number(
+          (inventorySettings.value as { default_low_stock_threshold?: unknown })
+            .default_low_stock_threshold ?? 5,
+        )
+      : 5;
+
   const activeProducts = products.filter((product) => product.is_active);
-  const lowStockProducts = activeProducts.filter((product) => product.stock_quantity > 0 && product.stock_quantity <= 10);
-  const outOfStockProducts = activeProducts.filter((product) => product.stock_quantity <= 0);
+
+  const decoratedProducts = activeProducts.map((product) => {
+    const threshold = product.low_stock_threshold ?? defaultLowStockThreshold;
+    const isOut = product.stock_quantity <= 0;
+    const isLow = product.stock_quantity > 0 && product.stock_quantity <= threshold;
+
+    return {
+      ...product,
+      threshold,
+      inventoryStatus: isOut ? "out" : isLow ? "low" : "ok",
+    };
+  });
+
+  const lowStockProducts = decoratedProducts.filter((product) => product.inventoryStatus === "low");
+  const outOfStockProducts = decoratedProducts.filter((product) => product.inventoryStatus === "out");
+
+  const filteredProducts = decoratedProducts.filter((product) => {
+    const matchesSearch = query
+      ? product.name.toLowerCase().includes(query.toLowerCase())
+      : true;
+
+    const matchesStatus =
+      status === "all" ? true : product.inventoryStatus === status;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.max(Math.ceil(filteredProducts.length / PAGE_SIZE), 1);
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const paginatedProducts = filteredProducts.slice(pageStart, pageStart + PAGE_SIZE);
+
+const makeHref = (nextPage: number): Route => {
+  const params = new URLSearchParams();
+
+  if (query) params.set("q", query);
+  if (status !== "all") params.set("status", status);
+  params.set("page", String(nextPage));
+
+  return `/vendor/inventory?${params.toString()}` as Route;
+};
 
   async function handleStockUpdate(formData: FormData) {
     "use server";
@@ -35,17 +109,32 @@ export default async function VendorInventoryPage({
     });
 
     if (!result.success) {
-      redirect(`/vendor/inventory?error=${encodeURIComponent(result.error ?? "stock_update_failed")}`);
+      redirect(
+        `/vendor/inventory?error=${encodeURIComponent(
+          result.error ?? "stock_update_failed",
+        )}`,
+      );
     }
 
     redirect("/vendor/inventory?success=stock_updated");
   }
 
   return (
-    <DashboardShell title="المخزون" subtitle="متابعة المنتجات منخفضة أو نافدة المخزون." nav={dashboardNavigation.vendor}>
-      <PageHeader title="المخزون" description="راجع مخاطر المخزون، حدّث الكميات الآمنة، وافتح تعديل المنتج عند الحاجة.">
-        {resolvedSearchParams?.success ? <p className="success">تم تحديث المخزون بنجاح.</p> : null}
-        {resolvedSearchParams?.error ? <p className="danger">{resolvedSearchParams.error}</p> : null}
+    <DashboardShell
+      title="المخزون"
+      subtitle="متابعة المنتجات منخفضة أو نافدة المخزون."
+      nav={dashboardNavigation.vendor}
+    >
+      <PageHeader
+        title="المخزون"
+        description="صفحة مهيأة للكتالوجات الكبيرة: بحث، فلترة، عرض مضغوط، وتقسيم صفحات."
+      >
+        {resolvedSearchParams?.success ? (
+          <p className="success">تم تحديث المخزون بنجاح.</p>
+        ) : null}
+        {resolvedSearchParams?.error ? (
+          <p className="danger">{resolvedSearchParams.error}</p>
+        ) : null}
       </PageHeader>
 
       <section className="detail-grid">
@@ -67,80 +156,134 @@ export default async function VendorInventoryPage({
         </Card>
       </section>
 
-      {activeProducts.length === 0 ? (
-        <Card className="medical-panel">
-          <EmptyState title="لا يوجد مخزون بعد" message="ستظهر المنتجات النشطة هنا بعد توفر كتالوج الصيدلية." />
-        </Card>
-      ) : null}
-
-      {outOfStockProducts.length > 0 ? (
-        <section className="table">
-          <h3>نفد المخزون</h3>
-          <div className="inventory-list">
-            {outOfStockProducts.map((product) => (
-              <form key={product.id} action={handleStockUpdate} className="inventory-row">
-                <div>
-                  <strong>{product.name}</strong>
-                  <p className="muted inventory-highlight-copy">هذا المنتج النشط غير متاح حاليًا لطلبات جديدة.</p>
-                </div>
-                <input type="hidden" name="product_id" value={product.id} />
-                <div className="inventory-actions">
-                  <input className="input inventory-stock-input" type="number" min="0" name="stock_quantity" defaultValue={product.stock_quantity} />
-                  <button type="submit" className="button">حفظ المخزون</button>
-                  <Link href={`/vendor/products?edit=${product.id}`} className="button secondary-button">
-                    تعديل المنتج
-                  </Link>
-                </div>
-              </form>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {lowStockProducts.length > 0 ? (
-        <section className="table">
-          <h3>مخزون منخفض</h3>
-          <div className="inventory-list">
-            {lowStockProducts.map((product) => (
-              <form key={product.id} action={handleStockUpdate} className="inventory-row">
-                <div>
-                  <strong>{product.name}</strong>
-                  <p className="muted inventory-highlight-copy">{product.stock_quantity} وحدة متبقية. يُفضّل إعادة تعبئة هذا المنتج قريبًا.</p>
-                </div>
-                <input type="hidden" name="product_id" value={product.id} />
-                <div className="inventory-actions">
-                  <input className="input inventory-stock-input" type="number" min="0" name="stock_quantity" defaultValue={product.stock_quantity} />
-                  <button type="submit" className="button">حفظ المخزون</button>
-                  <Link href={`/vendor/products?edit=${product.id}`} className="button secondary-button">
-                    تعديل المنتج
-                  </Link>
-                </div>
-              </form>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       <section className="table">
-        <h3>كل المخزون النشط</h3>
-        <div className="inventory-list">
-          {activeProducts.map((product) => (
-            <form key={product.id} action={handleStockUpdate} className="inventory-row">
-              <div>
-                <strong>{product.name}</strong>
-                <p className="muted inventory-highlight-copy">المخزون الحالي: {product.stock_quantity}</p>
-              </div>
-              <input type="hidden" name="product_id" value={product.id} />
-              <div className="inventory-actions">
-                <input className="input inventory-stock-input" type="number" min="0" name="stock_quantity" defaultValue={product.stock_quantity} />
-                <button type="submit" className="button">حفظ المخزون</button>
-                <Link href={`/vendor/products?edit=${product.id}`} className="button secondary-button">
-                  تعديل المنتج
-                </Link>
-              </div>
-            </form>
-          ))}
+        <div className="section-heading-row">
+          <div>
+            <h3>إدارة المخزون</h3>
+            <p className="muted">
+              يظهر {paginatedProducts.length} من {filteredProducts.length} منتج
+            </p>
+          </div>
         </div>
+
+        <form className="filters-bar">
+          <input
+            className="input"
+            name="q"
+            defaultValue={query}
+            placeholder="ابحث باسم المنتج..."
+          />
+
+          <select className="input" name="status" defaultValue={status}>
+            <option value="all">كل الحالات</option>
+            <option value="ok">متوفر</option>
+            <option value="low">مخزون منخفض</option>
+            <option value="out">نفد المخزون</option>
+          </select>
+
+          <button className="button" type="submit">
+            تطبيق
+          </button>
+
+          <Link href="/vendor/inventory" className="button secondary-button">
+            مسح
+          </Link>
+        </form>
+
+        {activeProducts.length === 0 ? (
+          <Card className="medical-panel">
+            <EmptyState
+              title="لا يوجد مخزون بعد"
+              message="ستظهر المنتجات النشطة هنا بعد توفر كتالوج الصيدلية."
+            />
+          </Card>
+        ) : null}
+
+        {activeProducts.length > 0 && paginatedProducts.length === 0 ? (
+          <Card className="medical-panel">
+            <EmptyState
+              title="لا توجد نتائج"
+              message="جرّب تغيير البحث أو الفلتر."
+            />
+          </Card>
+        ) : null}
+
+{paginatedProducts.length > 0 ? (
+  <div className="compact-inventory-table">
+  <div className="inventory-clean-header">
+    <span>المنتج</span>
+    <span>الحالة</span>
+    <span>المخزون</span>
+    <span>إجراء</span>
+  </div>
+
+  {paginatedProducts.map((product) => (
+    <div key={product.id} className="inventory-clean-row">
+      <div>
+        <strong>{product.name}</strong>
+        <p className="muted">
+          الحد المنخفض: {product.threshold}
+        </p>
+      </div>
+
+      <span
+        className={
+          product.inventoryStatus === "out"
+            ? "inventory-pill danger-pill"
+            : product.inventoryStatus === "low"
+              ? "inventory-pill warning-pill"
+              : "inventory-pill success-pill"
+        }
+      >
+        {product.inventoryStatus === "out"
+          ? "نافد"
+          : product.inventoryStatus === "low"
+            ? "منخفض"
+            : "متوفر"}
+      </span>
+
+      <span className="inventory-qty">
+        {product.stock_quantity}
+      </span>
+
+      <Link
+        href={`/vendor/products?edit=${product.id}` as Route}
+        className="inventory-edit-link"
+      >
+        تعديل
+      </Link>
+    </div>
+  ))}
+</div>
+) : null}
+
+        {filteredProducts.length > PAGE_SIZE ? (
+          <div className="pagination-row">
+            <Link
+              className={`button secondary-button ${safePage <= 1 ? "disabled-link" : ""}`}
+              href={safePage <= 1 ? makeHref(1) : makeHref(safePage - 1)}
+            >
+              السابق
+            </Link>
+
+            <span className="muted">
+              صفحة {safePage} من {totalPages}
+            </span>
+
+            <Link
+              className={`button secondary-button ${
+                safePage >= totalPages ? "disabled-link" : ""
+              }`}
+              href={
+                safePage >= totalPages
+                  ? makeHref(totalPages)
+                  : makeHref(safePage + 1)
+              }
+            >
+              التالي
+            </Link>
+          </div>
+        ) : null}
       </section>
     </DashboardShell>
   );

@@ -42,8 +42,10 @@ type ProductFormValues = {
   parent_category_id: string;
   child_category_id: string;
   stock_quantity: string;
+  low_stock_threshold: string;
 };
 
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 const emptyFormValues: ProductFormValues = {
   name: "",
   description: "",
@@ -51,6 +53,7 @@ const emptyFormValues: ProductFormValues = {
   parent_category_id: "",
   child_category_id: "",
   stock_quantity: "0",
+  low_stock_threshold: String(DEFAULT_LOW_STOCK_THRESHOLD),
 };
 
 function mapProductRow(product: Record<string, unknown>): ProductRow {
@@ -61,6 +64,10 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     name: String(product.name),
     description: product.description ? String(product.description) : null,
     price: Number(product.price ?? 0),
+    low_stock_threshold: Number(
+  product.low_stock_threshold ??
+    DEFAULT_LOW_STOCK_THRESHOLD,
+),
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
@@ -94,6 +101,10 @@ function buildFormValues(product: ProductRow | null | undefined, categories: Pro
     parent_category_id: selection.parentCategoryId,
     child_category_id: selection.childCategoryId,
     stock_quantity: String(product.stock_quantity),
+    low_stock_threshold: String(
+    product.low_stock_threshold ??
+      DEFAULT_LOW_STOCK_THRESHOLD,
+  ),
   };
 }
 
@@ -102,6 +113,7 @@ function validateProductForm(values: ProductFormValues, categories: ProductCateg
   const description = values.description.trim();
   const price = Number(values.price);
   const stockQuantity = values.stock_quantity.trim() ? Number(values.stock_quantity) : 0;
+  const lowStockThreshold = Number(values.low_stock_threshold);
   const categoryId = getSubmittedProductCategoryId(values, categories);
 
   if (!name || !description || !values.price || !categoryId) {
@@ -115,7 +127,14 @@ function validateProductForm(values: ProductFormValues, categories: ProductCateg
   if (Number.isNaN(stockQuantity) || stockQuantity < 0) {
     return { error: "يجب أن تكون الكمية 0 أو أكثر." };
   }
-
+if (
+  Number.isNaN(lowStockThreshold) ||
+  lowStockThreshold < 0
+) {
+  return {
+    error: "حد التنبيه يجب أن يكون 0 أو أكثر.",
+  };
+}
   return {
     error: null,
     payload: {
@@ -124,6 +143,7 @@ function validateProductForm(values: ProductFormValues, categories: ProductCateg
       price,
       category_id: categoryId,
       stock_quantity: stockQuantity,
+      low_stock_threshold: lowStockThreshold,
     },
   };
 }
@@ -254,6 +274,7 @@ async function loadVendorProductsData(): Promise<VendorProductsData> {
   description,
   price,
   stock_quantity,
+  low_stock_threshold,
   barcode,
   is_active,
   image_url,
@@ -324,6 +345,10 @@ function VendorProductForm({
       parent_category_id: String(formData.get("parent_category_id") ?? ""),
       child_category_id: String(formData.get("child_category_id") ?? ""),
       stock_quantity: String(formData.get("stock_quantity") ?? "0"),
+      low_stock_threshold: String(
+  formData.get("low_stock_threshold") ??
+    DEFAULT_LOW_STOCK_THRESHOLD,
+),
     };
 
     setValues(nextValues);
@@ -443,6 +468,32 @@ function VendorProductForm({
           onChange={(event) => setValues((current) => ({ ...current, stock_quantity: event.target.value }))}
         />
       </div>
+
+      <div className="field">
+  <label htmlFor={`${mode}-low-stock-threshold`}>
+    حد التنبيه للمخزون
+  </label>
+
+  <Input
+    id={`${mode}-low-stock-threshold`}
+    name="low_stock_threshold"
+    type="number"
+    min="0"
+    step="1"
+    value={values.low_stock_threshold}
+    onChange={(event) =>
+      setValues((current) => ({
+        ...current,
+        low_stock_threshold: event.target.value,
+      }))
+    }
+  />
+
+  <p className="muted">
+    سيتم إظهار تنبيه عند وصول الكمية لهذا الحد أو أقل.
+  </p>
+</div>
+
       <div className="field">
         <label htmlFor={`${mode}-image`}>{t("Image Upload")}</label>
         <input
@@ -572,7 +623,9 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
       all: products.length,
       active: products.filter((product) => product.is_active).length,
       inactive: products.filter((product) => !product.is_active).length,
-      lowStock: products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <= 10).length,
+      lowStock: products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <=
+(product.low_stock_threshold ??
+  DEFAULT_LOW_STOCK_THRESHOLD)).length,
       outOfStock: products.filter((product) => product.is_active && product.stock_quantity <= 0).length,
     };
   }, [data]);
@@ -586,7 +639,9 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
       case "inactive":
         return products.filter((product) => !product.is_active);
       case "low_stock":
-        return products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <= 10);
+        return products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <=
+(product.low_stock_threshold ??
+  DEFAULT_LOW_STOCK_THRESHOLD));
       case "out_of_stock":
         return products.filter((product) => product.is_active && product.stock_quantity <= 0);
       default:
@@ -629,6 +684,9 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         parent_category_id: String(formData.get("parent_category_id") ?? ""),
         child_category_id: String(formData.get("child_category_id") ?? ""),
         stock_quantity: String(formData.get("stock_quantity") ?? "0"),
+        low_stock_threshold: String(
+  formData.get("low_stock_threshold") ?? DEFAULT_LOW_STOCK_THRESHOLD,
+),
       };
       const validation = validateProductForm(values, categories);
 
@@ -649,6 +707,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         categoryId: validation.payload.category_id,
         imageUrl,
         stockQuantity: validation.payload.stock_quantity,
+        lowStockThreshold: validation.payload.low_stock_threshold,
       });
 
       if (!result.success) {
@@ -686,6 +745,9 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         parent_category_id: String(formData.get("parent_category_id") ?? ""),
         child_category_id: String(formData.get("child_category_id") ?? ""),
         stock_quantity: String(formData.get("stock_quantity") ?? "0"),
+        low_stock_threshold: String(
+  formData.get("low_stock_threshold") ?? DEFAULT_LOW_STOCK_THRESHOLD,
+),
       };
       const validation = validateProductForm(values, categories);
 
@@ -711,6 +773,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         price: validation.payload.price,
         categoryId: validation.payload.category_id,
         stockQuantity: validation.payload.stock_quantity,
+        lowStockThreshold: validation.payload.low_stock_threshold,
         imageUrl,
       });
 
@@ -830,13 +893,41 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
               <span>{productCounts.inactive}</span>
             </div>
             <div className="detail-block">
+  <strong>مخزون منخفض</strong>
+  <span>{productCounts.lowStock}</span>
+</div>
+            <div className="detail-block">
               <strong>نفد المخزون</strong>
               <span>{productCounts.outOfStock}</span>
             </div>
           </div>
         </Card>
       </section>
+{productCounts.lowStock > 0 ? (
+  <Card
+    className="medical-panel"
+    style={{
+      border: "2px solid #DC2626",
+      backgroundColor: "#FEF2F2",
+    }}
+  >
+    <h3 style={{ color: "#991B1B", fontWeight: 900 }}>
+      ⚠️ تنبيه مخزون منخفض
+    </h3>
 
+    <p style={{ color: "#B91C1C", fontWeight: 700 }}>
+      لديك {productCounts.lowStock} منتجات تحتاج إعادة تعبئة.
+    </p>
+
+    <Button
+      type="button"
+      className="danger-button"
+      onClick={() => setStatusFilter("low_stock")}
+    >
+      عرض المنتجات منخفضة المخزون
+    </Button>
+  </Card>
+) : null}
       {categoriesError ? (
         <Card className="medical-panel">
           <ErrorState message={categoriesError} retryLabel="إعادة تحميل الفئات" onRetry={() => void loadCategoriesOnly()} />
@@ -909,86 +1000,182 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         </div>
       </Card>
 
-      {data.products.length === 0 ? (
-        <Card className="medical-panel">
-          <EmptyState title="لا توجد منتجات بعد" message="كتالوج المتجر فارغ حاليًا." />
-        </Card>
-      ) : (
-        <Table
-          title="المنتجات"
-          headers={["الاسم", "الفئة", "السعر", "الكمية", "الحالة", "الصورة", "الإجراءات"]}
-          rows={filteredProducts.map((product) => [
-            <div key={`${product.id}-name`} className="stack compact-stack">
-              <strong>{product.name}</strong>
-              {product.description ? <span className="muted">{product.description}</span> : null}
-            </div>,
-            getCategoryPathDisplayName(categories, product.category_id),
-            formatCurrency(product.price),
-            `${product.stock_quantity}`,
-            <Badge key={`${product.id}-status`} className={product.is_active ? "status-delivered" : "status-cancelled"}>
-              {product.is_active ? "نشط" : "غير نشط"}
-            </Badge>,
-            product.image_url ? (
-              <a
-                key={`${product.id}-image`}
-                href={product.image_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-link"
-                aria-label={`فتح صورة ${product.name}`}
-                style={{ display: "inline-flex" }}
+{data.products.length === 0 ? (
+  <Card className="medical-panel">
+    <EmptyState
+      title="لا توجد منتجات بعد"
+      message="كتالوج المتجر فارغ حاليًا."
+    />
+  </Card>
+) : filteredProducts.length === 0 ? (
+  <Card className="medical-panel">
+    <EmptyState
+      title="لا توجد نتائج"
+      message="لا توجد منتجات تطابق الفلتر الحالي."
+    />
+  </Card>
+) : (
+  <div className="compact-inventory-table">
+    <div className="inventory-clean-header product-clean-row">
+      <span>المنتج</span>
+      <span>الصورة</span>
+      <span>السعر</span>
+      <span>المخزون</span>
+      <span>الحالة</span>
+      <span>الإجراءات</span>
+    </div>
+
+    {filteredProducts.map((product) => {
+      const threshold =
+        product.low_stock_threshold ??
+        DEFAULT_LOW_STOCK_THRESHOLD;
+
+      const isOut = product.stock_quantity <= 0;
+
+      const isLow =
+        product.is_active &&
+        product.stock_quantity > 0 &&
+        product.stock_quantity <= threshold;
+
+      return (
+        <div
+          key={product.id}
+          className="inventory-clean-row product-clean-row"
+        >
+          <div>
+            <strong>{product.name}</strong>
+
+            <p className="muted">
+              {getCategoryPathDisplayName(
+                categories,
+                product.category_id,
+              )}
+            </p>
+
+            {product.description ? (
+              <p
+                className="muted"
+                style={{
+                  marginTop: 2,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 1,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  maxWidth: 220,
+                }}
               >
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  style={{
-                    width: 56,
-                    height: 56,
-                    objectFit: "contain",
-                    padding: 4,
-                    borderRadius: 12,
-                    border: "1px solid #DCEBDF",
-                    backgroundColor: "#F8FCF8",
-                  }}
-                />
-              </a>
+                {product.description}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="product-clean-image">
+            {product.image_url ? (
+              <img
+                src={product.image_url}
+                alt={product.name}
+              />
             ) : (
-              "لا توجد صورة"
-            ),
-            <div key={`${product.id}-actions`} className="table-actions" style={{ pointerEvents: "auto" }}>
+              <span>💊</span>
+            )}
+          </div>
+
+          <span>
+            {formatCurrency(product.price)}
+          </span>
+
+          <span
+            className="inventory-qty"
+            style={{
+              color: isOut
+                ? "#DC2626"
+                : isLow
+                  ? "#D97706"
+                  : "#166534",
+              fontWeight: 800,
+            }}
+          >
+            {product.stock_quantity}
+          </span>
+
+          <span
+            className={
+              isOut
+                ? "inventory-pill danger-pill"
+                : isLow
+                  ? "inventory-pill warning-pill"
+                  : product.is_active
+                    ? "inventory-pill success-pill"
+                    : "inventory-pill muted-pill"
+            }
+          >
+            {isOut
+              ? "نافد"
+              : isLow
+                ? "منخفض"
+                : product.is_active
+                  ? "نشط"
+                  : "غير نشط"}
+          </span>
+
+          <div
+            className="table-actions"
+            style={{ pointerEvents: "auto" }}
+          >
+            <Button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                setEditingProductId(String(product.id))
+              }
+              disabled={
+                saving ||
+                deactivatingId === product.id
+              }
+            >
+              تعديل
+            </Button>
+
+            {product.is_active ? (
+              <Button
+                type="button"
+                className="danger-button"
+                disabled={
+                  deactivatingId === product.id ||
+                  saving
+                }
+                onClick={() =>
+                  void deactivateProduct(product.id)
+                }
+              >
+                {deactivatingId === product.id
+                  ? "..."
+                  : "تعطيل"}
+              </Button>
+            ) : (
               <Button
                 type="button"
                 className="secondary-button"
-                onClick={() => setEditingProductId(String(product.id))}
-                disabled={saving || deactivatingId === product.id}
+                disabled={
+                  deactivatingId === product.id ||
+                  saving
+                }
+                onClick={() =>
+                  void activateProduct(product.id)
+                }
               >
-                تعديل
+                {deactivatingId === product.id
+                  ? "..."
+                  : "تفعيل"}
               </Button>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+)}
 
-              {product.is_active ? (
-                <Button
-                  type="button"
-                  className="danger-button"
-                  disabled={deactivatingId === product.id || saving}
-                  onClick={() => void deactivateProduct(product.id)}
-                >
-                  {deactivatingId === product.id ? "جارٍ التعطيل..." : "تعطيل"}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  className="secondary-button"
-                  disabled={deactivatingId === product.id || saving}
-                  onClick={() => void activateProduct(product.id)}
-                >
-                  {deactivatingId === product.id ? "جارٍ التفعيل..." : "تفعيل"}
-                </Button>
-              )}
-            </div>
-          ])}
-          emptyMessage="لا توجد منتجات تطابق الفلتر الحالي."
-        />
-      )}
     </div>
   );
 }

@@ -97,6 +97,7 @@ export default function DriverOrdersListScreen() {
     return;
   }
 
+  const currentDriverId = driverId;
   let isMounted = true;
   let subscription: Location.LocationSubscription | null = null;
 
@@ -115,7 +116,7 @@ export default function DriverOrdersListScreen() {
       },
       (location) => {
         void updateDriverLocation({
-          driverId,
+          driverId: currentDriverId,
           lat: location.coords.latitude,
           lng: location.coords.longitude,
         });

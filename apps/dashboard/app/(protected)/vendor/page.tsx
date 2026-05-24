@@ -213,7 +213,13 @@ export default async function VendorDashboardPage() {
           emptyMessage="لا توجد طلبات لهذا المتجر بعد."
         />
 
-        <Card className="medical-panel">
+        <Card
+  className="medical-panel"
+  style={{
+    border: "2px solid #DC2626",
+    backgroundColor: "#FEF2F2",
+  }}
+>
           <div className="split-actions">
             <div>
               <h3 className="order-card-title">تنبيهات المخزون</h3>
@@ -228,10 +234,25 @@ export default async function VendorDashboardPage() {
           ) : (
             <div className="stack compact-stack">
               {overview.stockAlerts.map((product) => (
-                <div key={product.id} className="inventory-highlight">
+                <div
+  key={product.id}
+  className="inventory-highlight"
+  style={{
+    border: "1px solid #FCA5A5",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 12,
+  }}
+>
                   <div>
                     <strong>{product.name}</strong>
-                    <p className="muted inventory-highlight-copy">
+                    <p
+  className="inventory-highlight-copy"
+  style={{
+    color: "#B91C1C",
+    fontWeight: 700,
+  }}
+>
                       {product.stock_quantity <= 0 ? "نفد المخزون حاليًا." : `${product.stock_quantity} وحدة متبقية.`}
                     </p>
                   </div>

@@ -149,7 +149,7 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
       .order("created_at", { ascending: false }),
     supabase
       .from("products")
-      .select("id, name, price, stock_quantity, is_active")
+      .select("id, name, price, stock_quantity,low_stock_threshold, is_active")
       .eq("vendor_id", vendorId)
       .order("created_at", { ascending: false }),
   ]);
@@ -191,6 +191,7 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
   name: String(product.name ?? ""),
   price: Number(product.price ?? 0),
   stock_quantity: Number(product.stock_quantity ?? 0),
+  low_stock_threshold: Number(product.low_stock_threshold ?? 5),
   is_active: Boolean(product.is_active),
 }));
 const deliveredOrders = recentOrders.filter(
@@ -218,13 +219,15 @@ const deliveredOrders = recentOrders.filter(
     productCounts: {
       active: products.filter((product) => product.is_active).length,
       inactive: products.filter((product) => !product.is_active).length,
-      lowStock: products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <= 10).length,
+      lowStock: products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <=
+(product.low_stock_threshold ?? 5)).length,
       outOfStock: products.filter((product) => product.is_active && product.stock_quantity <= 0).length,
       catalogValue: products
   .filter((product) => product.is_active)
   .reduce((total, product) => total + product.price * product.stock_quantity, 0),
     },
     recentOrders: recentOrders.slice(0, 6),
-    stockAlerts: products.filter((product) => product.is_active && product.stock_quantity <= 10).slice(0, 6),
+    stockAlerts: products.filter((product) => product.is_active && product.stock_quantity <=
+(product.low_stock_threshold ?? 5)).slice(0, 6),
   };
 }

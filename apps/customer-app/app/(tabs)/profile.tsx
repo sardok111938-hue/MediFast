@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import {
   Card,
@@ -103,6 +103,8 @@ export default function ProfileScreen() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [supportPhone, setSupportPhone] = useState("");
+  const [supportWhatsapp, setSupportWhatsapp] = useState("");
 
   const addresses = useMemo(() => getSavedAddresses(data.addresses), [data.addresses]);
 
@@ -116,9 +118,9 @@ export default function ProfileScreen() {
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user;
 
-if (!user) {
-  return;
-}
+      if (!user) {
+        return;
+      }
 
       setEmail(user.email ?? "customer@example.com");
 
@@ -140,6 +142,45 @@ if (!user) {
 
     void loadProfile();
   }, []);
+
+  useEffect(() => {
+  async function loadSupportSettings() {
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "support")
+      .maybeSingle();
+
+    const value = data?.value as
+      | {
+          phone?: string;
+          whatsapp?: string;
+        }
+      | null
+      | undefined;
+
+    setSupportPhone(value?.phone?.trim() ?? "");
+    setSupportWhatsapp(value?.whatsapp?.trim() ?? "");
+  }
+
+  void loadSupportSettings();
+}, []);
+
+function openPhoneSupport() {
+  if (!supportPhone) {
+    return;
+  }
+
+  void Linking.openURL(`tel:${supportPhone}`);
+}
+
+function openWhatsappSupport() {
+  if (!supportWhatsapp) {
+    return;
+  }
+
+  void Linking.openURL(`https://wa.me/${supportWhatsapp}`);
+}
 
   async function handleSaveProfile() {
     const nextFullName = draftFullName.trim();
@@ -295,6 +336,27 @@ if (!user) {
   value="الصيدليات التي تحفظها للطلب السريع"
   onPress={() => router.push("/favorite-pharmacies")}
 />
+
+<View style={styles.rowDivider} />
+
+<SettingRow
+  icon="call-outline"
+  label="الاتصال بالدعم"
+  value={supportPhone || "رقم الدعم غير متوفر حالياً"}
+  onPress={openPhoneSupport}
+  disabled={!supportPhone}
+/>
+
+<View style={styles.rowDivider} />
+
+<SettingRow
+  icon="logo-whatsapp"
+  label="واتساب الدعم"
+  value={supportWhatsapp || "واتساب الدعم غير متوفر حالياً"}
+  onPress={openWhatsappSupport}
+  disabled={!supportWhatsapp}
+/>
+
         </Card>
       </View>
 

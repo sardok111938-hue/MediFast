@@ -12,14 +12,23 @@ export default async function VendorProductsPage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   return (
-    <DashboardShell title="المنتجات" subtitle="إدارة عناصر الكتالوج والأسعار والمخزون والظهور." nav={dashboardNavigation.vendor}>
-      <PageHeader title="المنتجات" description="أدر المنتجات والأسعار والمخزون والصور وحالة الظهور من مسار آمن للصيدلية.">
+    <DashboardShell
+      title="المنتجات"
+      subtitle="إدارة الكتالوج والأسعار والصور وحالة الظهور."
+      nav={dashboardNavigation.vendor}
+    >
+      <PageHeader
+        title="المنتجات"
+        description="أضف وعدّل منتجات الصيدلية، الأسعار، الصور، التصنيفات، وحالة الظهور للعملاء."
+      >
         <div className="inline-actions">
           <Link href="/vendor/inventory" className="button secondary-button">
-            فتح المخزون
+            فتح صفحة المخزون
           </Link>
         </div>
       </PageHeader>
+
+
       <VendorProductsClient initialEditingProductId={resolvedSearchParams?.edit} />
     </DashboardShell>
   );

@@ -9,17 +9,10 @@ import {
   getCategoryById,
   getPharmacyParentCategoryById,
   getPharmacySubcategoryById,
-  getProductsForPharmacyParentCategory,
   useCustomerCatalogData,
+  loadCategoryProducts,
+  buildPharmacyCategoryTree,
 } from "../../src/lib/customer-catalog";
-
-function getScopedProducts(products: Product[], pharmacyId?: string | null) {
-  if (!pharmacyId) {
-    return products;
-  }
-
-  return products.filter((product) => product.vendor_id === pharmacyId);
-}
 
 function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
@@ -39,6 +32,9 @@ const pharmacyId = Array.isArray(params.pharmacyId)
   const { data, loading, error, reload } = useCustomerCatalogData();
   const [activeSubcategoryId, setActiveSubcategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
 
   const parentCategory = useMemo(
     () => getPharmacyParentCategoryById(data.categories, categoryId),
@@ -48,22 +44,6 @@ const pharmacyId = Array.isArray(params.pharmacyId)
   const requestedCategory = useMemo(
     () => getCategoryById(data.categories, categoryId),
     [categoryId, data.categories],
-  );
-
-  const scopedProducts = useMemo(
-  () => getScopedProducts(data.products, pharmacyId),
-  [data.products, pharmacyId],
-);
-
-  const products = useMemo(
-    () =>
-      getProductsForPharmacyParentCategory(
-        scopedProducts,
-        data.categories,
-        parentCategory?.id,
-        activeSubcategoryId,
-      ),
-    [activeSubcategoryId, data.categories, parentCategory?.id, scopedProducts],
   );
 
   const filteredProducts = useMemo(() => {
@@ -86,7 +66,63 @@ const pharmacyId = Array.isArray(params.pharmacyId)
     setActiveSubcategoryId(requestedCategory?.parent_id ? requestedCategory.id : null);
   }, [requestedCategory?.id, requestedCategory?.parent_id]);
 
-  if (loading) {
+    useEffect(() => {
+  if (!parentCategory) {
+    setProducts([]);
+    return;
+  }
+
+  const tree = buildPharmacyCategoryTree(data.categories);
+
+  const categoryIds = Array.from(
+    tree.categoryAndDescendantIdsById.get(
+      activeSubcategoryId ?? parentCategory.id,
+    ) ?? new Set<string>(),
+  );
+
+  let cancelled = false;
+
+  async function loadProducts() {
+    try {
+      setProductsLoading(true);
+      setProductsError(null);
+
+      const nextProducts = await loadCategoryProducts(
+        categoryIds,
+        pharmacyId,
+      );
+
+      if (!cancelled) {
+        setProducts(nextProducts);
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setProductsError(
+          error instanceof Error
+            ? error.message
+            : "تعذر تحميل المنتجات.",
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setProductsLoading(false);
+      }
+    }
+  }
+
+  void loadProducts();
+
+  return () => {
+    cancelled = true;
+  };
+}, [
+  activeSubcategoryId,
+  data.categories,
+  parentCategory,
+  pharmacyId,
+]);
+
+  if (loading || productsLoading) {
     return (
       <Screen title="" subtitle="" backHref="/home" backLabel="">
         <LoadingCard message="جارٍ تحميل الفئة..." />
@@ -94,10 +130,10 @@ const pharmacyId = Array.isArray(params.pharmacyId)
     );
   }
 
-  if (error) {
+  if (error || productsError) {
     return (
       <Screen title="" subtitle="" backHref="/home" backLabel="">
-        <ErrorCard message={error} onRetry={() => void reload()} />
+        <ErrorCard message={error ?? productsError ?? ""} onRetry={() => void reload()} />
       </Screen>
     );
   }

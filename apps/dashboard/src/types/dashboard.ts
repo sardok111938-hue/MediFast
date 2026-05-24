@@ -82,6 +82,7 @@ export interface ProductRow {
   description?: string | null;
   price: number;
   stock_quantity: number;
+  low_stock_threshold: number;
   barcode: string | null;
   is_active: boolean;
   image_url: string | null;

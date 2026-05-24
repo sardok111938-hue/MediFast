@@ -5,6 +5,8 @@ import type { ProductCategoryOption, ProductRow, TableModel } from "../../types/
 import { getSupabaseServerClient } from "../../lib/supabase/server";
 import { formatCurrency } from "../../lib/utils/format-currency";
 
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+
 function mapProductRow(product: Record<string, unknown>): ProductRow {
   return {
     id: String(product.id),
@@ -13,6 +15,9 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     name: String(product.name),
     description: product.description ? String(product.description) : null,
     price: Number(product.price ?? 0),
+    low_stock_threshold: Number(
+  product.low_stock_threshold ?? DEFAULT_LOW_STOCK_THRESHOLD,
+),
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
@@ -69,6 +74,7 @@ export async function listVendorProducts(): Promise<ProductRow[]> {
   description,
   price,
   stock_quantity,
+  low_stock_threshold,
   barcode,
   is_active,
   image_url,

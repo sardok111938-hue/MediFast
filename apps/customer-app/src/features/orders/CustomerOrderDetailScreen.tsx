@@ -342,14 +342,14 @@ statusHeaderCopy: {
 },
 
 badgeRow: {
-  gap: theme.spacing[6],
+  gap: theme.spacing[8],
   alignItems: "flex-end",
 },
 
 compactMetaRow: {
   flexDirection: "row-reverse",
   flexWrap: "wrap",
-  gap: theme.spacing[6],
+  gap: theme.spacing[8],
 },
 addressText: {
   color: theme.colors.text,

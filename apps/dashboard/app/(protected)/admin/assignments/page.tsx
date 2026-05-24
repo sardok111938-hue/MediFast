@@ -75,8 +75,8 @@ export default async function AdminAssignmentsPage({
   }));
 
   return (
-    <DashboardShell title="إسناد السائقين" subtitle="إسناد السائقين المعتمدين عند جاهزية طلبات الصيدليات للاستلام." nav={dashboardNavigation.admin}>
-      <PageHeader title="إسناد السائقين" description="راجع الطلبات الجاهزة للإرسال، صفّ طابور التوصيل، وأسند السائقين المتاحين بوضوح تشغيلي.">
+    <DashboardShell title="مراقبة التوصيل" subtitle="متابعة الطلبات الجاهزة للاستلام والتوصيلات النشطة." nav={dashboardNavigation.admin}>
+      <PageHeader title="مراقبة التوصيل" description="راجع الطلبات الجاهزة للإرسال، صفّ طابور التوصيل، وأسند السائقين المتاحين بوضوح تشغيلي.">
         {resolvedSearchParams?.success ? <p className="success">تم إسناد السائق بنجاح.</p> : null}
         {resolvedSearchParams?.error ? <p className="danger">{resolvedSearchParams.error}</p> : null}
         <p className="muted">
@@ -133,8 +133,8 @@ export default async function AdminAssignmentsPage({
         </Card>
       ) : (
         <Table
-          title="طابور الإسناد"
-          headers={["الطلب", "العميل", "الصيدلية", "عنوان التوصيل", "الإجمالي", "تاريخ الإنشاء", "حالة الطلب", "إجراء السائق"]}
+          title="مراقبة الطلبات"
+          headers={["الطلب", "العميل", "الصيدلية", "عنوان التوصيل", "الإجمالي", "تاريخ الإنشاء", "حالة الطلب", "السائق"]}
           emptyMessage="لا توجد طلبات تنتظر إسناد سائق حاليًا."
           rows={filteredOrders.map((order) => {
             const assignable = order.order_status === "ready_for_pickup" && !blockedStatuses.has(order.order_status);

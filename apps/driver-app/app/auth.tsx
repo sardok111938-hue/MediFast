@@ -10,8 +10,30 @@ import {
   DriverScreen,
 } from "../src/components/DriverUI";
 import { useDriverI18n } from "../src/lib/i18n";
-import { isSupabaseConfigured, signInDriver, supabase } from "../src/lib/supabase";
+import {
+  isSupabaseConfigured,
+  signInDriver,
+  signUpDriver,
+  supabase,
+} from "../src/lib/supabase";
 import { theme } from "@medifast/ui";
+
+export default function DriverLoginScreen() {
+  const router = useRouter();
+  const { isRTL } = useDriverI18n();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const configured = isSupabaseConfigured();
+  const [signupFullName, setSignupFullName] = useState("");
+const [signupPhone, setSignupPhone] = useState("");
+const [signupEmail, setSignupEmail] = useState("");
+const [signupPassword, setSignupPassword] = useState("");
+const [vehicleType, setVehicleType] = useState("");
+const [vehiclePlate, setVehiclePlate] = useState("");
+const [signupLoading, setSignupLoading] = useState(false);
+const [signupMessage, setSignupMessage] = useState("");
 
 async function handleDriverSignup() {
   if (!configured) {
@@ -49,23 +71,6 @@ async function handleDriverSignup() {
     setSignupLoading(false);
   }
 }
-
-export default function DriverLoginScreen() {
-  const router = useRouter();
-  const { isRTL } = useDriverI18n();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const configured = isSupabaseConfigured();
-  const [signupFullName, setSignupFullName] = useState("");
-const [signupPhone, setSignupPhone] = useState("");
-const [signupEmail, setSignupEmail] = useState("");
-const [signupPassword, setSignupPassword] = useState("");
-const [vehicleType, setVehicleType] = useState("");
-const [vehiclePlate, setVehiclePlate] = useState("");
-const [signupLoading, setSignupLoading] = useState(false);
-const [signupMessage, setSignupMessage] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then((response) => {

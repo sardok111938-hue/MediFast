@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, SearchInput } from "../../src/components/CustomerUI";
-import { filterProducts, getVendorById, useCustomerCatalogData } from "../../src/lib/customer-catalog";
+import { getVendorById, searchProducts, useCustomerCatalogData } from "../../src/lib/customer-catalog";
 import { formatCustomerCurrency } from "../../src/features/orders/customer-orders";
 import { addProductToCart } from "../../src/lib/cart-store";
 
@@ -25,7 +25,10 @@ export default function SearchScreen() {
   const [filters, setFilters] = useState<SearchFilter[]>(["relevant"]);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
-  const { data, loading, error, reload } = useCustomerCatalogData();
+  const { data, loading: catalogLoading, error: catalogError, reload } = useCustomerCatalogData();
+const [results, setResults] = useState<typeof data.products>([]);
+const [searchLoading, setSearchLoading] = useState(false);
+const [searchError, setSearchError] = useState<string | null>(null);
 
   function toggleFilter(filter: SearchFilter) {
     setFilters((current) => {
@@ -37,45 +40,58 @@ export default function SearchScreen() {
     });
   }
 
-  const results = useMemo(() => {
-    const trimmedQuery = query.trim();
+useEffect(() => {
+  const trimmedQuery = query.trim();
 
-if (!trimmedQuery) {
-  return [];
-}
-    const term = trimmedQuery.toLowerCase();
+  if (!trimmedQuery) {
+    setResults([]);
+    setSearchError(null);
+    setSearchLoading(false);
+    return;
+  }
 
-    let filtered = filterProducts(data.products, { query });
+  let cancelled = false;
 
-    if (filters.includes("available")) {
-      filtered = filtered.filter((product) => (product.stock_quantity ?? 0) > 0);
-    }
+  async function runSearch() {
+    setSearchLoading(true);
+    setSearchError(null);
 
-    return [...filtered].sort((a, b) => {
+    try {
+      let foundProducts = await searchProducts(trimmedQuery);
+
+      if (filters.includes("available")) {
+        foundProducts = foundProducts.filter((product) => (product.stock_quantity ?? 0) > 0);
+      }
+
       if (filters.includes("cheaper")) {
-        return Number(a.price ?? 0) - Number(b.price ?? 0);
+        foundProducts = [...foundProducts].sort(
+          (a, b) => Number(a.price ?? 0) - Number(b.price ?? 0),
+        );
       }
 
-      if (filters.includes("relevant") && term) {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-
-        const aExact = aName === term;
-        const bExact = bName === term;
-
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-
-        const aStarts = aName.startsWith(term);
-        const bStarts = bName.startsWith(term);
-
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
+      if (!cancelled) {
+        setResults(foundProducts);
       }
+    } catch (error) {
+      if (!cancelled) {
+        setSearchError(error instanceof Error ? error.message : "تعذر تحميل نتائج البحث.");
+      }
+    } finally {
+      if (!cancelled) {
+        setSearchLoading(false);
+      }
+    }
+  }
 
-      return 0;
-    });
-  }, [data.products, query, filters]);
+  const timeout = setTimeout(() => {
+    void runSearch();
+  }, 250);
+
+  return () => {
+    cancelled = true;
+    clearTimeout(timeout);
+  };
+}, [query, filters]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -119,11 +135,12 @@ if (!trimmedQuery) {
   </View>
 ) : null}
 
-      {loading ? <LoadingCard message="جارٍ تحميل نتائج البحث..." /> : null}
-      {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
-
-      {!loading && !error ? (
-        <>
+{searchLoading || catalogLoading ? <LoadingCard message="جارٍ تحميل نتائج البحث..." /> : null}
+{!searchLoading && (searchError || catalogError) ? (
+  <ErrorCard message={searchError ?? catalogError ?? ""} onRetry={() => void reload()} />
+) : null}
+{!searchLoading && !catalogLoading && !searchError && !catalogError ? (
+          <>
 {query.trim().length === 0 ? (
   <View style={styles.searchGuideCard}>
     <View style={styles.searchGuideIcon}>
@@ -447,8 +464,8 @@ searchGuideCard: {
   borderWidth: 1,
   borderColor: "#DDEBE2",
   backgroundColor: "#F7FBF8",
-  paddingHorizontal: theme.spacing[18],
-  paddingVertical: theme.spacing[22],
+  paddingHorizontal: theme.spacing[20],
+  paddingVertical: theme.spacing[24],
   alignItems: "center",
   shadowColor: theme.shadows.card.shadowColor,
   shadowOpacity: 0.05,
@@ -476,7 +493,7 @@ suggestedTitle: {
 
 suggestedSubtitle: {
   marginTop: 6,
-  marginBottom: theme.spacing[18],
+  marginBottom: theme.spacing[20],
   color: theme.colors.muted,
   fontSize: theme.typography.caption.md,
   lineHeight: 20,
@@ -489,7 +506,7 @@ quickSearchGrid: {
   flexDirection: "row-reverse",
   flexWrap: "wrap",
   justifyContent: "center",
-  gap: theme.spacing[10],
+  gap: theme.spacing[12],
 },
 
 quickSearchChip: {
@@ -499,7 +516,7 @@ quickSearchChip: {
   borderColor: "#D7ECDD",
   backgroundColor: theme.colors.surface,
   paddingHorizontal: theme.spacing[12],
-  paddingVertical: theme.spacing[9],
+  paddingVertical: theme.spacing[8],
   flexDirection: "row-reverse",
   alignItems: "center",
   gap: 6,

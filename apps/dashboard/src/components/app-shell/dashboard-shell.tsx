@@ -14,27 +14,35 @@ export function DashboardShell({
   topbar,
   children,
 }: {
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   nav: readonly NavItem[];
   topbar?: ReactNode;
   children: ReactNode;
 }) {
   const { locale, isRTL, t } = useLocale();
+  const hasTopbar = Boolean(title || topbar);
 
   return (
     <div className="page" dir={isRTL ? "rtl" : "ltr"} lang={locale}>
       <div className="shell">
         <Sidebar
-          title={t(title)}
-          subtitle={t(subtitle)}
+          title={title ? t(title) : t("MediFast")}
+          subtitle={subtitle ? t(subtitle) : ""}
           nav={nav}
           topSlot={<Badge>{t("MediFast")}</Badge>}
         />
+
         <main className="content">
-          <Topbar left={<h2>{t(title)}</h2>} right={topbar} />
+          {hasTopbar ? (
+            <Topbar
+              left={title ? <h2>{t(title)}</h2> : null}
+              right={topbar}
+            />
+          ) : null}
+
           {children}
-          </main>
+        </main>
       </div>
     </div>
   );
