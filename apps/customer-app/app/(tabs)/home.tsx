@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
-import { CustomerProductCard } from "../../src/components/CustomerProductCard";
 import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../../src/components/CustomerUI";
 import {
   listCustomerFavoriteVendorIds,
@@ -15,22 +14,68 @@ import {
   buildPharmacyCategoryTree,
   getCategoryIcon,
   getCategoryTheme,
-  useCustomerCatalogData,
+  useGroupedCustomerProducts,
   calculateDistanceKm,
   formatDistanceKm,
   getPrimaryAddress,
   isVendorWithinDeliveryRadius,
 } from "../../src/lib/customer-catalog";
 import type { ComponentProps } from "react";
+import type { GroupedProduct } from "../../src/lib/customer-catalog";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
+
+function formatPrice(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function GroupedProductCard({
+  product,
+  onPress,
+}: {
+  product: GroupedProduct;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.groupedProductCard,
+        pressed ? styles.pressedSoft : null,
+      ]}
+      onPress={onPress}
+    >
+      <CatalogImage
+        uri={product.image_url}
+        alt={product.name}
+        fallbackLabel="منتج"
+        containerStyle={styles.groupedProductImageWrap}
+        imageStyle={styles.groupedProductImage}
+        resizeMode="contain"
+      />
+
+      <View style={styles.groupedProductBody}>
+        <Text style={styles.groupedProductName} numberOfLines={2}>
+          {product.name}
+        </Text>
+
+        <Text style={styles.groupedProductPrice} numberOfLines={1}>
+          يبدأ من {formatPrice(product.lowestPrice)} د.ل
+        </Text>
+
+        <Text style={styles.groupedProductMeta} numberOfLines={1}>
+          متوفر في {product.pharmaciesCount} صيدليات
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const productsScrollRef = useRef<ScrollView>(null);
   const [search, setSearch] = useState("");
   const [favoriteVendorIds, setFavoriteVendorIds] = useState<string[]>([]);
-  const { data: catalog, loading, error, reload } = useCustomerCatalogData();
+  const { data: catalog, groupedProducts, loading, error, reload } = useGroupedCustomerProducts();
 
   const primaryAddress = getPrimaryAddress(
   catalog.addresses,
@@ -101,10 +146,7 @@ const parentCategories = useMemo(
     [catalog.categories],
   );
 
-  const availableProducts = useMemo(() => {
-    
-    return catalog.products.filter((product) => (product.stock_quantity ?? 0) > 0).slice(0, 10);
-  }, [catalog.products]);
+  const recentGroupedProducts = useMemo(() => groupedProducts.slice(0, 10), [groupedProducts]);
 
   return (
     <Screen title="" subtitle="" contentContainerStyle={styles.screenContent}>
@@ -398,7 +440,7 @@ const parentCategories = useMemo(
           <View style={styles.productsSection}>
             <SectionTitle label="أضيفت حديثاً" actionLabel="عرض الكل" onAction={() => router.push("/search")} />
 
-            {availableProducts.length === 0 ? (
+            {recentGroupedProducts.length === 0 ? (
               <EmptyCard title="لا توجد منتجات مطابقة" message="جرّب البحث باسم آخر أو تصفح الفئات." />
             ) : (
               <ScrollView
@@ -411,13 +453,16 @@ const parentCategories = useMemo(
                   productsScrollRef.current?.scrollToEnd({ animated: false });
                 }}
               >
-                {availableProducts.map((product) => (
-                  <CustomerProductCard
+                {recentGroupedProducts.map((product) => (
+                  <GroupedProductCard
                     key={product.id}
                     product={product}
-                    vendors={catalog.vendors}
-                    width={148}
-                    style={styles.productCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/grouped-product/[groupId]",
+                        params: { groupId: product.id },
+                      })
+                    }
                   />
                 ))}
               </ScrollView>
@@ -478,7 +523,7 @@ const styles = StyleSheet.create({
     rowGap: 12,
   },
   categoryCard: {
-    width: "18.8%",
+    width: "23.5%",
     aspectRatio: 0.82,
     borderRadius: 24,
     borderWidth: 0,
@@ -520,9 +565,57 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingHorizontal: 2,
   },
-  productCard: {},
   productsScroller: {
     marginHorizontal: -2,
+  },
+  groupedProductCard: {
+    width: 156,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+    gap: 10,
+    shadowColor: "#0F3D2E",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 2,
+  },
+  groupedProductImageWrap: {
+    width: "100%",
+    height: 104,
+    borderRadius: 20,
+    backgroundColor: "#F3FAF6",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  groupedProductImage: {
+    width: "100%",
+    height: "100%",
+  },
+  groupedProductBody: {
+    alignItems: "flex-end",
+    gap: 5,
+  },
+  groupedProductName: {
+    minHeight: 38,
+    color: theme.colors.text,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "900",
+    lineHeight: 19,
+    textAlign: "right",
+  },
+  groupedProductPrice: {
+    color: theme.colors.primaryDark,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  groupedProductMeta: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.sm,
+    fontWeight: "800",
+    textAlign: "right",
   },
   pharmacyList: {
     gap: 14,

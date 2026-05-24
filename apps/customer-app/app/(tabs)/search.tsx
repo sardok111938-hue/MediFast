@@ -5,11 +5,39 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "rea
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, SearchInput } from "../../src/components/CustomerUI";
-import { getVendorById, searchProducts, useCustomerCatalogData } from "../../src/lib/customer-catalog";
-import { formatCustomerCurrency } from "../../src/features/orders/customer-orders";
-import { addProductToCart } from "../../src/lib/cart-store";
+import {
+  groupProductsByMarketplaceListing,
+  searchProducts,
+  useCustomerCatalogData,
+} from "../../src/lib/customer-catalog";
+import type { GroupedProduct } from "../../src/lib/customer-catalog";
 
 type SearchFilter = "relevant" | "available" | "cheaper";
+
+type QuickSearchItem = {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  categorySlug: string;
+};
+
+const quickSearches: QuickSearchItem[] = [
+  { label: "مسكنات", icon: "medkit-outline", categorySlug: "pain-relief" },
+  { label: "فيتامينات", icon: "nutrition-outline", categorySlug: "daily-vitamins" },
+  { label: "أدوية البرد", icon: "thermometer-outline", categorySlug: "cold-flu" },
+  { label: "الحساسية", icon: "leaf-outline", categorySlug: "allergy" },
+  { label: "السكري", icon: "fitness-outline", categorySlug: "diabetes" },
+  { label: "الضغط", icon: "heart-outline", categorySlug: "blood-pressure" },
+  { label: "العناية بالبشرة", icon: "sparkles-outline", categorySlug: "skin-care" },
+  { label: "العناية بالشعر", icon: "cut-outline", categorySlug: "hair-care" },
+  { label: "أدوية الأطفال", icon: "happy-outline", categorySlug: "baby-medicine" },
+  { label: "العطور", icon: "rose-outline", categorySlug: "perfumes" },
+  { label: "الجروح", icon: "bandage-outline", categorySlug: "wounds-dressings" },
+  { label: "المعدة", icon: "body-outline", categorySlug: "digestive-health" },
+];
+
+function formatPrice(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -17,18 +45,16 @@ export default function SearchScreen() {
   const initialQuery = Array.isArray(params.query) ? params.query[0] : params.query;
 
   const [query, setQuery] = useState(initialQuery ?? "");
-  
-  useEffect(() => {
-    setQuery(initialQuery ?? "");
-}, [initialQuery]);
-
   const [filters, setFilters] = useState<SearchFilter[]>(["relevant"]);
-  const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
   const { data, loading: catalogLoading, error: catalogError, reload } = useCustomerCatalogData();
-const [results, setResults] = useState<typeof data.products>([]);
-const [searchLoading, setSearchLoading] = useState(false);
-const [searchError, setSearchError] = useState<string | null>(null);
+  const [results, setResults] = useState<GroupedProduct[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setQuery(initialQuery ?? "");
+  }, [initialQuery]);
 
   function toggleFilter(filter: SearchFilter) {
     setFilters((current) => {
@@ -69,8 +95,19 @@ useEffect(() => {
         );
       }
 
+      let groupedResults = groupProductsByMarketplaceListing(
+        foundProducts,
+        data.vendors,
+      );
+
+      if (filters.includes("cheaper")) {
+        groupedResults = [...groupedResults].sort(
+          (a, b) => a.lowestPrice - b.lowestPrice,
+        );
+      }
+
       if (!cancelled) {
-        setResults(foundProducts);
+        setResults(groupedResults);
       }
     } catch (error) {
       if (!cancelled) {
@@ -91,7 +128,7 @@ useEffect(() => {
     cancelled = true;
     clearTimeout(timeout);
   };
-}, [query, filters]);
+}, [query, filters, data.vendors]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -152,39 +189,36 @@ useEffect(() => {
     <Text style={styles.suggestedSubtitle}>
       اختر من الاقتراحات السريعة أو اكتب اسم الدواء في الأعلى
     </Text>
+<View style={styles.quickSearchGrid}>
+  {quickSearches.map((item) => (
+    <Pressable
+      key={item.label}
+      style={({ pressed }) => [
+        styles.quickSearchChip,
+        pressed ? styles.quickSearchChipPressed : null,
+      ]}
+      onPress={() => {
+        const matchedCategory = data.categories.find(
+          (category) => category.slug === item.categorySlug,
+        );
 
-    <View style={styles.quickSearchGrid}>
-{[
-  { label: "مسكنات", icon: "medkit-outline" },
-  { label: "فيتامينات", icon: "nutrition-outline" },
-  { label: "أدوية البرد", icon: "thermometer-outline" },
-  { label: "قياس السكر", icon: "fitness-outline" },
-  { label: "العناية بالبشرة", icon: "sparkles-outline" },
-  { label: "الحساسية", icon: "leaf-outline" },
-  { label: "المعدة", icon: "body-outline" },
-  { label: "الأطفال", icon: "happy-outline" },
-  { label: "الشعر", icon: "cut-outline" },
-  { label: "الجروح", icon: "bandage-outline" },
-  { label: "العيون", icon: "eye-outline" },
-  { label: "الضغط", icon: "heart-outline" },
-].map((item) => (        <Pressable
-          key={item.label}
-          style={({ pressed }) => [
-            styles.quickSearchChip,
-            pressed ? styles.quickSearchChipPressed : null,
-          ]}
-          onPress={() => setQuery(item.label)}
-        >
-          <Ionicons
-            name={item.icon as keyof typeof Ionicons.glyphMap}
-            size={17}
-            color={theme.colors.primaryDark}
-          />
+        if (matchedCategory) {
+          router.push({
+            pathname: "/categories/[categoryId]",
+            params: { categoryId: matchedCategory.id },
+          });
 
-          <Text style={styles.quickSearchText}>{item.label}</Text>
-        </Pressable>
-      ))}
-    </View>
+          return;
+        }
+
+        setQuery(item.label);
+      }}
+    >
+      <Ionicons name={item.icon} size={17} color={theme.colors.primaryDark} />
+      <Text style={styles.quickSearchText}>{item.label}</Text>
+    </Pressable>
+  ))}
+</View>
   </View>
 ) : results.length === 0 ? (              <EmptyCard
               title="لا توجد نتائج"
@@ -193,18 +227,14 @@ useEffect(() => {
             />
           ) : (
             <View style={styles.resultList}>
-              {results.map((product) => {
-                const vendor = getVendorById(data.vendors, product.vendor_id);
-                const inStock = (product.stock_quantity ?? 0) > 0;
-
-                return (
+              {results.map((product) => (
                   <Pressable
                     key={product.id}
                     style={styles.resultCard}
                     onPress={() =>
                       router.push({
-                        pathname: "/product-detail",
-                        params: { productId: product.id },
+                        pathname: "/grouped-product/[groupId]",
+                        params: { groupId: product.id },
                       })
                     }
                   >
@@ -222,51 +252,20 @@ useEffect(() => {
                         <Text style={styles.productName} numberOfLines={2}>
                           {product.name}
                         </Text>
-
-                        <View style={[styles.stockPill, inStock ? styles.stockPillOk : styles.stockPillOff]}>
-                          <Text style={[styles.stockPillText, inStock ? styles.stockTextOk : styles.stockTextOff]}>
-                            {inStock ? "متوفر" : "غير متوفر"}
-                          </Text>
-                        </View>
                       </View>
 
                       <Text style={styles.vendorName} numberOfLines={1}>
-                        {vendor?.name ?? "صيدلية"}
+                        متوفر في {product.pharmaciesCount} صيدليات
                       </Text>
 
                       <View style={styles.productBottomRow}>
-  <Pressable
-    style={[
-  styles.addButton,
-  addedProductId === product.id ? styles.addButtonAdded : null,
-  !inStock ? styles.addButtonDisabled : null,
-]}
-    disabled={!inStock}
-    onPress={() => {
-  addProductToCart(product, 1);
-
-  setAddedProductId(product.id);
-
-  setTimeout(() => {
-    setAddedProductId(null);
-  }, 900);
-}}
-  >
-    <Ionicons
-  name={addedProductId === product.id ? "checkmark" : "add"}
-  size={16}
-  color="#FFFFFF"
-/>
-  </Pressable>
-
   <Text style={styles.price}>
-    {formatCustomerCurrency(Number(product.price ?? 0))}
+    يبدأ من {formatPrice(product.lowestPrice)} د.ل
     </Text>
   </View>
 </View>
 </Pressable>
-                );
-              })}
+              ))}
             </View>
           )}
         </>
@@ -503,6 +502,7 @@ suggestedSubtitle: {
 
 quickSearchGrid: {
   width: "100%",
+  marginTop: theme.spacing[8],
   flexDirection: "row-reverse",
   flexWrap: "wrap",
   justifyContent: "center",

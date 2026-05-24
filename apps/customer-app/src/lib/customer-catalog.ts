@@ -10,6 +10,29 @@ export type CustomerCatalogData = {
   defaultAddressId: string | null;
 };
 
+export type ProductOffer = {
+  product: Product;
+  vendor: Vendor | null;
+};
+
+export type GroupedProduct = {
+  id: string;
+  normalizedName: string;
+  name: string;
+
+  lowestPrice: number;
+  highestPrice: number;
+
+  pharmaciesCount: number;
+
+  image_url: string;
+  category_id: string;
+
+  offers: ProductOffer[];
+
+  representativeProduct: Product;
+};
+
 type QueryCategory = {
   id: string;
   name: string;
@@ -239,6 +262,10 @@ export function getCategorySubtitle(slug?: string | null) {
   return getVisualForSlug(slug).subtitle;
 }
 
+function normalizeProductName(name: string) {
+  return name.trim().toLocaleLowerCase();
+}
+
 function normalizeQuery(value: string) {
   return value.trim().toLocaleLowerCase();
 }
@@ -390,6 +417,76 @@ function mapAddress(address: QueryAddress): Address {
     lng: address.lng ?? null,
     created_at: address.created_at ?? undefined,
   };
+}
+
+export function groupProductsByMarketplaceListing(
+  products: Product[],
+  vendors: Vendor[],
+): GroupedProduct[] {
+  const grouped = new Map<string, GroupedProduct>();
+
+  for (const product of products) {
+    const normalizedName = normalizeProductName(product.name);
+
+    const existing = grouped.get(normalizedName);
+
+    const vendor =
+      vendors.find((item) => item.id === product.vendor_id) ?? null;
+
+    if (!existing) {
+      grouped.set(normalizedName, {
+        id: normalizedName,
+        normalizedName,
+        name: product.name,
+
+        lowestPrice: product.price,
+        highestPrice: product.price,
+
+        pharmaciesCount: 1,
+
+        image_url: product.image_url,
+        category_id: product.category_id,
+
+        representativeProduct: product,
+
+        offers: [
+          {
+            product,
+            vendor,
+          },
+        ],
+      });
+
+      continue;
+    }
+
+    existing.lowestPrice = Math.min(
+      existing.lowestPrice,
+      product.price,
+    );
+
+    existing.highestPrice = Math.max(
+      existing.highestPrice,
+      product.price,
+    );
+
+    existing.offers.push({
+      product,
+      vendor,
+    });
+
+    existing.pharmaciesCount =
+      existing.offers.length;
+
+    if (!existing.image_url && product.image_url) {
+      existing.image_url = product.image_url;
+    }
+  }
+
+  return [...grouped.values()].sort(
+    (left, right) =>
+      left.lowestPrice - right.lowestPrice,
+  );
 }
 
 async function loadCustomerAddresses(): Promise<Pick<CustomerCatalogData, "addresses" | "defaultAddressId">> {
@@ -616,8 +713,10 @@ export function useCustomerCatalogData() {
   };
 }
 
-export function getFeaturedProducts(products: Product[]) {
-  return products.slice(0, 4);
+export function getFeaturedProducts(
+  groupedProducts: GroupedProduct[],
+) {
+  return groupedProducts.slice(0, 4);
 }
 
 export function getPopularProducts(products: Product[]) {
@@ -962,11 +1061,78 @@ export function filterProducts(products: Product[], input: { categories?: Catego
   });
 }
 
+export function filterGroupedProducts(
+  groupedProducts: GroupedProduct[],
+  input: {
+    categories?: Category[];
+    categoryId?: string | null;
+    query?: string | null;
+  },
+) {
+  const normalizedQuery = normalizeQuery(input.query ?? "");
+
+  const categoryIds =
+    input.categoryId && input.categories
+      ? (
+          buildPharmacyCategoryTree(input.categories)
+            .categoryAndDescendantIdsById.get(
+              input.categoryId,
+            ) ?? new Set([input.categoryId])
+        )
+      : input.categoryId
+        ? new Set([input.categoryId])
+        : null;
+
+  return groupedProducts.filter((product) => {
+    const matchesCategory =
+      !categoryIds ||
+      categoryIds.has(product.category_id);
+
+    const matchesQuery =
+      !normalizedQuery ||
+      normalizeQuery(product.name).includes(
+        normalizedQuery,
+      );
+
+    return matchesCategory && matchesQuery;
+  });
+}
+
+export function getGroupedProductById(
+  groupedProducts: GroupedProduct[],
+  groupId?: string | null,
+) {
+  if (!groupId) {
+    return null;
+  }
+
+  return groupedProducts.find((product) => product.id === groupId) ?? null;
+}
+
 export function useFilteredProducts(input: { categoryId?: string | null; query?: string | null }) {
   const { data } = useCustomerCatalogData();
 
   return useMemo(() => filterProducts(data.products, { ...input, categories: data.categories }), [data.categories, data.products, input]);
 }
+
+export function useGroupedCustomerProducts() {
+  const catalog = useCustomerCatalogData();
+
+  const groupedProducts = useMemo(
+    () =>
+      groupProductsByMarketplaceListing(
+        catalog.data.products,
+        catalog.data.vendors,
+      ),
+    [catalog.data.products, catalog.data.vendors],
+  );
+
+  return {
+    ...catalog,
+    groupedProducts,
+  };
+}
+
 export async function listFavouriteVendorIds() {
   const customerIdResult = await supabase.rpc("get_customer_id");
 

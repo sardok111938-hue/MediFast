@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { Product } from "@medifast/types";
 import { theme } from "@medifast/ui";
-import { CustomerProductCard } from "../../src/components/CustomerProductCard";
+import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, Screen, SectionTitle } from "../../src/components/CustomerUI";
 import {
   getCategoryById,
@@ -12,13 +12,61 @@ import {
   useCustomerCatalogData,
   loadCategoryProducts,
   buildPharmacyCategoryTree,
+  groupProductsByMarketplaceListing,
 } from "../../src/lib/customer-catalog";
+import type { GroupedProduct } from "../../src/lib/customer-catalog";
 
 function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
 }
 
+function formatPrice(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function GroupedCategoryProductCard({
+  product,
+  onPress,
+}: {
+  product: GroupedProduct;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.groupedProductCard,
+        pressed ? styles.groupedProductCardPressed : null,
+      ]}
+      onPress={onPress}
+    >
+      <CatalogImage
+        uri={product.image_url}
+        alt={product.name}
+        fallbackLabel="منتج"
+        containerStyle={styles.groupedProductImageWrap}
+        imageStyle={styles.groupedProductImage}
+        resizeMode="contain"
+      />
+
+      <View style={styles.groupedProductBody}>
+        <Text style={styles.groupedProductName} numberOfLines={2}>
+          {product.name}
+        </Text>
+
+        <Text style={styles.groupedProductPrice} numberOfLines={1}>
+          يبدأ من {formatPrice(product.lowestPrice)} د.ل
+        </Text>
+
+        <Text style={styles.groupedProductMeta} numberOfLines={1}>
+          متوفر في {product.pharmaciesCount} صيدليات
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function MarketplaceCategoryScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<{
   categoryId?: string | string[];
   pharmacyId?: string | string[];
@@ -49,18 +97,18 @@ const pharmacyId = Array.isArray(params.pharmacyId)
   const filteredProducts = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
 
-    if (!normalizedQuery) {
-      return products;
-    }
-
-    return products.filter((product) => {
+    const nextProducts = normalizedQuery
+      ? products.filter((product) => {
       return (
         normalizeSearch(product.name).includes(normalizedQuery) ||
         normalizeSearch(product.description).includes(normalizedQuery) ||
         normalizeSearch(product.barcode ?? "").includes(normalizedQuery)
       );
-    });
-  }, [products, query]);
+    })
+      : products;
+
+    return groupProductsByMarketplaceListing(nextProducts, data.vendors);
+  }, [data.vendors, products, query]);
 
   useEffect(() => {
     setActiveSubcategoryId(requestedCategory?.parent_id ? requestedCategory.id : null);
@@ -195,7 +243,16 @@ const pharmacyId = Array.isArray(params.pharmacyId)
       ) : (
         <View style={styles.productList}>
           {filteredProducts.map((product) => (
-            <CustomerProductCard key={product.id} product={product} vendors={data.vendors} width="48%" />
+            <GroupedCategoryProductCard
+              key={product.id}
+              product={product}
+              onPress={() =>
+                router.push({
+                  pathname: "/grouped-product/[groupId]",
+                  params: { groupId: product.id },
+                })
+              }
+            />
           ))}
         </View>
       )}
@@ -256,5 +313,58 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "space-between",
     gap: theme.spacing[12],
+  },
+  groupedProductCard: {
+    width: "48%",
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+    gap: 10,
+    shadowColor: "#0F3D2E",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 2,
+  },
+  groupedProductCardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
+  },
+  groupedProductImageWrap: {
+    width: "100%",
+    height: 112,
+    borderRadius: 20,
+    backgroundColor: "#F3FAF6",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  groupedProductImage: {
+    width: "100%",
+    height: "100%",
+  },
+  groupedProductBody: {
+    alignItems: "flex-end",
+    gap: 5,
+  },
+  groupedProductName: {
+    minHeight: 38,
+    color: theme.colors.text,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "900",
+    lineHeight: 19,
+    textAlign: "right",
+  },
+  groupedProductPrice: {
+    color: theme.colors.primaryDark,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  groupedProductMeta: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.sm,
+    fontWeight: "800",
+    textAlign: "right",
   },
 });
