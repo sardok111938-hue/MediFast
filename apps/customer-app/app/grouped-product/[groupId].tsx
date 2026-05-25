@@ -109,59 +109,46 @@ export default function GroupedProductDetailScreen() {
 
           return (
             <View key={offer.product.id} style={styles.offerCard}>
-              <View style={styles.offerMain}>
+              <View style={styles.offerTopRow}>
                 <Text style={styles.vendorName} numberOfLines={1}>
                   {vendor?.name ?? "صيدلية"}
                 </Text>
 
-                <View style={styles.offerMetaGrid}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="pricetag-outline" size={14} color={theme.colors.primaryDark} />
-                    <Text style={styles.metaText}>{formatCustomerCurrency(offer.product.price)}</Text>
-                  </View>
+                <Pressable
+                  style={[
+                    styles.addButton,
+                    isAdded ? styles.addButtonAdded : null,
+                    !inStock ? styles.addButtonDisabled : null,
+                  ]}
+                  disabled={!inStock}
+                  onPress={() => {
+                    addProductToCart(offer.product, 1);
+                    setAddedProductId(offer.product.id);
 
-                  <View style={styles.metaItem}>
-                    <Ionicons name="cube-outline" size={14} color={inStock ? theme.colors.primaryDark : theme.colors.danger} />
-                    <Text style={[styles.metaText, !inStock ? styles.metaTextDanger : null]}>
-                      {inStock ? `المخزون ${stockQuantity}` : "غير متوفر"}
-                    </Text>
-                  </View>
-
-                  <View style={styles.metaItem}>
-                    <Ionicons name="location-outline" size={14} color={theme.colors.muted} />
-                    <Text style={styles.metaText}>{formatDistanceKm(distanceKm)}</Text>
-                  </View>
-
-                  <View style={styles.metaItem}>
-                    <Ionicons name="bicycle-outline" size={14} color={theme.colors.muted} />
-                    <Text style={styles.metaText}>
-                      التوصيل {formatCustomerCurrency(DEFAULT_DELIVERY_FEE_ESTIMATE)}
-                    </Text>
-                  </View>
-                </View>
+                    setTimeout(() => {
+                      setAddedProductId(null);
+                    }, 900);
+                  }}
+                >
+                  <Ionicons name={isAdded ? "checkmark" : "add"} size={16} color="#FFFFFF" />
+                </Pressable>
               </View>
 
-              <Pressable
-                style={[
-                  styles.addButton,
-                  isAdded ? styles.addButtonAdded : null,
-                  !inStock ? styles.addButtonDisabled : null,
-                ]}
-                disabled={!inStock}
-                onPress={() => {
-                  addProductToCart(offer.product, 1);
-                  setAddedProductId(offer.product.id);
-
-                  setTimeout(() => {
-                    setAddedProductId(null);
-                  }, 900);
-                }}
-              >
-                <Ionicons name={isAdded ? "checkmark" : "add"} size={16} color="#FFFFFF" />
-                <Text style={styles.addButtonText}>
-                  {isAdded ? "تمت الإضافة" : "Add to cart"}
+              <View style={styles.offerMetaRow}>
+                <Text style={styles.metaText}>
+                  {formatCustomerCurrency(offer.product.price)}
                 </Text>
-              </Pressable>
+                <Text style={styles.metaDot}>•</Text>
+                <Text style={[styles.metaText, !inStock ? styles.metaTextDanger : null]}>
+                  {inStock ? `${stockQuantity} متوفر` : "غير متوفر"}
+                </Text>
+                <Text style={styles.metaDot}>•</Text>
+                <Text style={styles.metaText}>{formatDistanceKm(distanceKm)}</Text>
+                <Text style={styles.metaDot}>•</Text>
+                <Text style={styles.metaText}>
+                  توصيل {formatCustomerCurrency(DEFAULT_DELIVERY_FEE_ESTIMATE)}
+                </Text>
+              </View>
             </View>
           );
         })}
@@ -256,39 +243,35 @@ const styles = StyleSheet.create({
     gap: theme.spacing[12],
   },
   offerCard: {
-    borderRadius: 24,
+    borderRadius: 18,
     backgroundColor: "#FFFFFF",
-    padding: theme.spacing[12],
-    gap: theme.spacing[12],
+    paddingHorizontal: theme.spacing[12],
+    paddingVertical: theme.spacing[8],
+    gap: 6,
     shadowColor: "#0F3D2E",
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
     elevation: 2,
   },
-  offerMain: {
-    alignItems: "flex-end",
+  offerTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: theme.spacing[8],
   },
   vendorName: {
+    flex: 1,
     color: theme.colors.text,
-    fontSize: theme.typography.body.lg,
+    fontSize: theme.typography.body.md,
     fontWeight: "900",
     textAlign: "right",
   },
-  offerMetaGrid: {
-    width: "100%",
+  offerMetaRow: {
     flexDirection: "row-reverse",
     flexWrap: "wrap",
-    gap: theme.spacing[8],
-  },
-  metaItem: {
-    minHeight: 32,
-    borderRadius: 999,
-    backgroundColor: "#F7FBF8",
-    paddingHorizontal: theme.spacing[8],
-    flexDirection: "row-reverse",
     alignItems: "center",
+    justifyContent: "flex-start",
     gap: 5,
   },
   metaText: {
@@ -300,26 +283,24 @@ const styles = StyleSheet.create({
   metaTextDanger: {
     color: theme.colors.danger,
   },
+  metaDot: {
+    color: "#CBD5E1",
+    fontSize: theme.typography.caption.sm,
+    fontWeight: "900",
+  },
   addButton: {
-    minHeight: 46,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: theme.colors.primary,
-    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
-    gap: 7,
   },
   addButtonAdded: {
     backgroundColor: "#15803D",
   },
   addButtonDisabled: {
     opacity: 0.45,
-  },
-  addButtonText: {
-    color: "#FFFFFF",
-    fontSize: theme.typography.caption.md,
-    fontWeight: "900",
-    textAlign: "center",
   },
   emptyButton: {
     minHeight: 44,
