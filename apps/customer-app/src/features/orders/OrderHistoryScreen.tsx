@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@medifast/ui";
 import { Card, EmptyCard, ErrorCard, HelperText, ListCard, LoadingCard, PrimaryButton, Screen, SectionTitle, StatusBadge } from "../../components/CustomerUI";
 import {
@@ -115,8 +123,6 @@ const visiblePrescriptions = useMemo(
   [prescriptions]
 );
 
-const latestOrder = activeOrders[0] ?? null;
-
 const loadOrders = useCallback(
   async (mode: "initial" | "refresh" = "initial") => {
     if (mode === "refresh") {
@@ -223,12 +229,10 @@ const loadOrders = useCallback(
 }
 
   return (
-    <Screen
-  title="طلباتي"
-  subtitle="تابع جميع طلباتك وحالات التوصيل والدفع."
-  scroll={false}
->
-      <ScrollView
+<Screen title="" subtitle="">
+<View style={styles.floatingHeader}>
+</View>
+        <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadOrders("refresh")} />}
@@ -248,7 +252,7 @@ const loadOrders = useCallback(
           <>
             {visiblePrescriptions.length > 0 ? (
               <>
-                <SectionTitle label="وصفاتي الطبية" />
+                <SectionTitle label="الطلبات والوصفات" />
                 {visiblePrescriptions.map((prescription) => (
                   <ListCard
                     key={prescription.id}
@@ -420,52 +424,6 @@ const loadOrders = useCallback(
               </>
             ) : null}
 
-            {latestOrder ? (
-              <Card style={styles.highlightCard}>
-
-  <View style={styles.heroCompactHeader}>
-  <View style={styles.heroLeftMeta}>
-    <Text style={styles.heroDate}>
-      {formatCustomerDate(latestOrder.createdAt)}
-    </Text>
-
-    <StatusBadge
-      label={formatOrderStatusLabel(latestOrder.orderStatus)}
-      tone={orderStatusTone(latestOrder.orderStatus)}
-    />
-
-    <StatusBadge
-      label={formatCustomerPaymentStatusLabel(
-        latestOrder.paymentStatus,
-        latestOrder.paymentMethod
-      )}
-      tone={orderStatusTone(latestOrder.paymentStatus)}
-    />
-  </View>
-
-  <View style={styles.heroRightInfo}>
-    <Text style={styles.latestLabel}>آخر طلب</Text>
-
-    <Text
-      style={styles.highlightTitle}
-      numberOfLines={1}
-    >
-      {latestOrder.vendorName}
-    </Text>
-  </View>
-</View>
-                <PrimaryButton
-                  label="تتبع آخر طلب"
-                  onPress={() =>
-                    router.push({
-                      pathname: "/orders/[orderId]",
-                      params: { orderId: latestOrder.id },
-                    })
-                  }
-                />
-              </Card>
-            ) : null}
-
 {activeOrders.map((order) => (
   <ListCard
     key={order.id}
@@ -535,17 +493,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  highlightCard: {
-    backgroundColor: "#F3FAF6",
-    borderColor: "#D8ECDD",
-    gap: theme.spacing[12],
-  },
-  highlightTitle: {
-    color: theme.colors.text,
-    fontWeight: "900",
-    fontSize: theme.typography.body.lg,
-    textAlign: "right",
   },
   prescriptionReply: {
     borderRadius: 18,
@@ -640,38 +587,11 @@ const styles = StyleSheet.create({
   quoteActions: {
     gap: theme.spacing[8],
   },
-  latestLabel: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.caption.md,
-    fontWeight: "800",
-    textAlign: "right",
-  },
   metaText: {
     color: theme.colors.muted,
     fontSize: theme.typography.body.sm,
     lineHeight: 20,
     textAlign: "right",
-  },
-  heroCompactHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: theme.spacing[12],
-  },
-  heroLeftMeta: {
-    alignItems: "flex-start",
-    gap: 6,
-    maxWidth: "48%",
-  },
-  heroRightInfo: {
-    flex: 1,
-    alignItems: "flex-end",
-    gap: 4,
-  },
-  heroDate: {
-    color: theme.colors.muted,
-    fontSize: theme.typography.caption.md,
-    fontWeight: "700",
   },
   acceptedMessage: {
   color: "#166534",
@@ -715,5 +635,42 @@ availabilityBadgeText: {
   fontSize: theme.typography.caption.sm,
   fontWeight: "800",
   textAlign: "center",
+},
+floatingHeader: {
+  flexDirection: "row-reverse",
+  alignItems: "center",
+  paddingHorizontal: theme.spacing[20],
+  paddingTop: theme.spacing[12],
+  paddingBottom: theme.spacing[8],
+  top: theme.spacing[12],
+  left: theme.spacing[12],
+  right: theme.spacing[12],
+  position: "absolute",
+  zIndex: 20,
+},
+
+headerCopy: {
+  flex: 1,
+  alignItems: "flex-end",
+  gap: 2,
+  marginRight: theme.spacing[12],
+},
+
+headerTitle: {
+  color: theme.colors.text,
+  fontSize: theme.typography.heading.lg,
+  fontWeight: "900",
+  textAlign: "right",
+},
+
+headerSubtitle: {
+  color: theme.colors.muted,
+  fontSize: theme.typography.caption.md,
+  fontWeight: "700",
+  textAlign: "right",
+},
+screenContent: {
+  gap: theme.spacing[16],
+  paddingBottom: 120,
 },
 });

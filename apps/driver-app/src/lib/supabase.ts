@@ -19,6 +19,15 @@ export const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
   },
 });
 
+/**
+ * Safe session reset (idempotent)
+ */
+const resetSession = async () => {
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {}
+};
+
 export function isSupabaseConfigured() {
   return Boolean(supabaseUrl && supabaseAnonKey);
 }
@@ -27,31 +36,30 @@ function normalizePhone(value: string) {
   return value.replace(/[^\d+]/g, "").trim();
 }
 
-async function waitForPersistedSession(timeoutMs = 2500): Promise<Session | null> {
-  return await new Promise((resolve) => {
-    const timeoutId = setTimeout(() => {
-      subscription.data.subscription.unsubscribe();
-      resolve(null);
-    }, timeoutMs);
+/**
+ * Wait for persisted session (driver app startup safety)
+ */
+async function waitForPersistedSession(timeoutMs = 2000): Promise<Session | null> {
+  const start = Date.now();
 
-    const subscription = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        return;
-      }
+  while (Date.now() - start < timeoutMs) {
+    const { data } = await supabase.auth.getSession();
 
-      clearTimeout(timeoutId);
-      subscription.data.subscription.unsubscribe();
-      resolve(session);
-    });
-  });
+    if (data.session) return data.session;
+
+    await new Promise((r) => setTimeout(r, 100));
+  }
+
+  return null;
 }
 
 export async function getActiveSession() {
   const sessionResponse = await supabase.auth.getSession();
 
   if (sessionResponse.error) {
-    throw sessionResponse.error;
-  }
+  console.log("Session error:", sessionResponse.error);
+  return null;
+}
 
   if (sessionResponse.data.session) {
     return sessionResponse.data.session;
@@ -63,21 +71,12 @@ export async function getActiveSession() {
 export async function getAuthenticatedUser() {
   const session = await getActiveSession();
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
   const userResponse = await supabase.auth.getUser();
-  if (userResponse.error) {
-    throw userResponse.error;
-  }
+  if (userResponse.error) throw userResponse.error;
 
   return userResponse.data.user ?? session.user ?? null;
-}
-
-export async function signOutDriver() {
-  await supabase.auth.signOut({ scope: "local" });
-  await AsyncStorage.removeItem(authStorageKey);
 }
 
 export async function signUpDriver({
@@ -95,8 +94,6 @@ export async function signUpDriver({
   vehicleType: string;
   vehiclePlate: string;
 }) {
-  await signOutDriver();
-
   const safeEmail = email.trim();
   const safeFullName = fullName.trim();
   const safePhone = normalizePhone(phone);
@@ -127,21 +124,16 @@ export async function signUpDriver({
   });
 
   if (error) {
-    await signOutDriver();
-
-    return {
-      ...authResponse,
-      error,
-    };
+    await resetSession();
+    return { ...authResponse, error };
   }
 
-  await signOutDriver();
-
+  await resetSession();
   return authResponse;
 }
 
 export async function signInDriver(email: string, password: string) {
-  await signOutDriver();
+  await resetSession();
 
   const authResponse = await supabase.auth.signInWithPassword({
     email: email.trim(),
@@ -152,28 +144,33 @@ export async function signInDriver(email: string, password: string) {
     return authResponse;
   }
 
-  const activeSession = await getActiveSession();
-  if (!activeSession || activeSession.user.id !== authResponse.data.user.id) {
-    await signOutDriver();
+  if (!authResponse.data.session) {
+    await resetSession();
     return {
       ...authResponse,
       error: new Error("تعذر إنشاء جلسة السائق على هذا الجهاز."),
     };
   }
 
-  const roleResponse = await fetchProfileRole(supabase, authResponse.data.user.id);
+  const roleResponse = await fetchProfileRole(
+    supabase,
+    authResponse.data.user.id
+  );
 
   if (roleResponse.error || roleResponse.data?.role !== "driver") {
-    await signOutDriver();
+    await resetSession();
     return {
       ...authResponse,
       error: new Error("هذا الحساب غير معتمد للوصول إلى تطبيق السائق."),
     };
   }
 
-  const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_id");
+  const { data: driverId, error: driverIdError } = await supabase.rpc(
+    "get_driver_id"
+  );
+
   if (driverIdError || !driverId) {
-    await signOutDriver();
+    await resetSession();
     return {
       ...authResponse,
       error: driverIdError ?? new Error("هذا الحساب غير مرتبط بملف سائق."),
@@ -187,37 +184,54 @@ export async function signInDriver(email: string, password: string) {
     .maybeSingle();
 
   if (driverError || driver?.approval_status !== "approved") {
-    await signOutDriver();
+    await resetSession();
     return {
       ...authResponse,
       error: driverError ?? new Error("حساب السائق بانتظار الاعتماد من الإدارة."),
     };
   }
-try {
-  await registerDriverPushToken(String(driverId));
-} catch (error) {
-  console.log("DRIVER PUSH TOKEN REGISTER ERROR", error);
-}
+
+  try {
+    await registerDriverPushToken(supabase, String(driverId));
+  } catch (error) {
+    console.log("DRIVER PUSH TOKEN REGISTER ERROR", error);
+  }
+
   return authResponse;
 }
 
-export function subscribeToAssignedOrders(driverId: string, onChange: (payload: unknown) => void) {
+export function subscribeToAssignedOrders(
+  driverId: string,
+  onChange: (payload: unknown) => void
+) {
   return supabase
     .channel(`driver-orders-${driverId}`)
     .on(
       "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "orders", filter: `driver_id=eq.${driverId}` },
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "orders",
+        filter: `driver_id=eq.${driverId}`,
+      },
       onChange
     )
     .subscribe();
 }
 
-export function subscribeToAvailablePickupOrders(onChange: (payload: unknown) => void) {
+export function subscribeToAvailablePickupOrders(
+  onChange: (payload: unknown) => void
+) {
   return supabase
     .channel("driver-available-pickups")
     .on(
       "postgres_changes",
-      { event: "INSERT", schema: "public", table: "orders", filter: "order_status=eq.ready_for_pickup" },
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "orders",
+        filter: "order_status=eq.ready_for_pickup",
+      },
       onChange
     )
     .subscribe();

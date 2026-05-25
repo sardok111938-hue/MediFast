@@ -1,14 +1,15 @@
+// notifications.ts
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
-import { supabase } from "./supabase";
 import Constants from "expo-constants";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-export async function registerDriverPushToken(driverId: string) {
-  if (!Device.isDevice) {
-    return null;
-  }
-
+export async function registerDriverPushToken(
+  supabase: SupabaseClient,
+  driverId: string
+) {
+  
   const existingPermissions = await Notifications.getPermissionsAsync();
   let finalStatus = existingPermissions.status;
 

@@ -66,8 +66,13 @@ export default function GroupedProductDetailScreen() {
   }
 
   return (
-    <Screen title="" subtitle="" backHref="/search" backLabel="" contentContainerStyle={styles.screenContent}>
+    <Screen title="" subtitle="" contentContainerStyle={styles.screenContent}>
       <View style={styles.heroCard}>
+        <View style={styles.heroOverlay}>
+  <Pressable style={styles.heroIconButton} onPress={() => router.back()}>
+    <Ionicons name="chevron-forward" size={20} color={theme.colors.text} />
+  </Pressable>
+</View>
         <CatalogImage
           uri={product.image_url}
           alt={product.name}
@@ -315,4 +320,23 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption.md,
     fontWeight: "900",
   },
+  heroOverlay: {
+  position: "absolute",
+  top: theme.spacing[12],
+  left: theme.spacing[12],
+  right: theme.spacing[12],
+  zIndex: 20,
+  flexDirection: "row-reverse",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
+heroIconButton: {
+  width: 42,
+  height: 42,
+  borderRadius: 21,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "rgba(255,255,255,0.94)",
+},
 });
