@@ -213,12 +213,17 @@ export function subscribeToAssignedOrders(
     .on(
       "postgres_changes",
       {
-        event: "UPDATE",
+        event: "*",
         schema: "public",
         table: "orders",
-        filter: `driver_id=eq.${driverId}`,
       },
-      onChange
+      (payload) => {
+        const record = payload.new as { driver_id?: string | null } | null;
+
+        if (record?.driver_id === driverId) {
+          onChange(payload);
+        }
+      }
     )
     .subscribe();
 }
