@@ -1,6 +1,8 @@
 alter table public.vendors
   add column if not exists image_url text;
 
+drop function if exists public.vendor_update_settings(text, text, text, text, text, text, text);
+
 create or replace function public.vendor_update_settings(
   p_name text,
   p_description text default null,

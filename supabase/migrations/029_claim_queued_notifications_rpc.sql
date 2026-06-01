@@ -1,3 +1,5 @@
+drop function if exists public.claim_queued_notifications(integer);
+
 create or replace function public.claim_queued_notifications(p_limit integer default 20)
 returns setof public.notifications
 language plpgsql

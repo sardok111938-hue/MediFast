@@ -13,6 +13,8 @@ to authenticated
 using (vendor_id = public.get_vendor_id())
 with check (vendor_id = public.get_vendor_id());
 
+drop function if exists public.vendor_update_order_status(uuid, text);
+
 create or replace function public.vendor_update_order_status(
   p_order_id uuid,
   p_next_status text

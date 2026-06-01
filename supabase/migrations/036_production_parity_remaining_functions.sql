@@ -1,3 +1,5 @@
+drop function if exists public.apply_order_status_timestamp(text, timestamptz, timestamptz, timestamptz, timestamptz, timestamptz, timestamptz, timestamptz, timestamptz);
+
 create or replace function public.apply_order_status_timestamp(
   p_next_status text,
   p_accepted_at timestamptz,
@@ -35,6 +37,8 @@ begin
     case when p_next_status = 'rejected' and p_rejected_at is null then now() else p_rejected_at end;
 end;
 $$;
+
+drop function if exists public.auto_assign_driver_to_order(uuid);
 
 create or replace function public.auto_assign_driver_to_order(
   p_order_id uuid
@@ -84,6 +88,8 @@ begin
 end;
 $$;
 
+drop function if exists public.cancel_prescription_request(uuid);
+
 create or replace function public.cancel_prescription_request(
   p_request_id uuid
 )
@@ -110,6 +116,8 @@ begin
   return v_request;
 end;
 $$;
+
+drop function if exists public.queue_notification(text, uuid, uuid, text, text, jsonb);
 
 create or replace function public.queue_notification(
   p_recipient_role text,

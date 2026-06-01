@@ -1,3 +1,5 @@
+drop function if exists public.create_cod_order(jsonb);
+
 create or replace function public.create_cod_order(cart_items_input jsonb)
 returns uuid
 language plpgsql

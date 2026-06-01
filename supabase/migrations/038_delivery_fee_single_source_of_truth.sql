@@ -1,3 +1,5 @@
+drop function if exists public.calculate_delivery_fee(numeric);
+
 create or replace function public.calculate_delivery_fee(distance_km numeric)
 returns numeric
 language plpgsql

@@ -1,3 +1,5 @@
+drop function if exists public.calculate_distance_km(double precision, double precision, double precision, double precision);
+
 create or replace function public.calculate_distance_km(
   lat1 double precision,
   lng1 double precision,
@@ -23,6 +25,8 @@ as $function$
   );
 $function$;
 
+
+drop function if exists public.register_driver_account(text, text, text, text);
 
 create or replace function public.register_driver_account(
   p_full_name text,
@@ -87,6 +91,8 @@ end;
 $function$;
 
 
+drop function if exists public.admin_update_global_product_category(uuid, uuid);
+
 create or replace function public.admin_update_global_product_category(
   p_product_id uuid,
   p_category_id uuid
@@ -133,6 +139,8 @@ begin
 end;
 $function$;
 
+
+drop function if exists public.create_cod_order_from_quote(uuid);
 
 create or replace function public.create_cod_order_from_quote(p_quote_id uuid)
 returns uuid

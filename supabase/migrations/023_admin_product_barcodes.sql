@@ -1,4 +1,5 @@
 drop function if exists public.admin_create_product(uuid, text, text, numeric, uuid, text, integer, boolean);
+drop function if exists public.admin_create_product(uuid, text, text, text, numeric, uuid, text, integer, boolean);
 
 create or replace function public.admin_create_product(
   p_vendor_id uuid,
@@ -74,6 +75,7 @@ $$;
 grant execute on function public.admin_create_product(uuid, text, text, text, numeric, uuid, text, integer, boolean) to authenticated;
 
 drop function if exists public.admin_update_product(uuid, text, text, numeric, uuid, boolean, text, boolean, integer, boolean);
+drop function if exists public.admin_update_product(uuid, text, text, boolean, text, numeric, uuid, boolean, text, boolean, integer, boolean);
 
 create or replace function public.admin_update_product(
   p_product_id uuid,

@@ -186,6 +186,8 @@ for select
 to authenticated
 using (public.is_admin());
 
+drop function if exists public.recalculate_prescription_quote_subtotal(uuid);
+
 create or replace function public.recalculate_prescription_quote_subtotal(p_quote_id uuid)
 returns void
 language plpgsql
@@ -204,6 +206,8 @@ begin
   where q.id = p_quote_id;
 end;
 $$;
+
+drop function if exists public.vendor_create_prescription_quote(uuid);
 
 create or replace function public.vendor_create_prescription_quote(
   p_prescription_request_id uuid
@@ -260,6 +264,8 @@ begin
   return quote_id;
 end;
 $$;
+
+drop function if exists public.vendor_upsert_prescription_quote_item(uuid, uuid, uuid, text, integer, numeric, text, text);
 
 create or replace function public.vendor_upsert_prescription_quote_item(
   p_quote_id uuid,
@@ -388,6 +394,8 @@ begin
 end;
 $$;
 
+drop function if exists public.vendor_delete_prescription_quote_item(uuid);
+
 create or replace function public.vendor_delete_prescription_quote_item(
   p_item_id uuid
 )
@@ -428,6 +436,8 @@ begin
   return deleted_item_id;
 end;
 $$;
+
+drop function if exists public.vendor_send_prescription_quote(uuid);
 
 create or replace function public.vendor_send_prescription_quote(
   p_quote_id uuid
@@ -476,6 +486,8 @@ begin
   return sent_quote_id;
 end;
 $$;
+
+drop function if exists public.customer_respond_prescription_quote(uuid, text, text);
 
 create or replace function public.customer_respond_prescription_quote(
   p_quote_id uuid,

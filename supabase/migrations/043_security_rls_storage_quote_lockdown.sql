@@ -1,3 +1,5 @@
+-- 043_security_rls_storage_quote_lockdown.sql
+
 alter table public.prescription_quotes enable row level security;
 alter table public.prescription_quote_items enable row level security;
 
@@ -13,6 +15,9 @@ drop policy if exists "vendors can update own prescription quote items" on publi
 drop policy if exists "vendors can update own draft prescription quote items" on public.prescription_quote_items;
 drop policy if exists "vendors can delete own prescription quote items" on public.prescription_quote_items;
 drop policy if exists "vendors can delete own draft prescription quote items" on public.prescription_quote_items;
+
+drop policy if exists "admins can manage prescription quotes" on public.prescription_quotes;
+drop policy if exists "admins can manage prescription quote items" on public.prescription_quote_items;
 
 comment on table public.carts is
 'RLS enabled with no direct client policies. Access only through controlled server/RPC flows if used.';

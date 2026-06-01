@@ -61,6 +61,8 @@ using (
   )
 );
 
+drop function if exists public.driver_claim_order(uuid);
+
 create or replace function public.driver_claim_order(
   p_order_id uuid
 )

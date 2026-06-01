@@ -1,6 +1,8 @@
 -- 030_add_prescription_features_and_grouped_view.sql
 
 -- Vendor Grouped Products View (using existing products table)
+DROP VIEW IF EXISTS public.vendor_grouped_products;
+
 CREATE OR REPLACE VIEW public.vendor_grouped_products AS
 SELECT
     p.vendor_id,
@@ -26,6 +28,8 @@ WHERE p.is_active = true
 GROUP BY p.vendor_id, p.category_id, c.name, c.name_ar;
 
 -- RPC: vendor_respond_prescription_request
+DROP FUNCTION IF EXISTS public.vendor_respond_prescription_request(uuid, text, text);
+
 CREATE OR REPLACE FUNCTION public.vendor_respond_prescription_request(
     p_request_id uuid,
     p_vendor_note text DEFAULT NULL,
@@ -55,6 +59,8 @@ END;
 $$;
 
 -- RPC: create_cod_order_from_quote
+DROP FUNCTION IF EXISTS public.create_cod_order_from_quote(uuid);
+
 CREATE OR REPLACE FUNCTION public.create_cod_order_from_quote(p_quote_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -84,9 +90,9 @@ END;
 $$;
 
 -- Grant execute permissions
-GRANT EXECUTE ON FUNCTION public.vendor_respond_prescription_request TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_cod_order_from_quote TO authenticated;
+GRANT EXECUTE ON FUNCTION public.vendor_respond_prescription_request(uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_cod_order_from_quote(uuid) TO authenticated;
 
 COMMENT ON VIEW public.vendor_grouped_products IS 'Products grouped by vendor and category for catalog display';
-COMMENT ON FUNCTION public.vendor_respond_prescription_request IS 'Allows vendor to respond to prescription request';
-COMMENT ON FUNCTION public.create_cod_order_from_quote IS 'Creates a COD order from a prescription quote';
+COMMENT ON FUNCTION public.vendor_respond_prescription_request(uuid, text, text) IS 'Allows vendor to respond to prescription request';
+COMMENT ON FUNCTION public.create_cod_order_from_quote(uuid) IS 'Creates a COD order from a prescription quote';

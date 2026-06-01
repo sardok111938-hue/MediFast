@@ -18,6 +18,8 @@ for select
 to authenticated
 using (vendor_id = public.get_vendor_id());
 
+drop function if exists public.vendor_update_prescription_note(uuid, text);
+
 create or replace function public.vendor_update_prescription_note(
   p_request_id uuid,
   p_vendor_note text

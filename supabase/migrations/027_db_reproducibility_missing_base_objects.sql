@@ -1,6 +1,8 @@
 -- DB reproducibility base objects required before prescription/favorites/settings migrations.
 
 -- Customer bootstrap RPC referenced by customer app.
+drop function if exists public.ensure_customer_account(text, text);
+
 create or replace function public.ensure_customer_account(
   p_full_name text default null,
   p_phone text default null

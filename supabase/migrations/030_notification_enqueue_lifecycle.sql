@@ -1,3 +1,5 @@
+drop function if exists public.enqueue_order_notification(text, uuid, uuid, text, text, jsonb);
+
 create or replace function public.enqueue_order_notification(
   p_recipient_role text,
   p_recipient_id uuid,
