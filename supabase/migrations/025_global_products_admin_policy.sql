@@ -22,6 +22,8 @@ with check (public.is_admin());
 grant select on public.global_products to anon, authenticated;
 grant insert, update, delete on public.global_products to authenticated;
 
+drop view if exists public.products_with_global_images;
+
 create or replace view public.products_with_global_images as
 select
   p.*,
