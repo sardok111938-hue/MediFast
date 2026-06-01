@@ -9,6 +9,14 @@ create unique index if not exists categories_slug_unique_not_null
   on public.categories (slug)
   where slug is not null;
 
+drop function if exists public.admin_create_category(text, text, text, text, text, integer, boolean, uuid);
+drop function if exists public.admin_create_category(text, text, text, text, integer, boolean, uuid);
+drop function if exists public.admin_create_category(text, text, text, text, integer, boolean);
+
+drop function if exists public.admin_update_category(uuid, text, text, text, text, text, integer, boolean, uuid);
+drop function if exists public.admin_update_category(uuid, text, text, text, text, integer, boolean, uuid);
+drop function if exists public.admin_update_category(uuid, text, text, text, text, integer, boolean);
+
 create or replace function public.admin_create_category(
   p_name text,
   p_name_ar text default null,

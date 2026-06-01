@@ -11,7 +11,7 @@ SELECT
         jsonb_build_object(
             'id', p.id,
             'name', p.name,
-            'name_ar', p.name_ar,
+            'name_ar', null,
             'price', p.price,
             'stock', p.stock_quantity,
             'is_active', p.is_active,
