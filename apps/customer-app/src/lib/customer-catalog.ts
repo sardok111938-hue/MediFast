@@ -1147,7 +1147,7 @@ export async function listFavouriteVendorIds() {
   }
 
   const { data, error } = await supabase
-    .from("customer_favourite_vendors")
+    .from("customer_favorite_vendors")
     .select("vendor_id")
     .eq("customer_id", customerId);
 
@@ -1177,7 +1177,7 @@ export async function toggleFavouriteVendor(vendorId: string) {
   }
 
   const { data: existing, error: existingError } = await supabase
-    .from("customer_favourite_vendors")
+    .from("customer_favorite_vendors")
     .select("id")
     .eq("customer_id", customerId)
     .eq("vendor_id", vendorId)
@@ -1189,7 +1189,7 @@ export async function toggleFavouriteVendor(vendorId: string) {
 
   if (existing) {
     const { error } = await supabase
-      .from("customer_favourite_vendors")
+      .from("customer_favorite_vendors")
       .delete()
       .eq("id", existing.id);
 
@@ -1201,7 +1201,7 @@ export async function toggleFavouriteVendor(vendorId: string) {
   }
 
   const { error } = await supabase
-    .from("customer_favourite_vendors")
+    .from("customer_favorite_vendors")
     .insert({
       customer_id: customerId,
       vendor_id: vendorId,

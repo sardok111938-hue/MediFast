@@ -200,6 +200,10 @@ export async function signInDriver(email: string, password: string) {
   return authResponse;
 }
 
+export async function signOutDriver() {
+  await resetSession();
+}
+
 export function subscribeToAssignedOrders(
   driverId: string,
   onChange: (payload: unknown) => void

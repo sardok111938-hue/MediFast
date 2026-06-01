@@ -292,8 +292,7 @@ export async function getCurrentDriverProfile(): Promise<DriverProfile> {
     throw new Error("جلسة Supabase الحالية لا تحتوي على هوية المستخدم. يرجى تسجيل الدخول مرة أخرى.");
   }
 
-  const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_id");
-
+const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_id");
   if (driverIdError) {
     throw driverIdError;
   }
