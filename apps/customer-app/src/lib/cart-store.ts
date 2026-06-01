@@ -1,9 +1,13 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { CartItem, CartProductSnapshot, Product } from "@medifast/types";
 import { useSyncExternalStore } from "react";
 
 type CartListener = () => void;
 
+const CART_STORAGE_KEY = "medifast-customer-cart-v1";
+
 let cartState: CartItem[] = [];
+let hasHydrated = false;
 
 const listeners = new Set<CartListener>();
 
@@ -13,8 +17,39 @@ function emitChange() {
   }
 }
 
+async function persistCart() {
+  try {
+    await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartState));
+  } catch (error) {
+    console.warn("Failed to persist customer cart", error);
+  }
+}
+
+async function hydrateCart() {
+  if (hasHydrated) return;
+
+  hasHydrated = true;
+
+  try {
+    const raw = await AsyncStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return;
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return;
+
+    cartState = parsed;
+    emitChange();
+  } catch (error) {
+    console.warn("Failed to hydrate customer cart", error);
+  }
+}
+
+void hydrateCart();
+
 function subscribe(listener: CartListener) {
   listeners.add(listener);
+  void hydrateCart();
+
   return () => {
     listeners.delete(listener);
   };
@@ -39,19 +74,25 @@ function buildProductSnapshot(product: Product): CartProductSnapshot {
   };
 }
 
+function updateCart(nextState: CartItem[]) {
+  cartState = nextState;
+  emitChange();
+  void persistCart();
+}
+
 function updateSnapshotForProduct(product: Product) {
   const snapshot = buildProductSnapshot(product);
 
-  cartState = cartState.map((item) =>
-    item.product_id === product.id
-      ? {
-          ...item,
-          snapshot,
-        }
-      : item
+  updateCart(
+    cartState.map((item) =>
+      item.product_id === product.id
+        ? {
+            ...item,
+            snapshot,
+          }
+        : item
+    )
   );
-
-  emitChange();
 }
 
 export function useCustomerCart() {
@@ -64,28 +105,29 @@ export function addProductToCart(product: Product, quantity = 1) {
   const existingItem = cartState.find((item) => item.product_id === product.id);
 
   if (existingItem) {
-    cartState = cartState.map((item) =>
-      item.product_id === product.id
-        ? {
-            ...item,
-            quantity: item.quantity + safeQuantity,
-            snapshot,
-          }
-        : item
+    updateCart(
+      cartState.map((item) =>
+        item.product_id === product.id
+          ? {
+              ...item,
+              quantity: item.quantity + safeQuantity,
+              snapshot,
+            }
+          : item
+      )
     );
-  } else {
-    cartState = [
-      ...cartState,
-      {
-        id: `cart-${product.id}`,
-        product_id: product.id,
-        quantity: safeQuantity,
-        snapshot,
-      },
-    ];
+    return;
   }
 
-  emitChange();
+  updateCart([
+    ...cartState,
+    {
+      id: `cart-${product.id}`,
+      product_id: product.id,
+      quantity: safeQuantity,
+      snapshot,
+    },
+  ]);
 }
 
 export function setCartItemQuantity(productId: string, quantity: number) {
@@ -96,21 +138,20 @@ export function setCartItemQuantity(productId: string, quantity: number) {
     return;
   }
 
-  cartState = cartState.map((item) =>
-    item.product_id === productId
-      ? {
-          ...item,
-          quantity: safeQuantity,
-        }
-      : item
+  updateCart(
+    cartState.map((item) =>
+      item.product_id === productId
+        ? {
+            ...item,
+            quantity: safeQuantity,
+          }
+        : item
+    )
   );
-
-  emitChange();
 }
 
 export function removeProductFromCart(productId: string) {
-  cartState = cartState.filter((item) => item.product_id !== productId);
-  emitChange();
+  updateCart(cartState.filter((item) => item.product_id !== productId));
 }
 
 export function refreshCartItemSnapshot(product: Product) {
@@ -126,11 +167,9 @@ export function getCartSubtotal(items: CartItem[] = cartState) {
 }
 
 export function clearCustomerCart() {
-  cartState = [];
-  emitChange();
+  updateCart([]);
 }
 
 export function resetCustomerCart() {
-  cartState = [];
-  emitChange();
+  updateCart([]);
 }

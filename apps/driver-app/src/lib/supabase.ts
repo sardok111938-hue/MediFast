@@ -231,7 +231,7 @@ export function subscribeToAvailablePickupOrders(
     .on(
       "postgres_changes",
       {
-        event: "INSERT",
+        event: "*",
         schema: "public",
         table: "orders",
         filter: "order_status=eq.ready_for_pickup",

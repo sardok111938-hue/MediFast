@@ -378,6 +378,28 @@ export async function loadCurrentCustomerOrder(orderId: string) {
     order,
   };
 }
+
+const CUSTOMER_ORDER_LIST_SELECT = `
+  id,
+  total,
+  delivery_fee,
+  payment_method,
+  payment_status,
+  order_status,
+  created_at,
+  delivered_at,
+  vendor:vendors(name),
+  address:addresses!orders_delivery_address_id_fkey(
+    line_1
+  ),
+  items:order_items(
+    id,
+    quantity,
+    total_price,
+    product:products!order_items_product_id_fkey(name)
+  )
+`;
+
 const CUSTOMER_ORDER_SELECT = `
   id,
   total,
@@ -414,7 +436,7 @@ const CUSTOMER_ORDER_SELECT = `
 export async function listCustomerOrders(customerId: string): Promise<CustomerOrder[]> {
   const { data, error } = await supabase
     .from("orders")
-    .select(CUSTOMER_ORDER_SELECT)
+    .select(CUSTOMER_ORDER_LIST_SELECT)
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
 
