@@ -72,8 +72,15 @@ async function savePrescriptionNoteAction(formData: FormData) {
   revalidatePath(`/vendor/prescriptions/${requestId}`);
 }
 
-export default async function VendorPrescriptionsPage() {
-  const { data: requests, error } = await listVendorPrescriptionRequests();
+export default async function VendorPrescriptionsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ page?: string }>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const page = Number(resolvedSearchParams?.page ?? 1);
+  const { data: requestsPage, error } = await listVendorPrescriptionRequests({ page });
+  const requests = requestsPage.rows;
 
   return (
     <DashboardShell
@@ -101,6 +108,30 @@ export default async function VendorPrescriptionsPage() {
       {!error && requests.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm font-bold text-slate-500">
           لا توجد وصفات مرسلة لهذه الصيدلية حالياً.
+        </div>
+      ) : null}
+
+      {!error ? (
+        <div className="panel flex flex-wrap items-center justify-between gap-3 p-4">
+          <p className="text-sm font-bold text-slate-500">
+            الإجمالي: {requestsPage.totalCount} · الصفحة {requestsPage.page} من {requestsPage.pageCount}
+          </p>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/vendor/prescriptions?page=${Math.max(1, requestsPage.page - 1)}`}
+              aria-disabled={requestsPage.page <= 1}
+              className={`button secondary-button ${requestsPage.page <= 1 ? "pointer-events-none opacity-50" : ""}`.trim()}
+            >
+              السابق
+            </Link>
+            <Link
+              href={`/vendor/prescriptions?page=${Math.min(requestsPage.pageCount, requestsPage.page + 1)}`}
+              aria-disabled={requestsPage.page >= requestsPage.pageCount}
+              className={`button secondary-button ${requestsPage.page >= requestsPage.pageCount ? "pointer-events-none opacity-50" : ""}`.trim()}
+            >
+              التالي
+            </Link>
+          </div>
         </div>
       ) : null}
 

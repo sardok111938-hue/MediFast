@@ -25,22 +25,29 @@ function resolveFilter(value: string | undefined): AssignmentFilter {
   return "ready_for_pickup";
 }
 
-function formatAddress(order: Awaited<ReturnType<typeof listAdminOrderDetails>>[number]) {
+type AssignmentOrder = Awaited<ReturnType<typeof listAdminOrderDetails>>["rows"][number];
+
+function formatAddress(order: AssignmentOrder) {
   return [order.address_label, order.address_line_1, order.address_line_2, order.area, order.city].filter(Boolean).join("، ");
 }
 
 function filterHref(filter: AssignmentFilter) {
-  return `/admin/assignments?filter=${filter}`;
+  return `/admin/assignments?filter=${filter}&page=1`;
 }
 
 export default async function AdminAssignmentsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ success?: string; error?: string; filter?: string }>;
+  searchParams?: Promise<{ success?: string; error?: string; filter?: string; page?: string }>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const currentFilter = resolveFilter(resolvedSearchParams?.filter);
-  const [drivers, orders] = await Promise.all([listAvailableApprovedDrivers(), listAdminOrderDetails()]);
+  const currentPage = Number(resolvedSearchParams?.page ?? 1);
+  const [drivers, ordersPage] = await Promise.all([
+    listAvailableApprovedDrivers(),
+    listAdminOrderDetails({ page: currentPage, orderStatus: currentFilter }),
+  ]);
+  const orders = ordersPage.rows;
 
   async function handleAssignDriver(formData: FormData) {
     "use server";
@@ -67,7 +74,7 @@ export default async function AdminAssignmentsPage({
     redirect(`/admin/assignments?filter=${activeFilter}&success=driver_assigned`);
   }
 
-  const filteredOrders = orders.filter((order) => order.order_status === currentFilter);
+  const filteredOrders = orders;
   const blockedStatuses = new Set(["delivered", "rejected", "cancelled"]);
   const counts = assignmentFilters.map((filter) => ({
     filter,
@@ -118,11 +125,33 @@ export default async function AdminAssignmentsPage({
             </div>
             <div className="detail-block">
               <strong>طلبات معروضة</strong>
-              <span>{filteredOrders.length}</span>
+              <span>{ordersPage.totalCount}</span>
             </div>
           </div>
         </Card>
       </section>
+
+      <Card className="medical-panel">
+        <div className="split-actions">
+          <p className="muted">الإجمالي: {ordersPage.totalCount} · الصفحة {ordersPage.page} من {ordersPage.pageCount}</p>
+          <div className="inline-actions">
+            <a
+              className={`secondary-button ${ordersPage.page <= 1 ? "pointer-events-none opacity-50" : ""}`.trim()}
+              href={`/admin/assignments?filter=${currentFilter}&page=${Math.max(1, ordersPage.page - 1)}`}
+              aria-disabled={ordersPage.page <= 1}
+            >
+              السابق
+            </a>
+            <a
+              className={`secondary-button ${ordersPage.page >= ordersPage.pageCount ? "pointer-events-none opacity-50" : ""}`.trim()}
+              href={`/admin/assignments?filter=${currentFilter}&page=${Math.min(ordersPage.pageCount, ordersPage.page + 1)}`}
+              aria-disabled={ordersPage.page >= ordersPage.pageCount}
+            >
+              التالي
+            </a>
+          </div>
+        </div>
+      </Card>
 
       {filteredOrders.length === 0 ? (
         <Card className="medical-panel">

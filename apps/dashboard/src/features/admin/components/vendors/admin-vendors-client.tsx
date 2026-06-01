@@ -7,36 +7,45 @@ import { EmptyState } from "../../../../components/ui/empty-state";
 import { ErrorState } from "../../../../components/ui/error-state";
 import { LoadingState } from "../../../../components/ui/loading-state";
 import { Table } from "../../../../components/ui/table";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult } from "../../../../lib/pagination";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { adminUpdateVendorAction } from "../../actions";
 import type { AdminVendorRow, AsyncState } from "../shared/admin-types";
 import { normalizeError } from "../shared/admin-utils";
 
-async function loadAdminVendorsData(): Promise<AdminVendorRow[]> {
+type AdminVendorsData = PaginatedResult<AdminVendorRow>;
+
+async function loadAdminVendorsData(page: number): Promise<AdminVendorsData> {
   const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase
+  const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
+  const { data, error, count } = await supabase
     .from("vendors")
-    .select("id, name, approval_status, address_line_1, area, city")
-    .order("created_at", { ascending: false });
+    .select("id, name, approval_status, address_line_1, area, city", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw error;
   }
 
-  return (data ?? []).map((vendor) => ({
+  const rows = (data ?? []).map((vendor) => ({
     id: String(vendor.id),
     name: String(vendor.name),
     approvalStatus: String(vendor.approval_status),
     address: [vendor.address_line_1, vendor.area, vendor.city].filter(Boolean).join("، ") || "-",
   }));
+
+  return buildPaginatedResult(rows, count, { page, pageSize: DEFAULT_PAGE_SIZE });
 }
 
 function AdminVendorsManager() {
-  const [state, setState] = useState<AsyncState<AdminVendorRow[]>>({
+  const [state, setState] = useState<AsyncState<AdminVendorsData>>({
     data: null,
     error: null,
     loading: true,
   });
+  const [page, setPage] = useState(1);
   const [updatingVendorId, setUpdatingVendorId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -48,7 +57,7 @@ function AdminVendorsManager() {
     });
 
     try {
-      const data = await loadAdminVendorsData();
+      const data = await loadAdminVendorsData(page);
       setState({
         data,
         error: null,
@@ -65,7 +74,7 @@ function AdminVendorsManager() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [page]);
 
   async function updateVendor(vendorId: string, approvalStatus: "approved" | "rejected", message: string) {
     setUpdatingVendorId(vendorId);
@@ -112,11 +121,18 @@ function AdminVendorsManager() {
     );
   }
 
-  const vendors = state.data ?? [];
+  const vendors = state.data?.rows ?? [];
 
   return (
     <div className="stack">
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
+      <PaginationControls
+        totalCount={state.data?.totalCount ?? 0}
+        page={state.data?.page ?? page}
+        pageCount={state.data?.pageCount ?? 1}
+        onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+        onNext={() => setPage((current) => Math.min(state.data?.pageCount ?? current, current + 1))}
+      />
       {vendors.length === 0 ? (
         <Card className="medical-panel">
           <EmptyState title="لا توجد متاجر بعد" message="لم تتم إضافة أي شركاء صيدليات بعد." />
@@ -162,6 +178,36 @@ function AdminVendorsManager() {
         />
       )}
     </div>
+  );
+}
+
+function PaginationControls({
+  totalCount,
+  page,
+  pageCount,
+  onPrevious,
+  onNext,
+}: {
+  totalCount: number;
+  page: number;
+  pageCount: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <Card className="medical-panel">
+      <div className="split-actions">
+        <p className="muted">الإجمالي: {totalCount} · الصفحة {page} من {pageCount}</p>
+        <div className="inline-actions">
+          <button className="secondary-button" type="button" disabled={page <= 1} onClick={onPrevious}>
+            السابق
+          </button>
+          <button className="secondary-button" type="button" disabled={page >= pageCount} onClick={onNext}>
+            التالي
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

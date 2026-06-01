@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { formatCategoryLabel } from "@medifast/i18n";
 import { Badge } from "../../components/ui/badge";
 import type { ProductCategoryOption, ProductRow, TableModel } from "../../types/dashboard";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult, type PaginationInput } from "../../lib/pagination";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
 import { formatCurrency } from "../../lib/utils/format-currency";
 
@@ -29,10 +30,13 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
   };
 }
 
-export async function listProducts(): Promise<ProductRow[]> {
+export async function listProducts(input: PaginationInput = {}): Promise<PaginatedResult<ProductRow>> {
   const supabase = await getSupabaseServerClient();
+  const page = input.page ?? 1;
+  const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { from, to } = getPaginationRange(page, pageSize);
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
 .from("products_with_global_images")
 .select(`
   id,
@@ -46,25 +50,35 @@ export async function listProducts(): Promise<ProductRow[]> {
   is_active,
   image_url,
   resolved_image_url
-`)    .order("created_at", { ascending: false });
+`, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (error) throw error;
 
-  return (data ?? []).map((product) => mapProductRow(product as Record<string, unknown>));
+  return buildPaginatedResult(
+    (data ?? []).map((product) => mapProductRow(product as Record<string, unknown>)),
+    count,
+    { page, pageSize },
+  );
 }
 
-export async function listVendorProducts(): Promise<ProductRow[]> {
+export async function listVendorProducts(input: PaginationInput = {}): Promise<PaginatedResult<ProductRow>> {
   const supabase = await getSupabaseServerClient();
+  const page = input.page ?? 1;
+  const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { from, to } = getPaginationRange(page, pageSize);
 
   const { data: vendorId, error: vendorError } = await supabase.rpc("get_vendor_id");
 
   if (vendorError) throw vendorError;
 
   if (!vendorId) {
-    return [];
+    return buildPaginatedResult([], 0, { page, pageSize });
   }
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("products_with_global_images")
 .select(`
   id,
@@ -79,13 +93,19 @@ export async function listVendorProducts(): Promise<ProductRow[]> {
   is_active,
   image_url,
   resolved_image_url
-`)
+`, { count: "exact" })
     .eq("vendor_id", vendorId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (error) throw error;
 
-  return (data ?? []).map((product) => mapProductRow(product as Record<string, unknown>));
+  return buildPaginatedResult(
+    (data ?? []).map((product) => mapProductRow(product as Record<string, unknown>)),
+    count,
+    { page, pageSize },
+  );
 }
 
 export function getAdminOverviewProductsTableModel(products: ProductRow[]): TableModel {

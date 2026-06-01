@@ -7,6 +7,7 @@ import { ErrorState } from "../../../../components/ui/error-state";
 import { LoadingState } from "../../../../components/ui/loading-state";
 import { Table } from "../../../../components/ui/table";
 import { useLocale } from "../../../../lib/i18n/locale-context";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult } from "../../../../lib/pagination";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { formatCurrency } from "../../../../lib/utils/format-currency";
 import { formatDate } from "../../../../lib/utils/format-date";
@@ -17,9 +18,12 @@ import { normalizeError, readCategoryName, readName, readSingle } from "../share
 
 const adminOverrideStatuses = ["placed", "accepted", "preparing", "rejected", "ready_for_pickup", "assigned", "on_the_way", "delivered", "cancelled"];
 
-async function loadAdminOrdersData(): Promise<AdminOrderManagerRow[]> {
+type AdminOrdersData = PaginatedResult<AdminOrderManagerRow>;
+
+async function loadAdminOrdersData(page: number): Promise<AdminOrdersData> {
   const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase
+  const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
+  const { data, error, count } = await supabase
     .from("orders")
     .select(`
       id,
@@ -36,14 +40,16 @@ async function loadAdminOrdersData(): Promise<AdminOrderManagerRow[]> {
       driver:drivers(
         profile:profiles!drivers_user_id_fkey(full_name)
       )
-    `)
-    .order("created_at", { ascending: false });
+    `, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw error;
   }
 
-  return (data ?? []).map((order) => ({
+  const rows = (data ?? []).map((order) => ({
     id: String(order.id),
     customerName: readName(
       readSingle((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile),
@@ -61,6 +67,8 @@ async function loadAdminOrdersData(): Promise<AdminOrderManagerRow[]> {
       "غير معيّن"
     ),
   }));
+
+  return buildPaginatedResult(rows, count, { page, pageSize: DEFAULT_PAGE_SIZE });
 }
 
 async function loadAvailableDrivers(): Promise<DriverOption[]> {
@@ -94,11 +102,12 @@ async function loadAvailableDrivers(): Promise<DriverOption[]> {
 
 function AdminOrdersManager() {
   const { t } = useLocale();
-  const [state, setState] = useState<AsyncState<AdminOrderManagerRow[]>>({
+  const [state, setState] = useState<AsyncState<AdminOrdersData>>({
     data: null,
     error: null,
     loading: true,
   });
+  const [page, setPage] = useState(1);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -111,7 +120,7 @@ function AdminOrdersManager() {
     });
 
     try {
-      const [data, availableDrivers] = await Promise.all([loadAdminOrdersData(), loadAvailableDrivers()]);
+      const [data, availableDrivers] = await Promise.all([loadAdminOrdersData(page), loadAvailableDrivers()]);
       setState({
         data,
         error: null,
@@ -130,10 +139,10 @@ function AdminOrdersManager() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [page]);
 
   async function handleStatusChange(orderId: string, nextStatus: string) {
-    const previousOrders = state.data ?? [];
+    const previousOrders = state.data?.rows ?? [];
     const previousOrder = previousOrders.find((order) => order.id === orderId);
 
     if (!previousOrder || previousOrder.orderStatus === nextStatus) {
@@ -144,14 +153,19 @@ function AdminOrdersManager() {
     setFeedback(null);
     setState((current) => ({
       data:
-        current.data?.map((order) =>
+        current.data
+          ? {
+              ...current.data,
+              rows: current.data.rows.map((order) =>
           order.id === orderId
             ? {
                 ...order,
                 orderStatus: nextStatus,
               }
             : order
-        ) ?? null,
+              ),
+            }
+          : null,
       error: current.error,
       loading: current.loading,
     }));
@@ -173,14 +187,19 @@ function AdminOrdersManager() {
     } catch (error) {
       setState((current) => ({
         data:
-          current.data?.map((order) =>
+          current.data
+            ? {
+                ...current.data,
+                rows: current.data.rows.map((order) =>
             order.id === orderId
               ? {
                   ...order,
                   orderStatus: previousOrder.orderStatus,
                 }
               : order
-          ) ?? null,
+                ),
+              }
+            : null,
         error: current.error,
         loading: current.loading,
       }));
@@ -194,7 +213,7 @@ function AdminOrdersManager() {
   }
 
   async function handleDriverAssign(orderId: string, selectedDriverId: string) {
-    const previousOrders = state.data ?? [];
+    const previousOrders = state.data?.rows ?? [];
     const previousOrder = previousOrders.find((order) => order.id === orderId);
 
     if (!previousOrder || !selectedDriverId) {
@@ -207,7 +226,10 @@ function AdminOrdersManager() {
     setFeedback(null);
     setState((current) => ({
       data:
-        current.data?.map((order) =>
+        current.data
+          ? {
+              ...current.data,
+              rows: current.data.rows.map((order) =>
           order.id === orderId
             ? {
                 ...order,
@@ -216,7 +238,9 @@ function AdminOrdersManager() {
                 orderStatus: "assigned",
               }
             : order
-        ) ?? null,
+              ),
+            }
+          : null,
       error: current.error,
       loading: current.loading,
     }));
@@ -240,7 +264,10 @@ function AdminOrdersManager() {
     } catch (error) {
       setState((current) => ({
         data:
-          current.data?.map((order) =>
+          current.data
+            ? {
+                ...current.data,
+                rows: current.data.rows.map((order) =>
             order.id === orderId
               ? {
                   ...order,
@@ -249,7 +276,9 @@ function AdminOrdersManager() {
                   orderStatus: previousOrder.orderStatus,
                 }
               : order
-          ) ?? null,
+                ),
+              }
+            : null,
         error: current.error,
         loading: current.loading,
       }));
@@ -278,7 +307,7 @@ function AdminOrdersManager() {
     );
   }
 
-  const orders = state.data ?? [];
+  const orders = state.data?.rows ?? [];
   const orderCounts = {
     new: orders.filter((order) => order.orderStatus === "placed").length,
     activeVendor: orders.filter((order) => ["accepted", "preparing", "ready_for_pickup"].includes(order.orderStatus)).length,
@@ -311,6 +340,13 @@ function AdminOrdersManager() {
           </div>
         </Card>
       </section>
+      <PaginationControls
+        totalCount={state.data?.totalCount ?? 0}
+        page={state.data?.page ?? page}
+        pageCount={state.data?.pageCount ?? 1}
+        onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+        onNext={() => setPage((current) => Math.min(state.data?.pageCount ?? current, current + 1))}
+      />
       <Table
         title="مراقبة الطلبات"
         headers={["معرّف الطلب", "العميل", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء", "تصحيح يدوي"]}
@@ -342,6 +378,36 @@ function AdminOrdersManager() {
         emptyMessage="لا توجد طلبات متاحة بعد."
       />
     </div>
+  );
+}
+
+function PaginationControls({
+  totalCount,
+  page,
+  pageCount,
+  onPrevious,
+  onNext,
+}: {
+  totalCount: number;
+  page: number;
+  pageCount: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <Card className="medical-panel">
+      <div className="split-actions">
+        <p className="muted">الإجمالي: {totalCount} · الصفحة {page} من {pageCount}</p>
+        <div className="inline-actions">
+          <button className="secondary-button" type="button" disabled={page <= 1} onClick={onPrevious}>
+            السابق
+          </button>
+          <button className="secondary-button" type="button" disabled={page >= pageCount} onClick={onNext}>
+            التالي
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

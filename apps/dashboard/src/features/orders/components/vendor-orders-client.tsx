@@ -11,6 +11,7 @@ import { Table } from "../../../components/ui/table";
 import { getSupabaseBrowserClient } from "../../../lib/supabase/browser";
 import { formatCurrency } from "../../../lib/utils/format-currency";
 import { formatDate } from "../../../lib/utils/format-date";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult } from "../../../lib/pagination";
 import { OrderStatusBadge } from "./order-status-badge";
 import { useLocale } from "../../../lib/i18n/locale-context";
 import { updateVendorOrderStatusAction } from "../actions";
@@ -39,7 +40,8 @@ type VendorOrder = {
 
 type VendorOrderData = {
   vendorId: string;
-  orders: VendorOrder[];
+  orders: PaginatedResult<VendorOrder>;
+  statusCounts: Record<VendorOrderStatusFilter, number>;
 };
 
 const vendorOrderStatuses = ["placed", "accepted", "preparing", "ready_for_pickup", "assigned", "on_the_way", "delivered", "rejected"] as const;
@@ -97,7 +99,7 @@ function getNextActions(status: string) {
   return [];
 }
 
-async function loadVendorOrdersData(): Promise<VendorOrderData> {
+async function loadVendorOrdersData(page: number, statusFilter: VendorOrderStatusFilter): Promise<VendorOrderData> {
   const supabase = getSupabaseBrowserClient();
   const { data: vendorId, error: vendorError } = await supabase.rpc("get_vendor_id");
 
@@ -109,7 +111,8 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
     throw new Error("حساب المتجر غير مرتبط بشكل صحيح.");
   }
 
-  const { data, error } = await supabase
+  const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
+  let query = supabase
     .from("orders")
     .select(`
       id,
@@ -136,43 +139,73 @@ async function loadVendorOrdersData(): Promise<VendorOrderData> {
         total_price,
         product:products!order_items_product_id_fkey(name)
       )
-    `)
+    `, { count: "exact" })
     .eq("vendor_id", vendorId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
+
+  if (statusFilter !== "all") {
+    query = query.eq("order_status", statusFilter);
+  }
+
+  const countQueries = [
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("vendor_id", vendorId),
+    ...vendorOrderStatuses.map((status) =>
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("vendor_id", vendorId)
+        .eq("order_status", status),
+    ),
+  ];
+
+  const [{ data, error, count }, allCountResult, ...statusCountResults] = await Promise.all([query, ...countQueries]);
 
   if (error) {
     throw error;
   }
 
+  const statusCounts = statusCountResults.reduce<Record<VendorOrderStatusFilter, number>>(
+    (accumulator, result, index) => {
+      accumulator[vendorOrderStatuses[index]] = result.count ?? 0;
+      return accumulator;
+    },
+    { all: allCountResult.count ?? 0 } as Record<VendorOrderStatusFilter, number>,
+  );
+
+  const rows = (data ?? []).map((order) => {
+    const items = Array.isArray(order.items) ? order.items : [];
+
+    return {
+      id: String(order.id),
+      customerName: readName((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "العميل"),
+      driverName: readName((order.driver as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "غير معيّن"),
+      total: Number(order.total ?? 0),
+      paymentMethod: String(order.payment_method ?? ""),
+      paymentStatus: String(order.payment_status),
+      orderStatus: String(order.order_status),
+      createdAt: String(order.created_at ?? ""),
+      deliveryAddress: formatDeliveryAddress(
+        order.address as
+          | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }
+          | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }[]
+          | null
+      ),
+      items: items.map((item) => ({
+        id: String(item.id),
+        productName: readProductName(item.product as { name?: string } | { name?: string }[] | null, "المنتج"),
+        quantity: Number(item.quantity ?? 0),
+        unitPrice: Number(item.unit_price ?? 0),
+        totalPrice: Number(item.total_price ?? 0),
+      })),
+    };
+  });
+
   return {
     vendorId: String(vendorId),
-    orders: (data ?? []).map((order) => {
-      const items = Array.isArray(order.items) ? order.items : [];
-
-      return {
-        id: String(order.id),
-        customerName: readName((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "العميل"),
-        driverName: readName((order.driver as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "غير معيّن"),
-        total: Number(order.total ?? 0),
-        paymentMethod: String(order.payment_method ?? ""),
-        paymentStatus: String(order.payment_status),
-        orderStatus: String(order.order_status),
-        createdAt: String(order.created_at ?? ""),
-        deliveryAddress: formatDeliveryAddress(
-          order.address as
-            | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }
-            | { line_1?: string | null; lat?: number | string | null; lng?: number | string | null }[]
-            | null
-        ),
-        items: items.map((item) => ({
-          id: String(item.id),
-          productName: readProductName(item.product as { name?: string } | { name?: string }[] | null, "المنتج"),
-          quantity: Number(item.quantity ?? 0),
-          unitPrice: Number(item.unit_price ?? 0),
-          totalPrice: Number(item.total_price ?? 0),
-        })),
-      };
-    }),
+    orders: buildPaginatedResult(rows, count, { page, pageSize: DEFAULT_PAGE_SIZE }),
+    statusCounts,
   };
 }
 
@@ -188,6 +221,7 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
       ? (initialStatusFilter as VendorOrderStatusFilter)
       : "all"
   );
+  const [page, setPage] = useState(1);
 
   async function loadOrders(showLoading = true) {
     if (showLoading) {
@@ -196,7 +230,7 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
     setError(null);
 
     try {
-      const nextData = await loadVendorOrdersData();
+      const nextData = await loadVendorOrdersData(page, statusFilter);
       setData(nextData);
     } catch (nextError) {
       setError(normalizeError(nextError));
@@ -210,7 +244,12 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
 
   useEffect(() => {
     void loadOrders();
-  }, []);
+  }, [page, statusFilter]);
+
+  function changeStatusFilter(nextFilter: VendorOrderStatusFilter) {
+    setStatusFilter(nextFilter);
+    setPage(1);
+  }
 
   useEffect(() => {
     if (!data?.vendorId) {
@@ -227,23 +266,15 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
   }, [data?.vendorId]);
 
   const orderCounts = useMemo(() => {
-    const orders = data?.orders ?? [];
+    const counts = data?.statusCounts;
 
     return vendorOrderStatuses.map((status) => ({
       status,
-      count: orders.filter((order) => order.orderStatus === status).length,
+      count: counts?.[status] ?? 0,
     }));
   }, [data]);
 
-  const filteredOrders = useMemo(() => {
-    const orders = data?.orders ?? [];
-
-    if (statusFilter === "all") {
-      return orders;
-    }
-
-    return orders.filter((order) => order.orderStatus === statusFilter);
-  }, [data, statusFilter]);
+  const filteredOrders = useMemo(() => data?.orders.rows ?? [], [data]);
 
   const newOrders = useMemo(() => filteredOrders.filter((order) => order.orderStatus === "placed"), [filteredOrders]);
   const activeOrders = useMemo(() => filteredOrders.filter((order) => activeVendorStatuses.has(order.orderStatus)), [filteredOrders]);
@@ -257,7 +288,7 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
       return;
     }
 
-    const previousOrder = data.orders.find((order) => order.id === orderId);
+    const previousOrder = data.orders.rows.find((order) => order.id === orderId);
     if (!previousOrder) {
       return;
     }
@@ -268,14 +299,17 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
       current
         ? {
             ...current,
-            orders: current.orders.map((order) =>
-              order.id === orderId
-                ? {
-                    ...order,
-                    orderStatus: nextStatus,
-                  }
-                : order
-            ),
+            orders: {
+              ...current.orders,
+              rows: current.orders.rows.map((order) =>
+                order.id === orderId
+                  ? {
+                      ...order,
+                      orderStatus: nextStatus,
+                    }
+                  : order
+              ),
+            },
           }
         : current
     );
@@ -300,14 +334,17 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
         current
           ? {
               ...current,
-              orders: current.orders.map((order) =>
-                order.id === orderId
-                  ? {
-                      ...order,
-                      orderStatus: previousOrder.orderStatus,
-                    }
-                  : order
-              ),
+              orders: {
+                ...current.orders,
+                rows: current.orders.rows.map((order) =>
+                  order.id === orderId
+                    ? {
+                        ...order,
+                        orderStatus: previousOrder.orderStatus,
+                      }
+                    : order
+                ),
+              },
             }
           : current
       );
@@ -336,7 +373,7 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
     );
   }
 
-  if (!data || data.orders.length === 0) {
+  if (!data || data.orders.totalCount === 0) {
     return (
       <Card className="medical-panel">
         <EmptyState title="لا توجد طلبات بعد" message="ستظهر طلبات المتجر هنا بمجرد أن يبدأ العملاء في الشراء." />
@@ -356,16 +393,16 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
           </div>
         </div>
         <div className="filter-chip-row">
-          <button type="button" className={`filter-chip ${statusFilter === "all" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("all")}>
+          <button type="button" className={`filter-chip ${statusFilter === "all" ? "filter-chip-active" : ""}`.trim()} onClick={() => changeStatusFilter("all")}>
             <span>{t("All Orders")}</span>
-            <strong>{data.orders.length}</strong>
+            <strong>{data.statusCounts.all}</strong>
           </button>
           {orderCounts.map(({ status, count }) => (
             <button
               type="button"
               key={status}
               className={`filter-chip ${statusFilter === status ? "filter-chip-active" : ""}`.trim()}
-              onClick={() => setStatusFilter(status)}
+              onClick={() => changeStatusFilter(status)}
             >
               <span>{t(status.replaceAll("_", " "))}</span>
               <strong>{count}</strong>
@@ -373,6 +410,14 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
           ))}
         </div>
       </Card>
+
+      <PaginationControls
+        totalCount={data.orders.totalCount}
+        page={data.orders.page}
+        pageCount={data.orders.pageCount}
+        onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+        onNext={() => setPage((current) => Math.min(data.orders.pageCount, current + 1))}
+      />
 
       <section className="stack">
         <div>
@@ -515,6 +560,36 @@ function VendorOrderCard({
             {updatingOrderId === order.id ? "جارٍ التحديث..." : action.label}
           </Button>
         ))}
+      </div>
+    </Card>
+  );
+}
+
+function PaginationControls({
+  totalCount,
+  page,
+  pageCount,
+  onPrevious,
+  onNext,
+}: {
+  totalCount: number;
+  page: number;
+  pageCount: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <Card className="medical-panel">
+      <div className="split-actions">
+        <p className="muted">الإجمالي: {totalCount} · الصفحة {page} من {pageCount}</p>
+        <div className="inline-actions">
+          <button className="secondary-button" type="button" disabled={page <= 1} onClick={onPrevious}>
+            السابق
+          </button>
+          <button className="secondary-button" type="button" disabled={page >= pageCount} onClick={onNext}>
+            التالي
+          </button>
+        </div>
       </div>
     </Card>
   );

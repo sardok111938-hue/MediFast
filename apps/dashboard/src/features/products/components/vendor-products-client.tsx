@@ -11,6 +11,7 @@ import { Input } from "../../../components/ui/input";
 import { LoadingState } from "../../../components/ui/loading-state";
 import { Table } from "../../../components/ui/table";
 import { useLocale } from "../../../lib/i18n/locale-context";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult } from "../../../lib/pagination";
 import { getSupabaseBrowserClient } from "../../../lib/supabase/browser";
 import { formatCurrency } from "../../../lib/utils/format-currency";
 import type { ProductCategoryOption, ProductRow } from "../../../types/dashboard";
@@ -32,7 +33,14 @@ import {
 
 type VendorProductsData = {
   vendorId: string;
-  products: ProductRow[];
+  products: PaginatedResult<ProductRow>;
+  counts: {
+    all: number;
+    active: number;
+    inactive: number;
+    lowStock: number;
+    outOfStock: number;
+  };
 };
 
 type ProductFormValues = {
@@ -252,7 +260,9 @@ async function loadVendorCategories(): Promise<ProductCategoryOption[]> {
   }));
 }
 
-async function loadVendorProductsData(): Promise<VendorProductsData> {
+type VendorProductStatusFilter = "all" | "active" | "inactive" | "low_stock" | "out_of_stock";
+
+async function loadVendorProductsData(page: number, statusFilter: VendorProductStatusFilter): Promise<VendorProductsData> {
   const supabase = getSupabaseBrowserClient();
   const { data: vendorId, error: vendorError } = await supabase.rpc("get_vendor_id");
 
@@ -264,7 +274,8 @@ async function loadVendorProductsData(): Promise<VendorProductsData> {
     throw new Error("حساب المتجر غير مرتبط بشكل صحيح.");
   }
 
-  const { data: productsData, error: productsError } = await supabase
+  const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
+  let productsQuery = supabase
     .from("products_with_global_images")
 .select(`
   id,
@@ -279,9 +290,39 @@ async function loadVendorProductsData(): Promise<VendorProductsData> {
   is_active,
   image_url,
   resolved_image_url
-`)
+`, { count: "exact" })
     .eq("vendor_id", vendorId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
+
+  if (statusFilter === "active") {
+    productsQuery = productsQuery.eq("is_active", true);
+  } else if (statusFilter === "inactive") {
+    productsQuery = productsQuery.eq("is_active", false);
+  } else if (statusFilter === "low_stock") {
+    productsQuery = productsQuery.eq("is_active", true).gt("stock_quantity", 0).lte("stock_quantity", DEFAULT_LOW_STOCK_THRESHOLD);
+  } else if (statusFilter === "out_of_stock") {
+    productsQuery = productsQuery.eq("is_active", true).lte("stock_quantity", 0);
+  }
+
+  const [
+    productsResult,
+    allCountResult,
+    activeCountResult,
+    inactiveCountResult,
+    lowStockCountResult,
+    outOfStockCountResult,
+  ] = await Promise.all([
+    productsQuery,
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("vendor_id", vendorId),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("vendor_id", vendorId).eq("is_active", true),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("vendor_id", vendorId).eq("is_active", false),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("vendor_id", vendorId).eq("is_active", true).gt("stock_quantity", 0).lte("stock_quantity", DEFAULT_LOW_STOCK_THRESHOLD),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("vendor_id", vendorId).eq("is_active", true).lte("stock_quantity", 0),
+  ]);
+
+  const { data: productsData, error: productsError, count } = productsResult;
 
   if (productsError) {
     throw productsError;
@@ -289,7 +330,18 @@ async function loadVendorProductsData(): Promise<VendorProductsData> {
 
   return {
     vendorId: String(vendorId),
-    products: (productsData ?? []).map((product) => mapProductRow(product as Record<string, unknown>)),
+    products: buildPaginatedResult(
+      (productsData ?? []).map((product) => mapProductRow(product as Record<string, unknown>)),
+      count,
+      { page, pageSize: DEFAULT_PAGE_SIZE },
+    ),
+    counts: {
+      all: allCountResult.count ?? 0,
+      active: activeCountResult.count ?? 0,
+      inactive: inactiveCountResult.count ?? 0,
+      lowStock: lowStockCountResult.count ?? 0,
+      outOfStock: outOfStockCountResult.count ?? 0,
+    },
   };
 }
 
@@ -563,7 +615,8 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "low_stock" | "out_of_stock">("all");
+  const [statusFilter, setStatusFilter] = useState<VendorProductStatusFilter>("all");
+  const [page, setPage] = useState(1);
   const editFormRef = useRef<HTMLDivElement | null>(null);
 
   async function loadProducts() {
@@ -572,7 +625,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
     setCategoriesError(null);
 
     try {
-      const nextData = await loadVendorProductsData();
+      const nextData = await loadVendorProductsData(page, statusFilter);
       setData(nextData);
     } catch (nextError) {
       setError(normalizeError(nextError));
@@ -604,57 +657,41 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
 
   useEffect(() => {
     void loadProducts();
-  }, []);
+  }, [page, statusFilter]);
+
+  function changeStatusFilter(nextFilter: VendorProductStatusFilter) {
+    setStatusFilter(nextFilter);
+    setPage(1);
+  }
 
   useEffect(() => {
     if (!initialEditingProductId || !data) {
       return;
     }
 
-    if (data.products.some((product) => product.id === initialEditingProductId)) {
+    if (data.products.rows.some((product) => product.id === initialEditingProductId)) {
       setEditingProductId(initialEditingProductId);
     }
   }, [data, initialEditingProductId]);
 
   const productCounts = useMemo(() => {
-    const products = data?.products ?? [];
-
-    return {
-      all: products.length,
-      active: products.filter((product) => product.is_active).length,
-      inactive: products.filter((product) => !product.is_active).length,
-      lowStock: products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <=
-(product.low_stock_threshold ??
-  DEFAULT_LOW_STOCK_THRESHOLD)).length,
-      outOfStock: products.filter((product) => product.is_active && product.stock_quantity <= 0).length,
+    return data?.counts ?? {
+      all: 0,
+      active: 0,
+      inactive: 0,
+      lowStock: 0,
+      outOfStock: 0,
     };
   }, [data]);
 
-  const filteredProducts = useMemo(() => {
-    const products = data?.products ?? [];
-
-    switch (statusFilter) {
-      case "active":
-        return products.filter((product) => product.is_active);
-      case "inactive":
-        return products.filter((product) => !product.is_active);
-      case "low_stock":
-        return products.filter((product) => product.is_active && product.stock_quantity > 0 && product.stock_quantity <=
-(product.low_stock_threshold ??
-  DEFAULT_LOW_STOCK_THRESHOLD));
-      case "out_of_stock":
-        return products.filter((product) => product.is_active && product.stock_quantity <= 0);
-      default:
-        return products;
-    }
-  }, [data, statusFilter]);
+  const filteredProducts = useMemo(() => data?.products.rows ?? [], [data]);
 
   const editingProduct = useMemo(() => {
     if (!data || !editingProductId) {
       return null;
     }
 
-    return data.products.find((product) => String(product.id) === String(editingProductId)) ?? null;
+    return data.products.rows.find((product) => String(product.id) === String(editingProductId)) ?? null;
   }, [data, editingProductId]);
 
   useEffect(() => {
@@ -755,7 +792,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
       }
 
-      const currentProduct = data.products.find((product) => product.id === productId);
+      const currentProduct = data.products.rows.find((product) => product.id === productId);
       if (!currentProduct) {
         throw new Error("يمكنك تعديل منتجاتك فقط.");
       }
@@ -922,7 +959,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
     <Button
       type="button"
       className="danger-button"
-      onClick={() => setStatusFilter("low_stock")}
+      onClick={() => changeStatusFilter("low_stock")}
     >
       عرض المنتجات منخفضة المخزون
     </Button>
@@ -977,30 +1014,38 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
           </div>
         </div>
         <div className="filter-chip-row">
-          <button type="button" className={`filter-chip ${statusFilter === "all" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("all")}>
+          <button type="button" className={`filter-chip ${statusFilter === "all" ? "filter-chip-active" : ""}`.trim()} onClick={() => changeStatusFilter("all")}>
             <span>الكل</span>
             <strong>{productCounts.all}</strong>
           </button>
-          <button type="button" className={`filter-chip ${statusFilter === "active" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("active")}>
+          <button type="button" className={`filter-chip ${statusFilter === "active" ? "filter-chip-active" : ""}`.trim()} onClick={() => changeStatusFilter("active")}>
             <span>نشط</span>
             <strong>{productCounts.active}</strong>
           </button>
-          <button type="button" className={`filter-chip ${statusFilter === "inactive" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("inactive")}>
+          <button type="button" className={`filter-chip ${statusFilter === "inactive" ? "filter-chip-active" : ""}`.trim()} onClick={() => changeStatusFilter("inactive")}>
             <span>غير نشط</span>
             <strong>{productCounts.inactive}</strong>
           </button>
-          <button type="button" className={`filter-chip ${statusFilter === "low_stock" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("low_stock")}>
+          <button type="button" className={`filter-chip ${statusFilter === "low_stock" ? "filter-chip-active" : ""}`.trim()} onClick={() => changeStatusFilter("low_stock")}>
             <span>مخزون منخفض</span>
             <strong>{productCounts.lowStock}</strong>
           </button>
-          <button type="button" className={`filter-chip ${statusFilter === "out_of_stock" ? "filter-chip-active" : ""}`.trim()} onClick={() => setStatusFilter("out_of_stock")}>
+          <button type="button" className={`filter-chip ${statusFilter === "out_of_stock" ? "filter-chip-active" : ""}`.trim()} onClick={() => changeStatusFilter("out_of_stock")}>
             <span>نفد المخزون</span>
             <strong>{productCounts.outOfStock}</strong>
           </button>
         </div>
       </Card>
 
-{data.products.length === 0 ? (
+<PaginationControls
+  totalCount={data.products.totalCount}
+  page={data.products.page}
+  pageCount={data.products.pageCount}
+  onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+  onNext={() => setPage((current) => Math.min(data.products.pageCount, current + 1))}
+/>
+
+{data.products.totalCount === 0 ? (
   <Card className="medical-panel">
     <EmptyState
       title="لا توجد منتجات بعد"
@@ -1177,5 +1222,35 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
 )}
 
     </div>
+  );
+}
+
+function PaginationControls({
+  totalCount,
+  page,
+  pageCount,
+  onPrevious,
+  onNext,
+}: {
+  totalCount: number;
+  page: number;
+  pageCount: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <Card className="medical-panel">
+      <div className="split-actions">
+        <p className="muted">الإجمالي: {totalCount} · الصفحة {page} من {pageCount}</p>
+        <div className="inline-actions">
+          <button className="secondary-button" type="button" disabled={page <= 1} onClick={onPrevious}>
+            السابق
+          </button>
+          <button className="secondary-button" type="button" disabled={page >= pageCount} onClick={onNext}>
+            التالي
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }

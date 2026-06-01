@@ -1,4 +1,5 @@
 import { getSupabaseServerClient } from "../../lib/supabase/server";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult, type PaginationInput } from "../../lib/pagination";
 import type {
   PrescriptionQuoteItemAvailability,
   PrescriptionQuoteStatus,
@@ -269,11 +270,14 @@ function mapPrescriptionQuote(
   };
 }
 
-export async function listVendorPrescriptionRequests(): Promise<{
-  data: VendorPrescriptionRequestRow[];
+export async function listVendorPrescriptionRequests(input: PaginationInput = {}): Promise<{
+  data: PaginatedResult<VendorPrescriptionRequestRow>;
   error: Error | null;
 }> {
   const supabase = await getSupabaseServerClient();
+  const page = input.page ?? 1;
+  const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { from, to } = getPaginationRange(page, pageSize);
 
 const { data: vendorIdData } = await supabase
   .rpc("get_vendor_id")
@@ -286,12 +290,12 @@ const vendorId =
 
 if (!vendorId) {
   return {
-    data: [],
+    data: buildPaginatedResult([], 0, { page, pageSize }),
     error: new Error("Vendor account not found."),
   };
 }
 
-const { data, error } = await supabase
+const { data, error, count } = await supabase
   .from("prescription_requests")
   .select(`
   id,
@@ -314,12 +318,14 @@ const { data, error } = await supabase
       phone
     )
   )
-`)
+`, { count: "exact" })
   .eq("vendor_id", vendorId)
-  .order("created_at", { ascending: false });
+  .order("created_at", { ascending: false })
+  .order("id", { ascending: false })
+  .range(from, to);
 
   if (error) {
-    return { data: [], error };
+    return { data: buildPaginatedResult([], 0, { page, pageSize }), error };
   }
 
   const rows = (data ?? []) as PrescriptionRequestQueryRow[];
@@ -347,7 +353,7 @@ const mappedRows = rows.map((row) => {
 });
 
   return {
-    data: mappedRows,
+    data: buildPaginatedResult(mappedRows, count, { page, pageSize }),
     error: null,
   };
 }

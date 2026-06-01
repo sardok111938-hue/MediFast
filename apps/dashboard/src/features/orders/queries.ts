@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { formatPaymentStatusLabel } from "@medifast/types";
 import { OrderStatusBadge } from "./components/order-status-badge";
 import type { AdminOrderDetailRow, AdminOrderRow, TableModel, VendorOrderDetailRow, VendorOrderRow } from "../../types/dashboard";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult, type PaginationInput } from "../../lib/pagination";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
 import { formatCurrency } from "../../lib/utils/format-currency";
 
@@ -20,6 +21,9 @@ type AddressRecord = {
   line_1?: string | null;
   lat?: number | null;
   lng?: number | null;
+};
+type OrderDetailsPaginationInput = PaginationInput & {
+  orderStatus?: string;
 };
 
 const UNNAMED_CUSTOMER = "عميل بدون اسم";
@@ -96,9 +100,12 @@ function readCustomerName(customer: CustomerContainer, profilesById: Map<string,
   return fullName || UNNAMED_CUSTOMER;
 }
 
-export async function listOrdersForAdmin(): Promise<AdminOrderRow[]> {
+export async function listOrdersForAdmin(input: PaginationInput = {}): Promise<PaginatedResult<AdminOrderRow>> {
   const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase
+  const page = input.page ?? 1;
+  const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { from, to } = getPaginationRange(page, pageSize);
+  const { data, error, count } = await supabase
     .from("orders")
     .select(`
       id,
@@ -113,14 +120,16 @@ export async function listOrdersForAdmin(): Promise<AdminOrderRow[]> {
       driver:drivers(
         profile:profiles(full_name)
       )
-    `)
-    .order("created_at", { ascending: false });
+    `, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (error) {
     throw error;
   }
 
-  return (data ?? []).map((order) => ({
+  const rows = (data ?? []).map((order) => ({
     id: String(order.id),
     payment_method: String(order.payment_method),
     payment_status: String(order.payment_status),
@@ -130,11 +139,16 @@ export async function listOrdersForAdmin(): Promise<AdminOrderRow[]> {
     vendor_name: (order.vendor as { name?: string } | null)?.name ?? "-",
     driver_name: readName((order.driver as { profile?: NameContainer } | null)?.profile, "Unassigned"),
   }));
+
+  return buildPaginatedResult(rows, count, { page, pageSize });
 }
 
-export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
+export async function listAdminOrderDetails(input: OrderDetailsPaginationInput = {}): Promise<PaginatedResult<AdminOrderDetailRow>> {
   const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase
+  const page = input.page ?? 1;
+  const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { from, to } = getPaginationRange(page, pageSize);
+  let query = supabase
     .from("orders")
     .select(`
       id,
@@ -160,8 +174,16 @@ export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
         total_price,
         product:products!order_items_product_id_fkey(name)
       )
-    `)
-    .order("created_at", { ascending: false });
+    `, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
+
+  if (input.orderStatus) {
+    query = query.eq("order_status", input.orderStatus);
+  }
+
+  const { data, error, count } = await query;
 
   if (error) {
     throw error;
@@ -173,7 +195,7 @@ export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
   } & NonNullable<typeof data>[number])[];
   
   const profilesById = await getCustomerProfilesById(supabase, orders);
-  return orders.map((order) => {
+  const rows = orders.map((order) => {
     const address = order.address as RelatedRecord<AddressRecord>;
     const normalizedAddress = Array.isArray(address) ? address[0] : address;
     const items = Array.isArray(order.items) ? order.items : [];
@@ -206,10 +228,15 @@ export async function listAdminOrderDetails(): Promise<AdminOrderDetailRow[]> {
       })),
     };
   });
+
+  return buildPaginatedResult(rows, count, { page, pageSize });
 }
 
-export async function listOrdersForVendor(vendorId?: string): Promise<VendorOrderRow[]> {
+export async function listOrdersForVendor(vendorId?: string, input: PaginationInput = {}): Promise<PaginatedResult<VendorOrderRow>> {
   const supabase = await getSupabaseServerClient();
+  const page = input.page ?? 1;
+  const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { from, to } = getPaginationRange(page, pageSize);
   let query = supabase
     .from("orders")
     .select(`
@@ -224,14 +251,16 @@ export async function listOrdersForVendor(vendorId?: string): Promise<VendorOrde
       driver:drivers(
         profile:profiles(full_name)
       )
-    `)
-    .order("created_at", { ascending: false });
+    `, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (vendorId) {
     query = query.eq("vendor_id", vendorId);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     throw error;
@@ -239,7 +268,7 @@ export async function listOrdersForVendor(vendorId?: string): Promise<VendorOrde
 
   const orders = (data ?? []) as ({ customer?: CustomerContainer } & NonNullable<typeof data>[number])[];
   const profilesById = await getCustomerProfilesById(supabase, orders);
-  return orders.map((order) => ({
+  const rows = orders.map((order) => ({
     id: String(order.id),
     payment_method: String(order.payment_method),
     payment_status: String(order.payment_status),
@@ -248,10 +277,15 @@ export async function listOrdersForVendor(vendorId?: string): Promise<VendorOrde
     created_at: String(order.created_at ?? ""),
     customer_name: readCustomerName(order.customer, profilesById),    driver_name: readName((order.driver as { profile?: NameContainer } | null)?.profile, "Unassigned"),
   }));
+
+  return buildPaginatedResult(rows, count, { page, pageSize });
 }
 
-export async function listVendorOrderDetails(vendorId?: string): Promise<VendorOrderDetailRow[]> {
+export async function listVendorOrderDetails(vendorId?: string, input: PaginationInput = {}): Promise<PaginatedResult<VendorOrderDetailRow>> {
   const supabase = await getSupabaseServerClient();
+  const page = input.page ?? 1;
+  const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { from, to } = getPaginationRange(page, pageSize);
   let query = supabase
     .from("orders")
     .select(`
@@ -275,14 +309,16 @@ export async function listVendorOrderDetails(vendorId?: string): Promise<VendorO
         total_price,
         product:products!order_items_product_id_fkey(name)
       )
-    `)
-    .order("created_at", { ascending: false });
+    `, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (vendorId) {
     query = query.eq("vendor_id", vendorId);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     throw error;
@@ -293,7 +329,7 @@ export async function listVendorOrderDetails(vendorId?: string): Promise<VendorO
     address?: RelatedRecord<AddressRecord>;
   } & NonNullable<typeof data>[number])[];
   const profilesById = await getCustomerProfilesById(supabase, orders);
-  return orders.map((order) => {
+  const rows = orders.map((order) => {
     const address = order.address as RelatedRecord<AddressRecord>;
     const normalizedAddress = Array.isArray(address) ? address[0] : address;
     const items = Array.isArray(order.items) ? order.items : [];
@@ -322,6 +358,8 @@ export async function listVendorOrderDetails(vendorId?: string): Promise<VendorO
       })),
     };
   });
+
+  return buildPaginatedResult(rows, count, { page, pageSize });
 }
 
 export function getAdminOverviewOrdersTableModel(orders: AdminOrderRow[]): TableModel {

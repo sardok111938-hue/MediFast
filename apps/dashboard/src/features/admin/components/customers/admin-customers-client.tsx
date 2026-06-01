@@ -6,6 +6,7 @@ import { EmptyState } from "../../../../components/ui/empty-state";
 import { ErrorState } from "../../../../components/ui/error-state";
 import { LoadingState } from "../../../../components/ui/loading-state";
 import { Table } from "../../../../components/ui/table";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange } from "../../../../lib/pagination";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { formatDate } from "../../../../lib/utils/format-date";
 import type { AdminCustomerRow, AsyncState } from "../shared/admin-types";
@@ -23,13 +24,18 @@ type ProfileRow = {
   phone: string | null;
 };
 
-async function loadAdminCustomersData(): Promise<AdminCustomerRow[]> {
-  const supabase = getSupabaseBrowserClient();
+type AdminCustomersData = ReturnType<typeof buildPaginatedResult<AdminCustomerRow>>;
 
-  const { data: customers, error: customersError } = await supabase
+async function loadAdminCustomersData(page: number): Promise<AdminCustomersData> {
+  const supabase = getSupabaseBrowserClient();
+  const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
+
+  const { data: customers, error: customersError, count } = await supabase
     .from("customers")
-    .select("id, user_id, created_at")
-    .order("created_at", { ascending: false });
+    .select("id, user_id, created_at", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
 
   if (customersError) {
     throw customersError;
@@ -64,7 +70,7 @@ async function loadAdminCustomersData(): Promise<AdminCustomerRow[]> {
     }
   }
 
-  return customerRows.map((customer) => {
+  const rows = customerRows.map((customer) => {
     const profile = customer.user_id ? profileById.get(String(customer.user_id)) : null;
 
     const fullName = profile?.full_name?.trim();
@@ -76,14 +82,17 @@ async function loadAdminCustomersData(): Promise<AdminCustomerRow[]> {
       createdAt: String(customer.created_at ?? ""),
     };
   });
+
+  return buildPaginatedResult(rows, count, { page, pageSize: DEFAULT_PAGE_SIZE });
 }
 
 function AdminCustomersManager() {
-  const [state, setState] = useState<AsyncState<AdminCustomerRow[]>>({
+  const [state, setState] = useState<AsyncState<AdminCustomersData>>({
     data: null,
     error: null,
     loading: true,
   });
+  const [page, setPage] = useState(1);
 
   async function load() {
     setState({
@@ -93,7 +102,7 @@ function AdminCustomersManager() {
     });
 
     try {
-      const data = await loadAdminCustomersData();
+      const data = await loadAdminCustomersData(page);
       setState({
         data,
         error: null,
@@ -110,7 +119,7 @@ function AdminCustomersManager() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [page]);
 
   if (state.loading) {
     return (
@@ -128,24 +137,63 @@ function AdminCustomersManager() {
     );
   }
 
-  const customers = state.data ?? [];
+  const customers = state.data?.rows ?? [];
 
   return customers.length === 0 ? (
     <Card className="medical-panel">
       <EmptyState title="لا يوجد عملاء بعد" message="لم يسجل أي عملاء بعد." />
     </Card>
   ) : (
-    <Table
-      title="العملاء"
-      headers={["العميل", "الهاتف", "تاريخ الانضمام", "الحالة"]}
-      rows={customers.map((customer) => [
-        customer.fullName,
-        customer.phone ?? "-",
-        customer.createdAt ? formatDate(customer.createdAt) : "-",
-        "للقراءة فقط",
-      ])}
-      emptyMessage="لم يسجل أي عملاء بعد."
-    />
+    <div className="stack">
+      <PaginationSummary
+        totalCount={state.data?.totalCount ?? 0}
+        page={state.data?.page ?? page}
+        pageCount={state.data?.pageCount ?? 1}
+        onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+        onNext={() => setPage((current) => Math.min(state.data?.pageCount ?? current, current + 1))}
+      />
+      <Table
+        title="العملاء"
+        headers={["العميل", "الهاتف", "تاريخ الانضمام", "الحالة"]}
+        rows={customers.map((customer) => [
+          customer.fullName,
+          customer.phone ?? "-",
+          customer.createdAt ? formatDate(customer.createdAt) : "-",
+          "للقراءة فقط",
+        ])}
+        emptyMessage="لم يسجل أي عملاء بعد."
+      />
+    </div>
+  );
+}
+
+function PaginationSummary({
+  totalCount,
+  page,
+  pageCount,
+  onPrevious,
+  onNext,
+}: {
+  totalCount: number;
+  page: number;
+  pageCount: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <Card className="medical-panel">
+      <div className="split-actions">
+        <p className="muted">الإجمالي: {totalCount} · الصفحة {page} من {pageCount}</p>
+        <div className="inline-actions">
+          <button className="secondary-button" type="button" disabled={page <= 1} onClick={onPrevious}>
+            السابق
+          </button>
+          <button className="secondary-button" type="button" disabled={page >= pageCount} onClick={onNext}>
+            التالي
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

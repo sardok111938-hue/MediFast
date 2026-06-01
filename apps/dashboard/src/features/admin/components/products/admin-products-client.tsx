@@ -11,6 +11,7 @@ import { Input } from "../../../../components/ui/input";
 import { LoadingState } from "../../../../components/ui/loading-state";
 import { Table } from "../../../../components/ui/table";
 import { useLocale } from "../../../../lib/i18n/locale-context";
+import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult } from "../../../../lib/pagination";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { formatCurrency } from "../../../../lib/utils/format-currency";
 import type { ProductCategoryOption, ProductRow } from "../../../../types/dashboard";
@@ -58,8 +59,13 @@ function canSaveProductImageToGlobalCatalogue(product: ProductRow | null | undef
   return Boolean(product?.barcode?.trim() && product?.image_url?.trim());
 }
 
-async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
+type AdminProductManagerPageData = Omit<AdminProductManagerData, "products"> & {
+  products: PaginatedResult<ProductRow>;
+};
+
+async function loadAdminProductManagerData(page: number): Promise<AdminProductManagerPageData> {
   const supabase = getSupabaseBrowserClient();
+  const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
 
   const [categoriesResult, productsResult, vendorsResult] = await Promise.all([
     supabase
@@ -83,9 +89,11 @@ async function loadAdminProductManagerData(): Promise<AdminProductManagerData> {
     image_url,
     low_stock_threshold,
     resolved_image_url
-  `)
+  `, { count: "exact" })
   .eq("is_active", true)
-  .order("created_at", { ascending: false }),
+  .order("created_at", { ascending: false })
+  .order("id", { ascending: false })
+  .range(from, to),
 
 supabase
       .from("vendors")
@@ -123,8 +131,10 @@ supabase
         name_ar: category.name_ar ? String(category.name_ar) : null,
       }),
     })),
-    products: (productsResult.data ?? []).map((product) =>
-      mapProductRow(product as Record<string, unknown>)
+    products: buildPaginatedResult(
+      (productsResult.data ?? []).map((product) => mapProductRow(product as Record<string, unknown>)),
+      productsResult.count,
+      { page, pageSize: DEFAULT_PAGE_SIZE },
     ),
     vendors: (vendorsResult.data ?? []).map((vendor) => ({
       id: String(vendor.id),
@@ -438,7 +448,7 @@ function AdminProductForm({
 }
 
 function AdminProductsManager() {
-  const [state, setState] = useState<AsyncState<AdminProductManagerData>>({
+  const [state, setState] = useState<AsyncState<AdminProductManagerPageData>>({
     data: null,
     error: null,
     loading: true,
@@ -448,6 +458,7 @@ function AdminProductsManager() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [savingGlobalProductId, setSavingGlobalProductId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [page, setPage] = useState(1);
 
   async function load() {
     setState({
@@ -457,7 +468,7 @@ function AdminProductsManager() {
     });
 
     try {
-      const data = await loadAdminProductManagerData();
+      const data = await loadAdminProductManagerData(page);
       setState({
         data,
         error: null,
@@ -474,7 +485,7 @@ function AdminProductsManager() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [page]);
 
   async function handleCreateProduct(formData: FormData) {
     setSaving(true);
@@ -554,7 +565,7 @@ function AdminProductsManager() {
         throw new Error(validation.error ?? "فشل التحقق من بيانات المنتج.");
       }
 
-      const currentProduct = state.data?.products.find((product) => product.id === productId) ?? null;
+      const currentProduct = state.data?.products.rows.find((product) => product.id === productId) ?? null;
       let imageUrl = currentProduct?.image_url ?? null;
       const image = formData.get("image");
 
@@ -663,7 +674,7 @@ function AdminProductsManager() {
   }
 
   const categories = state.data?.categories ?? [];
-  const products = state.data?.products ?? [];
+  const products = state.data?.products.rows ?? [];
   const editingProduct = products.find((product) => product.id === editingProductId) ?? null;
 
   return (
@@ -673,6 +684,14 @@ function AdminProductsManager() {
       <AdminProductForm mode="create" categories={categories} loading={saving && !editingProductId} onSubmit={handleCreateProduct} />
 
       {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
+
+      <PaginationControls
+        totalCount={state.data?.products.totalCount ?? 0}
+        page={state.data?.products.page ?? page}
+        pageCount={state.data?.products.pageCount ?? 1}
+        onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+        onNext={() => setPage((current) => Math.min(state.data?.products.pageCount ?? current, current + 1))}
+      />
 
       {editingProduct ? (
         <AdminProductForm
@@ -762,6 +781,36 @@ function AdminProductsManager() {
         />
       )}
     </div>
+  );
+}
+
+function PaginationControls({
+  totalCount,
+  page,
+  pageCount,
+  onPrevious,
+  onNext,
+}: {
+  totalCount: number;
+  page: number;
+  pageCount: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <Card className="medical-panel">
+      <div className="split-actions">
+        <p className="muted">الإجمالي: {totalCount} · الصفحة {page} من {pageCount}</p>
+        <div className="inline-actions">
+          <button className="secondary-button" type="button" disabled={page <= 1} onClick={onPrevious}>
+            السابق
+          </button>
+          <button className="secondary-button" type="button" disabled={page >= pageCount} onClick={onNext}>
+            التالي
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

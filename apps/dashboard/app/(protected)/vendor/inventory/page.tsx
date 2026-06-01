@@ -31,7 +31,8 @@ export default async function VendorInventoryPage({
   const status = resolvedSearchParams?.status ?? "all";
   const currentPage = Math.max(Number(resolvedSearchParams?.page ?? "1"), 1);
 
-  const products = await listVendorProducts();
+  const productsPage = await listVendorProducts({ page: currentPage, pageSize: PAGE_SIZE });
+  const products = productsPage.rows;
   const supabase = await getSupabaseServerClient();
 
   const { data: inventorySettings } = await supabase
@@ -78,10 +79,9 @@ export default async function VendorInventoryPage({
     return matchesSearch && matchesStatus;
   });
 
-  const totalPages = Math.max(Math.ceil(filteredProducts.length / PAGE_SIZE), 1);
-  const safePage = Math.min(currentPage, totalPages);
-  const pageStart = (safePage - 1) * PAGE_SIZE;
-  const paginatedProducts = filteredProducts.slice(pageStart, pageStart + PAGE_SIZE);
+  const totalPages = productsPage.pageCount;
+  const safePage = productsPage.page;
+  const paginatedProducts = filteredProducts;
 
 const makeHref = (nextPage: number): Route => {
   const params = new URLSearchParams();
@@ -161,7 +161,7 @@ const makeHref = (nextPage: number): Route => {
           <div>
             <h3>إدارة المخزون</h3>
             <p className="muted">
-              يظهر {paginatedProducts.length} من {filteredProducts.length} منتج
+              يظهر {paginatedProducts.length} من {productsPage.totalCount} منتج
             </p>
           </div>
         </div>
