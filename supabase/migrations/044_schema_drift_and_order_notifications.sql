@@ -373,6 +373,8 @@ begin
 end;
 $$;
 
+drop function if exists public.vendor_update_order_status(uuid, text);
+
 create or replace function public.vendor_update_order_status(
   p_order_id uuid,
   p_next_status text
@@ -436,6 +438,8 @@ end;
 $$;
 
 grant execute on function public.vendor_update_order_status(uuid, text) to authenticated;
+
+drop function if exists public.driver_update_order_status(uuid, text);
 
 create or replace function public.driver_update_order_status(
   p_order_id uuid,
@@ -505,6 +509,8 @@ end;
 $$;
 
 grant execute on function public.driver_update_order_status(uuid, text) to authenticated;
+
+drop function if exists public.admin_assign_driver(uuid, uuid);
 
 create or replace function public.admin_assign_driver(
   p_order_id uuid,
