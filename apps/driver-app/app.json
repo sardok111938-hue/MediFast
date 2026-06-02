@@ -20,10 +20,21 @@
       "bundleIdentifier": "com.medifast.driver"
     },
     "android": {
-      "package": "com.medifast.driver"
+      "package": "com.medifast.driver",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "531df520-cb27-4fea-8b3e-043841ff8d60"
+      }
+    },
+    "owner": "sardokky"
   }
 }

@@ -1,0 +1,19 @@
+name: Send Notifications
+
+on:
+  schedule:
+    - cron: "* * * * *"
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Invoke Supabase notification worker
+        run: |
+          curl -X POST \
+            "https://qricqdjteztjieogfafm.supabase.co/functions/v1/send-notifications" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
