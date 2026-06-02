@@ -22,7 +22,7 @@ security definer
 set search_path = public
 as $$
 begin
-  return public.admin_create_category(p_name, null);
+  return public.admin_create_category(p_name, null::text);
 end;
 $$;
 
@@ -71,7 +71,7 @@ security definer
 set search_path = public
 as $$
 begin
-  return public.admin_update_category(p_category_id, p_name, null);
+  return public.admin_update_category(p_category_id, p_name, null::text);
 end;
 $$;
 

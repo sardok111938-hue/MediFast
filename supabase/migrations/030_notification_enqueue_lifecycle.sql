@@ -65,8 +65,11 @@ begin
       normalized_data,
       notification_dedupe_key
     )
-    on conflict (dedupe_key) do nothing
+    on conflict (dedupe_key)
+    where dedupe_key is not null
+    do nothing
     returning id
+    
   ), selected_notification as (
     select id
     from inserted
