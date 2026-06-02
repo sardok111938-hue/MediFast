@@ -25,6 +25,39 @@ async function persistCart() {
   }
 }
 
+function isValidSnapshot(value: unknown): value is CartProductSnapshot {
+  if (!value || typeof value !== "object") return false;
+
+  const snapshot = value as Partial<CartProductSnapshot>;
+  const price = Number(snapshot.price);
+
+return (
+  typeof snapshot.product_id === "string" &&
+  typeof snapshot.vendor_id === "string" &&
+  typeof snapshot.name === "string" &&
+  typeof snapshot.description === "string" &&
+  Number.isFinite(price) &&
+  typeof snapshot.stock_quantity === "number" &&
+  Number.isFinite(snapshot.stock_quantity) &&
+  typeof snapshot.is_active === "boolean"
+);
+}
+
+function isValidCartItem(value: unknown): value is CartItem {
+  if (!value || typeof value !== "object") return false;
+
+  const item = value as Partial<CartItem>;
+
+  return (
+    typeof item.id === "string" &&
+    typeof item.product_id === "string" &&
+    typeof item.quantity === "number" &&
+    Number.isFinite(item.quantity) &&
+    item.quantity > 0 &&
+    isValidSnapshot(item.snapshot)
+  );
+}
+
 async function hydrateCart() {
   if (hasHydrated) return;
 
@@ -37,8 +70,15 @@ async function hydrateCart() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return;
 
-    cartState = parsed;
+    const validItems = parsed.filter(isValidCartItem);
+    
+    cartState = validItems;
     emitChange();
+    
+    if (validItems.length !== parsed.length) {
+      void persistCart();
+    }
+
   } catch (error) {
     console.warn("Failed to hydrate customer cart", error);
   }
