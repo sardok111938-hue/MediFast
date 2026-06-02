@@ -11,7 +11,8 @@ import {
   getPrimaryAddress,
   getVendorById,
   hasSavedAddressCoordinates,
-  useCustomerCatalogData,
+  useCustomerAddressesData,
+  useCustomerVendors,
 } from "../../lib/customer-catalog";
 import { formatCustomerCurrency, formatCustomerPaymentStatusLabel } from "../orders/customer-orders";
 import { clearCustomerCart } from "../../lib/cart-store";
@@ -19,7 +20,8 @@ import { clearCustomerCart } from "../../lib/cart-store";
 export default function CheckoutScreen() {
   const router = useRouter();
   const cartItems = useCustomerCart();
-  const { data, loading, error, reload } = useCustomerCatalogData();
+  const { data, loading, error, reload } = useCustomerAddressesData();
+  const { vendors } = useCustomerVendors();
   const [submitting, setSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const address = getPrimaryAddress(data.addresses, data.defaultAddressId);
@@ -28,10 +30,10 @@ export default function CheckoutScreen() {
 
   const selectedVendor = useMemo(
   () => getVendorById(
-    data.vendors,
+    vendors,
     cartItems[0]?.snapshot.vendor_id ?? null,
   ),
-  [data.vendors, cartItems],
+  [vendors, cartItems],
 );
 
   const { preview, validationError } = useMemo(() => {

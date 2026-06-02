@@ -667,6 +667,65 @@ export async function searchProducts(query: string): Promise<Product[]> {
   return ((data ?? []) as QueryProduct[]).map(mapProduct);
 }
 
+export async function loadActiveVendors() {
+  const { data, error } = await supabase
+    .from("vendors")
+    .select(`
+      id,
+      name,
+       is_active,
+       approval_status,
+       vendor_operating_hours (
+       day_of_week,
+       opens_at,
+       closes_at,
+       is_closed
+      )
+    `)
+    .eq("approval_status", "approved")
+    .eq("is_active", true);
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as QueryVendor[]).map(mapVendor);
+}
+
+export function useCustomerVendors() {
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      setVendors(await loadActiveVendors());
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "تعذر تحميل الصيدليات."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return {
+    vendors,
+    loading,
+    error,
+    reload,
+  };
+}
+
 export async function loadVendorProducts(vendorId: string): Promise<Product[]> {
   if (!vendorId) {
     return [];

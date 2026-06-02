@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
-import { getVendorById, useCustomerCatalogData } from "../../src/lib/customer-catalog";
+import { getVendorById, useCustomerVendors } from "../../src/lib/customer-catalog";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../../src/components/CustomerUI";
@@ -18,7 +18,7 @@ import { CatalogImage } from "../../src/components/CatalogImage";
 export default function CartScreen() {
   const router = useRouter();
   const cartItems = useCustomerCart();
-  const { data } = useCustomerCatalogData();
+  const { vendors } = useCustomerVendors();
 
   const subtotal = getCartSubtotal(cartItems);
   const itemCount = getCartItemCount(cartItems);
@@ -28,12 +28,12 @@ export default function CartScreen() {
     () => cartItems[0]?.snapshot.vendor_id ?? null,
     [cartItems],
   );
-
+  
   const selectedVendor = useMemo(
-    () => getVendorById(data.vendors, recommendedVendor),
-    [data.vendors, recommendedVendor],
+    () => getVendorById(vendors, recommendedVendor),
+    [vendors, recommendedVendor],
   );
-
+  
   const freshness = useCartFreshness(cartItems);
 
   const selectedVendorIds = useMemo(

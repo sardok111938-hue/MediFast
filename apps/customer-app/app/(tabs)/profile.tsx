@@ -18,8 +18,7 @@ import {
   formatSavedAddressLine,
   getPrimaryAddress,
   getSavedAddresses,
-  hasSavedAddressCoordinates,
-  useCustomerCatalogData,
+  useCustomerAddressesData,
 } from "../../src/lib/customer-catalog";
 import { signOutCustomer, supabase, updateCustomerProfile } from "../../src/lib/supabase";
 
@@ -93,7 +92,7 @@ function SettingRow({
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { data, loading, error, reload } = useCustomerCatalogData();
+  const { data, loading, error, reload } = useCustomerAddressesData();
 
   const [fullName, setFullName] = useState("العميل");
   const [draftFullName, setDraftFullName] = useState("");

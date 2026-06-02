@@ -113,10 +113,28 @@ const sortedVendors = useMemo(() => {
 }, [catalog.vendors, favoriteVendorIds, primaryAddress]);
 
 useEffect(() => {
-  if (!loading && !catalog.defaultAddressId) {
+  if (loading || error) {
+    return;
+  }
+
+  const hasUsableDefaultAddress = Boolean(
+    catalog.defaultAddressId &&
+      catalog.addresses.some((address) => address.id === catalog.defaultAddressId),
+  );
+
+  console.log("HOME ADDRESS DEBUG", {
+  loading,
+  error,
+  defaultAddressId: catalog.defaultAddressId,
+  addressCount: catalog.addresses.length,
+  addressIds: catalog.addresses.map((a) => a.id),
+  hasUsableDefaultAddress,
+});
+
+  if (!hasUsableDefaultAddress) {
     router.replace("/address/setup");
   }
-}, [loading, catalog.defaultAddressId, router]);
+}, [loading, error, catalog.defaultAddressId, catalog.addresses, router]);
 
 useEffect(() => {
   async function loadFavoriteVendors() {
