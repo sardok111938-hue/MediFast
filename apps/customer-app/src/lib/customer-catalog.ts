@@ -77,7 +77,7 @@ type QueryProduct = {
   description?: string | null;
   price?: number | string | null;
   image_url?: string | null;
-  resolved_image_url?: string | null;
+  display_image_url?: string | null;
   barcode?: string | null;
   stock_quantity?: number | null;
   is_active?: boolean | null;
@@ -385,7 +385,7 @@ function mapProduct(product: QueryProduct): Product {
     description: String(product.description ?? ""),
     price: Number(product.price ?? 0),
     image_url:
-  product.resolved_image_url?.trim() ||
+  product.display_image_url?.trim() ||
   product.image_url?.trim() ||
   "",
     barcode: product.barcode ?? null,
@@ -526,6 +526,46 @@ async function loadCustomerAddresses(): Promise<Pick<CustomerCatalogData, "addre
   };
 }
 
+export function useCustomerAddressesData() {
+  const [data, setData] = useState<
+    Pick<CustomerCatalogData, "addresses" | "defaultAddressId">
+  >({
+    addresses: [],
+    defaultAddressId: null,
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      setData(await loadCustomerAddresses());
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "تعذر تحميل العناوين الآن."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return {
+    data,
+    loading,
+    error,
+    reload,
+  };
+}
+
 export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
   if (!isSupabaseConfigured()) {
     throw new Error("إعدادات Supabase غير مكتملة في تطبيق العميل.");
@@ -580,11 +620,12 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
   if (activeVendorIds.length > 0) {
     const { data: productsData, error: productsError } = await supabase
       .from("products_with_global_images")
-      .select("id, vendor_id, category_id, name, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
+      .select("id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active")
       .eq("is_active", true)
       .gt("stock_quantity", 0)
       .in("vendor_id", activeVendorIds)
       .order("created_at", { ascending: false })
+.limit(80);
 
     if (productsError) {
       throw productsError;
@@ -612,7 +653,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
   const { data, error } = await supabase
     .from("products_with_global_images")
-    .select("id, vendor_id, category_id, name, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
+    .select("id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active")
     .eq("is_active", true)
     .gt("stock_quantity", 0)
     .or(`name.ilike.%${term}%,barcode.ilike.%${term}%`)
@@ -633,7 +674,7 @@ export async function loadVendorProducts(vendorId: string): Promise<Product[]> {
 
   const { data, error } = await supabase
     .from("products_with_global_images")
-    .select("id, vendor_id, category_id, name, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
+    .select("id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active")
     .eq("is_active", true)
     .gt("stock_quantity", 0)
     .eq("vendor_id", vendorId)
@@ -656,7 +697,7 @@ export async function loadCategoryProducts(
 
   let query = supabase
     .from("products_with_global_images")
-    .select("id, vendor_id, category_id, name, price, image_url, resolved_image_url, barcode, stock_quantity, is_active")
+    .select("id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active")
     .eq("is_active", true)
     .gt("stock_quantity", 0)
     .in("category_id", categoryIds)

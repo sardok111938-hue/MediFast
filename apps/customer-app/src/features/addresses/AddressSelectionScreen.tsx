@@ -22,7 +22,7 @@ import {
   formatSavedAddressLine,
   getSavedAddresses,
   hasSavedAddressCoordinates,
-  useCustomerCatalogData,
+  useCustomerAddressesData,
 } from "../../lib/customer-catalog";
 
 type AddressFormState = {
@@ -57,7 +57,7 @@ export default function AddressSelectionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ from?: string | string[] }>();
   const from = Array.isArray(params.from) ? params.from[0] : params.from;
-  const { data, loading, error, reload } = useCustomerCatalogData();
+  const { data, loading, error, reload } = useCustomerAddressesData();
   const addresses = useMemo(() => getSavedAddresses(data.addresses), [data.addresses]);
 
   const [selectedAddressId, setSelectedAddressId] = useState("");
