@@ -38,8 +38,6 @@ const statusLabelMap: Record<string, string> = {
   preparing: "قيد التحضير",
   ready_for_pickup: "جاهز للاستلام",
   assigned: "تم التعيين",
-  arrived_at_pharmacy: "وصل السائق إلى الصيدلية",
-  picked_up: "تم استلام الطلب",
   on_the_way: "في الطريق",
   delivered: "تم التوصيل",
   cancelled: "ملغي",
@@ -84,8 +82,6 @@ export const customerOrderTimeline = [
   "preparing",
   "ready_for_pickup",
   "assigned",
-  "arrived_at_pharmacy",
-  "picked_up",
   "on_the_way",
   "delivered",
 ] as const;
@@ -288,24 +284,6 @@ export function getDeliveryHeadline(order: CustomerOrder) {
       message: order.driverName
         ? `تم تعيين السائق ${order.driverName} لاستلام طلبك.`
         : "تم تعيين سائق لاستلام طلبك.",
-    };
-  }
-
-  if (order.orderStatus === "arrived_at_pharmacy") {
-    return {
-      tone: "info" as const,
-      message: order.driverName
-        ? `وصل السائق ${order.driverName} إلى الصيدلية.`
-        : "وصل السائق إلى الصيدلية.",
-    };
-  }
-
-  if (order.orderStatus === "picked_up") {
-    return {
-      tone: "info" as const,
-      message: order.driverName
-        ? `استلم السائق ${order.driverName} طلبك من الصيدلية.`
-        : "تم استلام طلبك من الصيدلية.",
     };
   }
 

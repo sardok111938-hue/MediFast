@@ -7,8 +7,6 @@ export type OrderStatus =
   | "rejected"
   | "ready_for_pickup"
   | "assigned"
-  | "arrived_at_pharmacy"
-  | "picked_up"
   | "on_the_way"
   | "delivered"
   | "cancelled";

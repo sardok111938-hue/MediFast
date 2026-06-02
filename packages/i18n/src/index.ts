@@ -448,8 +448,6 @@ const orderStatusLabels = {
   preparing: "قيد التحضير",
   ready_for_pickup: "جاهز للاستلام",
   assigned: "تم تعيين سائق",
-  arrived_at_pharmacy: "وصل إلى الصيدلية",
-  picked_up: "تم الاستلام",
   on_the_way: "في الطريق",
   delivered: "تم التوصيل",
   rejected: "مرفوض",

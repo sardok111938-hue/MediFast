@@ -641,4 +641,90 @@ begin
 end;
 $$;
 
+drop function if exists public.driver_claim_order(uuid);
+
+create or replace function public.driver_claim_order(
+  p_order_id uuid
+)
+returns table (
+  order_id uuid,
+  driver_id uuid,
+  order_status text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_driver_id uuid;
+  current_driver public.drivers%rowtype;
+  current_order public.orders%rowtype;
+begin
+  current_driver_id := public.get_driver_id();
+
+  if current_driver_id is null then
+    raise exception 'Driver account is not linked correctly.';
+  end if;
+
+  select *
+  into current_driver
+  from public.drivers d
+  where d.id = current_driver_id
+  for update;
+
+  if not found then
+    raise exception 'Driver was not found.';
+  end if;
+
+  if current_driver.approval_status <> 'approved' or not current_driver.is_available then
+    raise exception 'Driver is not currently available for assignment.';
+  end if;
+
+  select *
+  into current_order
+  from public.orders o
+  where o.id = p_order_id
+  for update;
+
+  if not found then
+    raise exception 'Order was not found.';
+  end if;
+
+  if current_order.order_status <> 'ready_for_pickup' or current_order.driver_id is not null then
+    raise exception 'Only unassigned ready-for-pickup orders can be claimed.';
+  end if;
+
+  return query
+  with updated_order as (
+    update public.orders o
+    set
+      driver_id = current_driver_id,
+      order_status = 'assigned'
+    where o.id = current_order.id
+    returning o.id, o.driver_id, o.order_status
+  ),
+  updated_driver as (
+    update public.drivers d
+    set is_available = false
+    where d.id = current_driver_id
+    returning d.id
+  ),
+  queued_notifications as (
+    select
+      public.notify_customer_order_status(
+        current_order.customer_id,
+        current_order.id,
+        'assigned'
+      ),
+      public.notify_driver_order_assigned(
+        current_driver_id,
+        current_order.id
+      )
+  )
+  select uo.id, uo.driver_id, uo.order_status::text
+  from updated_order uo;
+end;
+$$;
+
+grant execute on function public.driver_claim_order(uuid) to authenticated;
 grant execute on function public.admin_update_category(uuid, text, text) to authenticated;
