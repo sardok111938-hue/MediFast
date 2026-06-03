@@ -22,8 +22,8 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
-    image_url: product.resolved_image_url
-  ? String(product.resolved_image_url)
+    image_url: product.display_image_url
+  ? String(product.display_image_url)
   : product.image_url
     ? String(product.image_url)
     : null,
@@ -49,7 +49,7 @@ export async function listProducts(input: PaginationInput = {}): Promise<Paginat
   barcode,
   is_active,
   image_url,
-  resolved_image_url
+  display_image_url
 `, { count: "exact" })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -92,7 +92,7 @@ export async function listVendorProducts(input: PaginationInput = {}): Promise<P
   barcode,
   is_active,
   image_url,
-  resolved_image_url
+  display_image_url
 `, { count: "exact" })
     .eq("vendor_id", vendorId)
     .order("created_at", { ascending: false })
@@ -221,7 +221,7 @@ export async function getProductById(productId: string): Promise<ProductRow | nu
   barcode,
   is_active,
   image_url,
-  resolved_image_url
+  display_image_url
 `)
     .eq("id", productId)
     .maybeSingle();

@@ -140,6 +140,8 @@ export type VendorPrescriptionQuoteRow = {
   created_at: string;
   updated_at: string;
   accepted_at: string | null;
+  converted_order_id: string | null;
+  converted_to_order_at: string | null;
   items: VendorPrescriptionQuoteItemRow[];
 };
 
@@ -161,6 +163,7 @@ type PrescriptionRequestQueryRow = {
   status: "pending" | "accepted" | "rejected" | "cancelled";
   created_at: string;
   updated_at: string;
+  quotes?: { id?: string | null; converted_order_id?: string | null }[] | null;
   responded_at: string | null;
   addresses?: { line_1?: string | null } | { line_1?: string | null }[] | null;
   customers?:
@@ -191,6 +194,8 @@ type PrescriptionQuoteQueryRow = {
   created_at: string;
   updated_at: string;
   accepted_at: string | null;
+  converted_order_id: string | null;
+  converted_to_order_at: string | null;
   items?: PrescriptionQuoteItemQueryRow[] | null;
 };
 
@@ -266,6 +271,8 @@ function mapPrescriptionQuote(
     created_at: quote.created_at,
     updated_at: quote.updated_at,
     accepted_at: quote.accepted_at,
+    converted_order_id: quote.converted_order_id,
+    converted_to_order_at: quote.converted_to_order_at,
     items: (quote.items ?? []).map((item) => mapPrescriptionQuoteItem(item)),
   };
 }
@@ -298,39 +305,51 @@ if (!vendorId) {
 const { data, error, count } = await supabase
   .from("prescription_requests")
   .select(`
-  id,
-  customer_id,
-  vendor_id,
-  address_id,
-  image_path,
-  note,
-  vendor_note,
-  status,
-  created_at,
-  updated_at,
-  responded_at,
-  addresses (
-    line_1
-  ),
-  customers (
-    profiles (
-      full_name,
-      phone
+    id,
+    customer_id,
+    vendor_id,
+    address_id,
+    image_path,
+    note,
+    vendor_note,
+    status,
+    created_at,
+    updated_at,
+    responded_at,
+    addresses (
+      line_1
+    ),
+    customers (
+      profiles (
+        full_name,
+        phone
+      )
+    ),
+    quotes:prescription_quotes (
+      id,
+      converted_order_id
     )
-  )
-`, { count: "exact" })
+  `, { count: "exact" })
   .eq("vendor_id", vendorId)
+
   .order("created_at", { ascending: false })
-  .order("id", { ascending: false })
-  .range(from, to);
+    .range(from, to);
 
-  if (error) {
-    return { data: buildPaginatedResult([], 0, { page, pageSize }), error };
-  }
+if (error) {
+  return {
+    data: buildPaginatedResult([], 0, { page, pageSize }),
+    error,
+  };
+}
 
-  const rows = (data ?? []) as PrescriptionRequestQueryRow[];
+const rows = (data ?? []) as PrescriptionRequestQueryRow[];
 
-const mappedRows = rows.map((row) => {
+const activeRows = rows.filter((row) => {
+  const quote = row.quotes?.[0];
+  return !quote?.converted_order_id;
+});
+
+const mappedRows = activeRows.map((row) => {
   const customer = readPrescriptionCustomer(row.customers);
 
   return {
@@ -352,10 +371,14 @@ const mappedRows = rows.map((row) => {
   };
 });
 
-  return {
-    data: buildPaginatedResult(mappedRows, count, { page, pageSize }),
-    error: null,
-  };
+return {
+  data: buildPaginatedResult(
+    mappedRows,
+    mappedRows.length,
+    { page, pageSize }
+  ),
+  error: null,
+};
 }
 
 export async function getVendorPrescriptionRequest(requestId: string): Promise<{
@@ -466,6 +489,8 @@ export async function getVendorPrescriptionQuoteForRequest(
       created_at,
       updated_at,
       accepted_at,
+      converted_order_id,
+      converted_to_order_at,
       items:prescription_quote_items (
         id,
         quote_id,

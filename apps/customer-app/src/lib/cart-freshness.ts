@@ -11,7 +11,7 @@ type QueryProduct = {
   description?: string | null;
   price?: number | string | null;
   image_url?: string | null;
-  resolved_image_url?: string | null;
+  display_image_url?: string | null;
   barcode?: string | null;
   stock_quantity?: number | null;
   is_active?: boolean | null;
@@ -48,7 +48,7 @@ function mapProduct(product: QueryProduct): Product {
     description: String(product.description ?? ""),
     price: Number(product.price ?? 0),
     image_url:
-  product.resolved_image_url?.trim() ||
+  product.display_image_url?.trim() ||
   product.image_url?.trim() ||
   "",
     barcode: product.barcode ?? null,
@@ -75,7 +75,7 @@ async function fetchLiveProducts(productIds: string[]) {
       barcode,
       is_active,
       image_url,
-      resolved_image_url
+      display_image_url
     `)
     .in("id", productIds);
 

@@ -47,8 +47,8 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
-    image_url: product.resolved_image_url
-      ? String(product.resolved_image_url)
+    image_url: product.display_image_url
+      ? String(product.display_image_url)
       : product.image_url
         ? String(product.image_url)
         : null,
@@ -88,7 +88,7 @@ async function loadAdminProductManagerData(page: number): Promise<AdminProductMa
     is_active,
     image_url,
     low_stock_threshold,
-    resolved_image_url
+    display_image_url
   `, { count: "exact" })
   .eq("is_active", true)
   .order("created_at", { ascending: false })

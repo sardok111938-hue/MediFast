@@ -79,9 +79,9 @@ function mapProductRow(product: Record<string, unknown>): ProductRow {
     stock_quantity: Number(product.stock_quantity ?? 0),
     barcode: product.barcode ? String(product.barcode) : null,
     is_active: Boolean(product.is_active),
-    image_url: product.resolved_image_url
-  ? String(product.resolved_image_url)
-  : product.image_url
+    image_url: product.display_image_url
+    ? String(product.display_image_url)
+    : product.image_url
     ? String(product.image_url)
     : null,
   };
@@ -275,8 +275,8 @@ async function loadVendorProductsData(page: number, statusFilter: VendorProductS
   }
 
   const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
-  let productsQuery = supabase
-    .from("products_with_global_images")
+let productsQuery = supabase
+  .from("products_with_global_images")
 .select(`
   id,
   vendor_id,
@@ -289,7 +289,8 @@ async function loadVendorProductsData(page: number, statusFilter: VendorProductS
   barcode,
   is_active,
   image_url,
-  resolved_image_url
+  display_image_url,
+  global_image_url
 `, { count: "exact" })
     .eq("vendor_id", vendorId)
     .order("created_at", { ascending: false })

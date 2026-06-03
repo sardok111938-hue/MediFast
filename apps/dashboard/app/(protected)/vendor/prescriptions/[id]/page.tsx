@@ -108,20 +108,20 @@ async function addQuoteItemAction(formData: FormData) {
     throw new Error("Invalid prescription quote item action.");
   }
   
-  const { error } = await upsertVendorPrescriptionQuoteItem({
-    quoteId,
-    itemId: itemId || null,
-    productId: productId || null,    
-    productName,
-    quantity,
-    unitPrice: rawUnitPrice ? Number(rawUnitPrice) : null,
-    availabilityStatus,
-    note,
-  });
+const { error } = await upsertVendorPrescriptionQuoteItem({
+  quoteId,
+  itemId: itemId || null,
+  productId: productId || null,
+  productName,
+  quantity,
+  unitPrice: rawUnitPrice ? Number(rawUnitPrice) : null,
+  availabilityStatus,
+  note,
+});
 
-  if (error) {
-    throw error;
-  }
+if (error) {
+  throw error;
+}
 
   revalidatePath(`/vendor/prescriptions/${requestId}`);
 }
@@ -530,12 +530,24 @@ export default async function VendorPrescriptionDetailPage({
 </form>                    </>
                   ) : null}
 
-                  {quote.status === "accepted" ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
-                      تم قبول العرض من العميل. سيتم لاحقاً تحويله إلى طلب دفع عند الاستلام.
-                    </div>
-                  ) : null}
+{quote.converted_order_id ? (
+  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+    <p className="text-sm font-black text-emerald-700">
+      تم تحويل عرض السعر إلى طلب بنجاح. تتم متابعة التنفيذ الآن من صفحة الطلبات.
+    </p>
 
+    <Link
+      href="/vendor/orders"
+      className="mt-3 inline-flex text-sm font-black text-emerald-700 underline"
+    >
+      فتح صفحة الطلبات
+    </Link>
+  </div>
+) : quote.status === "accepted" ? (
+  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
+    قبل العميل العرض. بانتظار تأكيده النهائي لإنشاء الطلب.
+  </div>
+) : null}
                   {quote.status === "rejected" ? (
                     <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-700">
                       رفض العميل هذا العرض.

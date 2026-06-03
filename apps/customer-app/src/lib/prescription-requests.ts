@@ -190,6 +190,15 @@ export async function createOrderFromQuote(quoteId: string) {
     }
   );
 
+  if (error) {
+    console.error("CREATE ORDER FROM QUOTE ERROR", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+  }
+
   return {
     orderId: data ? String(data) : null,
     error,
