@@ -20,3 +20,9 @@ coverage/
 apps/*/.env
 apps/*/.env.*
 !apps/*/.env.example
+
+# iOS generated files
+ios/build/
+ios/Pods/
+apps/*/ios/build/
+apps/*/ios/Pods/

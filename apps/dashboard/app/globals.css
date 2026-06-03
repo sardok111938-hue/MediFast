@@ -1358,9 +1358,7 @@ html[dir="rtl"] .inventory-actions {
   gap: 12px;
 }
 
-.form-grid .field:first-of-type,
 .form-grid .field:nth-of-type(2),
-.form-grid .field:last-of-type,
 .form-grid .actions {
   grid-column: 1 / -1;
 }
@@ -1414,7 +1412,32 @@ html[dir="rtl"] .inventory-actions {
     align-items: stretch;
   }
 
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.textarea {
+  min-height: 64px;
+  padding-block: 8px;
+}
+
+.input {
+  min-height: 34px;
+  padding-block: 6px;
+}
+
+.field {
+  gap: 4px;
+}
+
+.field label {
+  font-size: 12px;
+}
+
+.form-grid .muted {
+  margin: 0;
+  font-size: 11px;
+}
 }

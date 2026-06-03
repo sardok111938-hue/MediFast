@@ -7,18 +7,34 @@
 - `delivery_tracking` table reserved for future implementation
 - Customer tracking limited to order status updates
 
+## Official Driver Lifecycle
+
+Vendor Fulfillment:
+
+placed
+→ accepted
+→ preparing
+→ ready_for_pickup
+
+Driver Fulfillment:
+
+ready_for_pickup
+→ assigned
+→ on_the_way
+→ delivered
+
+Terminal States:
+
+cancelled
+rejected
+
 ## Decision
 
 Defer live GPS tracking until after core marketplace stabilization.
 
 ## Rationale
 
-Current MVP workflow is fully supported through status updates:
-
-ready_for_pickup
-→ assigned
-→ on_the_way
-→ delivered
+Current MVP workflow is fully supported through status updates.
 
 This provides sufficient customer visibility without introducing:
 

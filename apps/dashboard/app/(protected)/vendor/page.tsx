@@ -56,6 +56,21 @@ export default async function VendorDashboardPage() {
     { label: "جاهزة للاستلام", value: String(overview.orderCounts.readyForPickup), hint: "طلبات تنتظر الاستلام أو إسناد التوصيل." },
     { label: "تم التسليم", value: String(overview.orderCounts.delivered), hint: "طلبات مكتملة وصلت للعملاء." },
     { label: "دفع عند الاستلام", value: String(overview.orderCounts.codPending), hint: "طلبات نقدية ما زالت بانتظار التحصيل." },
+    {
+  label: "مبيعات آخر 7 أيام",
+  value: formatCurrency(overview.salesSummary.weekSales, "en-GB"),
+  hint: "طلبات مسلمة ومدفوعة فقط.",
+},
+{
+  label: "مبيعات هذا الشهر",
+  value: formatCurrency(overview.salesSummary.monthSales, "en-GB"),
+  hint: "إجمالي مبيعات الشهر بعد التحصيل.",
+},
+{
+  label: "الصافي المتوقع",
+  value: formatCurrency(overview.salesSummary.estimatedPayout, "en-GB"),
+  hint: "بعد خصم عمولة منصة 5%.",
+},
   ];
   const approvalClassName = getVendorStatusClass(overview.approvalStatus);
 

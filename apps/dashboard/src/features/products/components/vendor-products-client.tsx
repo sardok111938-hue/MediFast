@@ -11,7 +11,7 @@ import { Input } from "../../../components/ui/input";
 import { LoadingState } from "../../../components/ui/loading-state";
 import { Table } from "../../../components/ui/table";
 import { useLocale } from "../../../lib/i18n/locale-context";
-import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult } from "../../../lib/pagination";
+import { buildPaginatedResult, getPaginationRange, type PaginatedResult } from "../../../lib/pagination";
 import { getSupabaseBrowserClient } from "../../../lib/supabase/browser";
 import { formatCurrency } from "../../../lib/utils/format-currency";
 import type { ProductCategoryOption, ProductRow } from "../../../types/dashboard";
@@ -53,6 +53,7 @@ type ProductFormValues = {
   low_stock_threshold: string;
 };
 
+const PAGE_SIZE = 20;
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 const emptyFormValues: ProductFormValues = {
   name: "",
@@ -60,7 +61,7 @@ const emptyFormValues: ProductFormValues = {
   price: "",
   parent_category_id: "",
   child_category_id: "",
-  stock_quantity: "0",
+  stock_quantity: "",
   low_stock_threshold: String(DEFAULT_LOW_STOCK_THRESHOLD),
 };
 
@@ -274,7 +275,7 @@ async function loadVendorProductsData(page: number, statusFilter: VendorProductS
     throw new Error("حساب المتجر غير مرتبط بشكل صحيح.");
   }
 
-  const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
+  const { from, to } = getPaginationRange(page, PAGE_SIZE);
 let productsQuery = supabase
   .from("products_with_global_images")
 .select(`
@@ -334,7 +335,7 @@ let productsQuery = supabase
     products: buildPaginatedResult(
       (productsData ?? []).map((product) => mapProductRow(product as Record<string, unknown>)),
       count,
-      { page, pageSize: DEFAULT_PAGE_SIZE },
+      { page, pageSize: PAGE_SIZE },
     ),
     counts: {
       all: allCountResult.count ?? 0,
@@ -430,103 +431,132 @@ function VendorProductForm({
     }
   }
 
-  return (
-    <form className="form-grid" onSubmit={handleSubmit}>
-      {product ? <input type="hidden" name="product_id" value={product.id} /> : null}
+return (
+  <form className="form-grid" onSubmit={handleSubmit}>
+    {product ? <input type="hidden" name="product_id" value={product.id} /> : null}
+
+    <div className="field">
+      <Input
+        id={`${mode}-name`}
+        name="name"
+        value={values.name}
+        onChange={(event) =>
+          setValues((current) => ({
+            ...current,
+            name: event.target.value,
+          }))
+        }
+        placeholder="اسم المنتج"
+        required
+      />
+    </div>
+
+    <div className="field">
+      <textarea
+        id={`${mode}-description`}
+        name="description"
+        className="textarea"
+        rows={2}
+        value={values.description}
+        onChange={(event) =>
+          setValues((current) => ({
+            ...current,
+            description: event.target.value,
+          }))
+        }
+        placeholder="وصف المنتج"
+        required
+      />
+    </div>
+
+    <div className="field">
+      <Input
+        id={`${mode}-price`}
+        name="price"
+        type="number"
+        min="0.01"
+        step="0.01"
+        value={values.price}
+        onChange={(event) =>
+          setValues((current) => ({
+            ...current,
+            price: event.target.value,
+          }))
+        }
+        placeholder="السعر"
+        required
+      />
+    </div>
+
+    <div className="field">
+      <select
+        id={`${mode}-category`}
+        name="parent_category_id"
+        className="input"
+        value={values.parent_category_id}
+        onChange={(event) =>
+          setValues((current) => ({
+            ...current,
+            parent_category_id: event.target.value,
+            child_category_id: "",
+          }))
+        }
+        required
+      >
+        <option value="">الفئة</option>
+        {topLevelCategories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {getCategoryOptionLabel(category)}
+          </option>
+        ))}
+      </select>
+      {categories.length === 0 ? <p className="danger">{t("No categories are currently available yet.")}</p> : null}
+    </div>
+
+    {childCategories.length > 0 ? (
       <div className="field">
-        <label htmlFor={`${mode}-name`}>{t("Name")}</label>
-        <Input
-          id={`${mode}-name`}
-          name="name"
-          value={values.name}
-          onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
-          placeholder="باراسيتامول 500 مجم"
-          required
-        />
-      </div>
-      <div className="field">
-        <label htmlFor={`${mode}-description`}>{t("Description")}</label>
-        <textarea
-          id={`${mode}-description`}
-          name="description"
-          className="textarea"
-          rows={4}
-          value={values.description}
-          onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
-          placeholder={t("Product description")}
-          required
-        />
-      </div>
-      <div className="field">
-        <label htmlFor={`${mode}-price`}>{t("Price")}</label>
-        <Input
-          id={`${mode}-price`}
-          name="price"
-          type="number"
-          min="0.01"
-          step="0.01"
-          value={values.price}
-          onChange={(event) => setValues((current) => ({ ...current, price: event.target.value }))}
-          required
-        />
-      </div>
-      <div className="field">
-        <label htmlFor={`${mode}-category`}>{t("Category")}</label>
         <select
-          id={`${mode}-category`}
-          name="parent_category_id"
+          id={`${mode}-subcategory`}
+          name="child_category_id"
           className="input"
-          value={values.parent_category_id}
-          onChange={(event) => setValues((current) => ({ ...current, parent_category_id: event.target.value, child_category_id: "" }))}
+          value={values.child_category_id}
+          onChange={(event) =>
+            setValues((current) => ({
+              ...current,
+              child_category_id: event.target.value,
+            }))
+          }
           required
         >
-            <option value="">{t("Select category")}</option>
-            {topLevelCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {getCategoryOptionLabel(category)}
-              </option>
-            ))}
+          <option value="">الفئة الفرعية</option>
+          {childCategories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {getCategoryPathDisplayName(categories, category.id)}
+            </option>
+          ))}
         </select>
-        {categories.length === 0 ? <p className="danger">{t("No categories are currently available yet.")}</p> : null}
       </div>
-      {childCategories.length > 0 ? (
-        <div className="field">
-          <label htmlFor={`${mode}-subcategory`}>الفئة الفرعية</label>
-          <select
-            id={`${mode}-subcategory`}
-            name="child_category_id"
-            className="input"
-            value={values.child_category_id}
-            onChange={(event) => setValues((current) => ({ ...current, child_category_id: event.target.value }))}
-            required
-          >
-            <option value="">اختر الفئة الفرعية</option>
-            {childCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {getCategoryPathDisplayName(categories, category.id)}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null}
-      <div className="field">
-        <label htmlFor={`${mode}-stock`}>{t("Stock Quantity")}</label>
-        <Input
-          id={`${mode}-stock`}
-          name="stock_quantity"
-          type="number"
-          min="0"
-          step="1"
-          value={values.stock_quantity}
-          onChange={(event) => setValues((current) => ({ ...current, stock_quantity: event.target.value }))}
-        />
-      </div>
+    ) : null}
 
-      <div className="field">
-  <label htmlFor={`${mode}-low-stock-threshold`}>
-    حد التنبيه للمخزون
-  </label>
+    <div className="field">
+      <Input
+        id={`${mode}-stock`}
+        name="stock_quantity"
+        type="number"
+        min="0"
+        step="1"
+        value={values.stock_quantity}
+        onChange={(event) =>
+          setValues((current) => ({
+            ...current,
+            stock_quantity: event.target.value,
+          }))
+        }
+        placeholder="الكمية المتوفرة"
+      />
+    </div>
 
+<div className="field">
   <Input
     id={`${mode}-low-stock-threshold`}
     name="low_stock_threshold"
@@ -543,67 +573,63 @@ function VendorProductForm({
   />
 
   <p className="muted">
-    سيتم إظهار تنبيه عند وصول الكمية لهذا الحد أو أقل.
+    حد المخزون المنخفض · موصى به: 5–10
   </p>
 </div>
 
-      <div className="field">
-        <label htmlFor={`${mode}-image`}>{t("Image Upload")}</label>
-        <input
-  id={`${mode}-image`}
-  type="file"
-  accept="image/*"
-  className="input"
-  onChange={(event) => {
-    const file = event.target.files?.[0] ?? null;
+    <div className="field">
+      <label htmlFor={`${mode}-image`}>رفع صورة المنتج</label>
+      <input
+        id={`${mode}-image`}
+        type="file"
+        accept="image/*"
+        className="input"
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
 
-    setImageFile(file);
+          setImageFile(file);
 
-    if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewUrl(objectUrl);
-    } else {
-      setPreviewUrl(product?.image_url ?? null);
-    }
-  }}
-/>
-{previewUrl ? (
-  <div
-    style={{
-      marginTop: 12,
-      display: "flex",
-      justifyContent: "flex-start",
-    }}
-  >
-    <img
-      src={previewUrl}
-      alt="معاينة المنتج"
-      style={{
-        width: 120,
-        height: 120,
-        objectFit: "cover",
-        borderRadius: 16,
-        border: "1px solid #DCEBDF",
-        backgroundColor: "#F8FCF8",
-      }}
-    />
-  </div>
-) : null}
-        {product?.image_url ? <p className="muted">{t("Current image saved in Supabase storage.")}</p> : <p className="muted">{t("Image upload is optional.")}</p>}
-      </div>
-      {message ? <p className={messageType === "error" ? "danger" : "success"}>{message}</p> : null}
-      <div className="actions">
-        <Button type="submit" disabled={loading}>
-          {loading ? "جارٍ الحفظ..." : mode === "create" ? "إضافة منتج" : "حفظ التعديلات"}
+          if (file) {
+            setPreviewUrl(URL.createObjectURL(file));
+          } else {
+            setPreviewUrl(product?.image_url ?? null);
+          }
+        }}
+      />
+
+      {previewUrl ? (
+        <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-start" }}>
+          <img
+            src={previewUrl}
+            alt="معاينة المنتج"
+            style={{
+              width: 88,
+              height: 88,
+              objectFit: "cover",
+              borderRadius: 14,
+              border: "1px solid #DCEBDF",
+              backgroundColor: "#F8FCF8",
+            }}
+          />
+        </div>
+      ) : null}
+    </div>
+
+    {message ? <p className={messageType === "error" ? "danger" : "success"}>{message}</p> : null}
+
+    <div className="actions">
+      <Button type="submit" disabled={loading}>
+        {loading ? "جارٍ الحفظ..." : mode === "create" ? "إضافة منتج" : "حفظ التعديلات"}
+      </Button>
+
+      {onCancel ? (
+        <Button type="button" className="secondary-button" onClick={onCancel} disabled={loading}>
+          إلغاء
         </Button>
-        {onCancel ? (
-          <Button type="button" className="secondary-button" onClick={onCancel} disabled={loading}>
-            إلغاء
-          </Button>
-        ) : null}
-      </div>
-    </form>
-  );
+      ) : null}
+    </div>
+  </form>
+);
 }
 
 export function VendorProductsClient({ initialEditingProductId }: { initialEditingProductId?: string }) {
@@ -978,7 +1004,6 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         <div className="split-actions">
           <div>
             <h3 className="order-card-title">إضافة منتج</h3>
-            <p className="muted order-card-subtitle">أضف منتجًا جديدًا مع السعر والكمية والفئة والصورة الاختيارية.</p>
           </div>
         </div>
         <VendorProductForm mode="create" categories={categories} loading={saving && !editingProductId} onSubmit={handleCreateProduct} />

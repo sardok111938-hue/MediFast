@@ -3,6 +3,7 @@ import { getSupabaseServerClient } from "../../lib/supabase/server";
 type VendorOverviewOrderRow = {
   id: string;
   total: number;
+  subtotal: number;
   payment_status: string;
   payment_method: string;
   order_status: string;
@@ -36,6 +37,11 @@ export type VendorOverviewData = {
     codPending: number;
     averageOrderValue: number;
     codCollected: number;
+  };
+  salesSummary: {
+    weekSales: number;
+    monthSales: number;
+    estimatedPayout: number;
   };
   productCounts: {
   active: number;
@@ -105,6 +111,11 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
         averageOrderValue: 0,
         codCollected: 0,
       },
+      salesSummary: {
+        weekSales: 0,
+        monthSales: 0,
+        estimatedPayout: 0,
+      },
       productCounts: {
         active: 0,
         inactive: 0,
@@ -132,6 +143,7 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
       .select(`
         id,
         total,
+        subtotal,
         payment_status,
         payment_method,
         order_status,
@@ -169,6 +181,7 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
   const recentOrders = (ordersData ?? []).map((order) => ({
     id: String(order.id),
     total: Number(order.total ?? 0),
+    subtotal: Number(order.subtotal ?? 0),
     payment_status: String(order.payment_status ?? ""),
     payment_method: String(order.payment_method ?? ""),
     order_status: String(order.order_status ?? ""),
@@ -194,9 +207,36 @@ export async function getVendorOverviewData(): Promise<VendorOverviewData> {
   low_stock_threshold: Number(product.low_stock_threshold ?? 5),
   is_active: Boolean(product.is_active),
 }));
+const COMMISSION_RATE = 0.05;
+
+const settledOrders = recentOrders.filter(
+  (order) =>
+    order.order_status === "delivered" &&
+    order.payment_status === "collected"
+);
+
 const deliveredOrders = recentOrders.filter(
   (order) => order.order_status === "delivered"
 );
+
+const now = new Date();
+
+const weekStart = new Date(now);
+weekStart.setDate(now.getDate() - 7);
+
+const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+const weekSales = settledOrders
+  .filter((order) => new Date(order.created_at) >= weekStart)
+  .reduce((total, order) => total + order.subtotal, 0);
+
+const monthSales = settledOrders
+  .filter((order) => new Date(order.created_at) >= monthStart)
+  .reduce((total, order) => total + order.subtotal, 0);
+
+const estimatedPayout =
+  monthSales * (1 - COMMISSION_RATE);
+  
   return {
     hasVendor: true,
     vendorName: String(vendorData?.name ?? "صيدلية"),
@@ -216,6 +256,13 @@ const deliveredOrders = recentOrders.filter(
   ? deliveredOrders.reduce((total, order) => total + order.total, 0) / deliveredOrders.length
   : 0,      codCollected: recentOrders.filter((order) => order.payment_method === "cash_on_delivery" && order.payment_status === "collected").length,
     },
+
+    salesSummary: {
+      weekSales,
+      monthSales,
+      estimatedPayout,
+    },
+
     productCounts: {
       active: products.filter((product) => product.is_active).length,
       inactive: products.filter((product) => !product.is_active).length,

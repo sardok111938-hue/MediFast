@@ -9,6 +9,7 @@ export const ADMIN_ROUTES = [
   { href: "/admin/overview", label: "Overview" },
   { href: "/admin/drivers", label: "Drivers" },
   { href: "/admin/vendors", label: "Vendors" },
+  { href: "/admin/settlements", label: "Settlements" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/products", label: "Products" },

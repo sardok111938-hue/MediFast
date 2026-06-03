@@ -10,7 +10,7 @@ import { vendorUpdateProductStockAction } from "../../../../src/features/product
 import { listVendorProducts } from "../../../../src/features/products/queries";
 import { getSupabaseServerClient } from "../../../../src/lib/supabase/server";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 type InventoryStatus = "all" | "ok" | "low" | "out";
 
@@ -92,32 +92,6 @@ const makeHref = (nextPage: number): Route => {
 
   return `/vendor/inventory?${params.toString()}` as Route;
 };
-
-  async function handleStockUpdate(formData: FormData) {
-    "use server";
-
-    const productId = String(formData.get("product_id") ?? "");
-    const stockQuantity = Number(String(formData.get("stock_quantity") ?? ""));
-
-    if (!productId || Number.isNaN(stockQuantity) || stockQuantity < 0) {
-      redirect("/vendor/inventory?error=invalid_stock");
-    }
-
-    const result = await vendorUpdateProductStockAction({
-      productId,
-      stockQuantity,
-    });
-
-    if (!result.success) {
-      redirect(
-        `/vendor/inventory?error=${encodeURIComponent(
-          result.error ?? "stock_update_failed",
-        )}`,
-      );
-    }
-
-    redirect("/vendor/inventory?success=stock_updated");
-  }
 
   return (
     <DashboardShell
@@ -257,7 +231,7 @@ const makeHref = (nextPage: number): Route => {
 </div>
 ) : null}
 
-        {filteredProducts.length > PAGE_SIZE ? (
+        {totalPages > 1 ? (
           <div className="pagination-row">
             <Link
               className={`button secondary-button ${safePage <= 1 ? "disabled-link" : ""}`}

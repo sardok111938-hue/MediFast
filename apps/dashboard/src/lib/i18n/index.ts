@@ -44,6 +44,7 @@ const translations: Record<Locale, Record<string, string>> = {
     Overview: "نظرة عامة",
     Drivers: "السائقون",
     Vendors: "المورّدون",
+    Settlements: "التسويات",
     Customers: "العملاء",
     Categories: "الفئات",
     Products: "المنتجات",

@@ -4,7 +4,15 @@
 
 Production verified on 2026-06-02.
 
-The notification system is fully operational end-to-end.
+The notification system has been successfully verified end-to-end and is operating in production.
+
+Current health should be verified using:
+
+```sql
+select status, count(*)
+from public.notifications
+group by status
+order by status;
 
 ## Architecture
 
@@ -100,6 +108,20 @@ Driver app EAS project:
 ---
 
 ## Customer Notifications
+
+Order Lifecycle
+
+placed
+→ accepted
+→ preparing
+→ ready_for_pickup
+→ assigned
+→ on_the_way
+→ delivered
+
+Terminal:
+cancelled
+rejected
 
 Supported events:
 

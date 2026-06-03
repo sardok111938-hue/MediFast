@@ -20,7 +20,7 @@ Inventory config stored in:
 
 ```json
 {
-  "default_low_stock_threshold": 180
+  "default_low_stock_threshold": 5
 }
 ```
 
