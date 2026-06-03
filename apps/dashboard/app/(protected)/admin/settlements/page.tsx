@@ -22,6 +22,7 @@ type VendorSettlementRow = {
   gross_sales: number;
   commission_rate: number;
   commission_amount: number;
+  delivery_margin_amount: number;
   net_amount: number;
   status: string;
   paid_at: string | null;
@@ -107,19 +108,20 @@ export default async function AdminVendorSettlementsPage() {
   const [{ data, error }, { data: vendorsData, error: vendorsError }] = await Promise.all([
     supabase
       .from("vendor_settlements")
-      .select(`
-        id,
-        period_start,
-        period_end,
-        gross_sales,
-        commission_rate,
-        commission_amount,
-        net_amount,
-        status,
-        paid_at,
-        notes,
-        vendor:vendors(name)
-      `)
+.select(`
+  id,
+  period_start,
+  period_end,
+  gross_sales,
+  commission_rate,
+  commission_amount,
+  delivery_margin_amount,
+  net_amount,
+  status,
+  paid_at,
+  notes,
+  vendor:vendors(name)
+`)
       .order("created_at", { ascending: false }),
     supabase
       .from("vendors")
@@ -205,30 +207,59 @@ export default async function AdminVendorSettlementsPage() {
       ) : (
         <Table
           title="قائمة التسويات"
-          headers={["الصيدلية", "الفترة", "الإجمالي", "العمولة", "الصافي", "الحالة", "تاريخ الدفع", "الإجراء"]}
-          rows={settlements.map((settlement) => [
-            readSingle(settlement.vendor)?.name ?? "صيدلية غير محددة",
-            `${formatDate(settlement.period_start)} - ${formatDate(settlement.period_end)}`,
-            formatCurrency(Number(settlement.gross_sales ?? 0), "en-GB"),
-            `${formatCurrency(Number(settlement.commission_amount ?? 0), "en-GB")} (${Number(
-              settlement.commission_rate ?? 0
-            )}%)`,
-            formatCurrency(Number(settlement.net_amount ?? 0), "en-GB"),
-            formatStatus(settlement.status),
-            formatDate(settlement.paid_at),
-            settlement.status === "paid" ? (
-              <span key={`${settlement.id}-paid`} className="pill status-delivered">
-                تم الدفع
-              </span>
-            ) : (
-              <form key={`${settlement.id}-form`} action={markSettlementPaid}>
-                <input type="hidden" name="settlementId" value={settlement.id} />
-                <button type="submit" className="button secondary-button">
-                  تحديد كمدفوع
-                </button>
-              </form>
-            ),
-          ])}
+headers={[
+  "الصيدلية",
+  "الفترة",
+  "الإجمالي",
+  "العمولة",
+  "هامش التوصيل",
+  "الصافي",
+  "الحالة",
+  "تاريخ الدفع",
+  "الإجراء",
+]}
+rows={settlements.map((settlement) => [
+  readSingle(settlement.vendor)?.name ?? "صيدلية غير محددة",
+
+  `${formatDate(settlement.period_start)} - ${formatDate(settlement.period_end)}`,
+
+  formatCurrency(
+    Number(settlement.gross_sales ?? 0),
+    "en-GB"
+  ),
+
+  `${formatCurrency(
+    Number(settlement.commission_amount ?? 0),
+    "en-GB"
+  )} (${Number(settlement.commission_rate ?? 0)}%)`,
+
+  formatCurrency(
+    Number(settlement.delivery_margin_amount ?? 0),
+    "en-GB"
+  ),
+
+  formatCurrency(
+    Number(settlement.net_amount ?? 0),
+    "en-GB"
+  ),
+
+  formatStatus(settlement.status),
+
+  formatDate(settlement.paid_at),
+
+  settlement.status === "paid" ? (
+    <span key={`${settlement.id}-paid`} className="pill status-delivered">
+      تم الدفع
+    </span>
+  ) : (
+    <form key={`${settlement.id}-form`} action={markSettlementPaid}>
+      <input type="hidden" name="settlementId" value={settlement.id} />
+      <button type="submit" className="button secondary-button">
+        تحديد كمدفوع
+      </button>
+    </form>
+  ),
+])}
           emptyMessage="لا توجد تسويات بعد."
         />
       )}
