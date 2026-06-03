@@ -8,7 +8,8 @@
     "dev:driver": "pnpm --filter @medifast/driver-app dev",
     "dev:dashboard": "pnpm --filter @medifast/dashboard dev",
     "build:dashboard": "pnpm --filter @medifast/dashboard build",
-    "typecheck": "pnpm --filter @medifast/dashboard exec tsc --noEmit"
+    "typecheck": "pnpm --filter @medifast/dashboard exec tsc --noEmit",
+    "db:test": "./supabase/tests/run.sh"
   },
   "devDependencies": {
     "@types/node": "^22.15.17",
