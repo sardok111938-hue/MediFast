@@ -896,7 +896,7 @@ export function isVendorWithinDeliveryRadius(
     return true;
   }
 
-  return distanceKm <= Number(vendor?.delivery_radius_km ?? 8);
+  return distanceKm <= Number(vendor?.delivery_radius_km ?? 10);
 }
 
 export function getCategoryById(categories: Category[], categoryId?: string | null) {
