@@ -22,7 +22,17 @@ async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
       is_available,
       current_lat,
       current_lng,
-      profile:profiles!drivers_user_id_fkey(full_name)
+      profile_image_url,
+      passport_image_url,
+      vehicle_image_url,
+      emergency_contact_name,
+      emergency_contact_phone,
+      vehicle_type,
+      vehicle_plate,
+      profile:profiles!drivers_user_id_fkey(
+      full_name,
+      phone
+      )
     `)
     .order("created_at", { ascending: false });
 
@@ -30,14 +40,56 @@ async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
     throw error;
   }
 
-  return (data ?? []).map((driver) => ({
-    id: String(driver.id),
-    fullName: readName(driver.profile as { full_name?: string } | { full_name?: string }[] | null, "السائق"),
-    approvalStatus: String(driver.approval_status),
-    isAvailable: Boolean(driver.is_available),
-    currentLat: driver.current_lat == null ? null : Number(driver.current_lat),
-    currentLng: driver.current_lng == null ? null : Number(driver.current_lng),
-  }));
+  return (data ?? []).map((driver) => {
+    const profile = Array.isArray(driver.profile)
+      ? driver.profile[0]
+      : driver.profile;
+
+    return {
+      id: String(driver.id),
+      fullName: readName(
+        driver.profile as
+          | { full_name?: string; phone?: string | null }
+          | { full_name?: string; phone?: string | null }[]
+          | null,
+        "السائق"
+      ),
+      phone: profile?.phone ?? null,
+      approvalStatus: String(driver.approval_status),
+      isAvailable: Boolean(driver.is_available),
+      currentLat: driver.current_lat == null ? null : Number(driver.current_lat),
+      currentLng: driver.current_lng == null ? null : Number(driver.current_lng),
+      profileImageUrl: driver.profile_image_url ?? null,
+      passportImageUrl: driver.passport_image_url ?? null,
+      vehicleImageUrl: driver.vehicle_image_url ?? null,
+      emergencyContactName: driver.emergency_contact_name ?? null,
+      emergencyContactPhone: driver.emergency_contact_phone ?? null,
+      vehicleType: driver.vehicle_type ?? null,
+      vehiclePlate: driver.vehicle_plate ?? null,
+    };
+  });
+}
+
+function ReviewImageLink({ href, label }: { href: string | null; label: string }) {
+  if (!href) {
+    return <span className="muted">{label}: غير مرفق</span>;
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="secondary-button"
+      style={{
+        textDecoration: "none",
+        padding: "4px 10px",
+        borderRadius: 8,
+      }}
+    >
+      {label}
+    </a>
+  );
 }
 
 function AdminDriversManager() {
@@ -76,15 +128,14 @@ function AdminDriversManager() {
     void load();
   }, []);
 
-  async function updateDriver(driverId: string, updates: { approval_status?: string; is_available?: boolean }, message: string) {
+  async function updateDriverApproval(driverId: string, approvalStatus: string, message: string) {
     setUpdatingDriverId(driverId);
     setFeedback(null);
 
     try {
       const result = await adminUpdateDriverAction({
         driverId,
-        approvalStatus: updates.approval_status,
-        isAvailable: updates.is_available,
+        approvalStatus,
       });
 
       if (!result.success) {
@@ -134,53 +185,54 @@ function AdminDriversManager() {
       ) : (
         <Table
           title="السائقون"
-          headers={["السائق", "الموافقة", "التوفر", "الموقع", "الإجراءات"]}
+          headers={[
+            "السائق",
+            "الهاتف",
+            "الحالة",
+            "المركبة",
+            "الطوارئ",
+            "المستندات",
+            "الإجراءات",
+          ]}
+
           rows={drivers.map((driver) => [
             driver.fullName,
-            driver.approvalStatus,
-            driver.isAvailable ? "نشط" : "غير نشط",
-            `${driver.currentLat ?? "-"}, ${driver.currentLng ?? "-"}`,
-            <div key={`${driver.id}-actions`} className="table-actions">
-              <Button
-                className="secondary-button"
-                disabled={updatingDriverId === driver.id}
-                onClick={() =>
-                  void updateDriver(
-                    driver.id,
-                    { approval_status: "approved" },
-                    `تم اعتماد ${driver.fullName} بنجاح.`
-                  )
-                }
-              >
-                اعتماد
-              </Button>
-              <Button
-                className="danger-button"
-                disabled={updatingDriverId === driver.id}
-                onClick={() =>
-                  void updateDriver(
-                    driver.id,
-                    { approval_status: "rejected" },
-                    `تم رفض ${driver.fullName} بنجاح.`
-                  )
-                }
-              >
-                رفض
-              </Button>
-              <Button
-                disabled={updatingDriverId === driver.id}
-                onClick={() =>
-                  void updateDriver(
-                    driver.id,
-                    { is_available: !driver.isAvailable },
-                    `${driver.isAvailable ? "تم تعطيل" : "تم تفعيل"} ${driver.fullName} بنجاح.`
-                  )
-                }
-              >
-                {updatingDriverId === driver.id ? "جارٍ الحفظ..." : driver.isAvailable ? "تعطيل" : "تفعيل"}
-              </Button>
-            </div>,
-          ])}
+            driver.phone ?? "-",
+            `${driver.approvalStatus} / ${driver.isAvailable ? "متاح" : "غير متاح"}`,
+            `${driver.vehicleType ?? "-"} / ${driver.vehiclePlate ?? "-"}`,
+            `${driver.emergencyContactName ?? "-"} / ${driver.emergencyContactPhone ?? "-"}`,
+            
+            <div
+            key={`${driver.id}-docs`}
+            className="table-actions"
+            style={{ gap: 10, alignItems: "center" }}
+            >
+              <ReviewImageLink href={driver.profileImageUrl} label="عرض الصورة" />
+              <ReviewImageLink href={driver.passportImageUrl} label="عرض الجواز" />
+              <ReviewImageLink href={driver.vehicleImageUrl} label="عرض المركبة" />
+              </div>,
+              
+              <div key={`${driver.id}-actions`} className="table-actions">
+                <Button
+    className="secondary-button"
+    disabled={updatingDriverId === driver.id || driver.approvalStatus === "approved"}
+    onClick={() =>
+      void updateDriverApproval(driver.id, "approved", `تم اعتماد ${driver.fullName} بنجاح.`)
+    }
+  >
+    {updatingDriverId === driver.id ? "جارٍ الحفظ..." : "اعتماد"}
+  </Button>
+
+  <Button
+    className="danger-button"
+    disabled={updatingDriverId === driver.id || driver.approvalStatus === "rejected"}
+    onClick={() =>
+      void updateDriverApproval(driver.id, "rejected", `تم رفض ${driver.fullName} بنجاح.`)
+    }
+  >
+    {updatingDriverId === driver.id ? "جارٍ الحفظ..." : "رفض"}
+  </Button>
+</div>          ])}
           emptyMessage="لا توجد حسابات سائقين متاحة بعد."
         />
       )}

@@ -76,10 +76,18 @@ export type AdminVendorOption = {
 export type AdminDriverRow = {
   id: string;
   fullName: string;
+  phone: string | null;
   approvalStatus: string;
   isAvailable: boolean;
   currentLat: number | null;
   currentLng: number | null;
+  profileImageUrl: string | null;
+  passportImageUrl: string | null;
+  vehicleImageUrl: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  vehicleType: string | null;
+  vehiclePlate: string | null;
 };
 
 export type AdminCustomerRow = {
