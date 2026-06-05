@@ -14,6 +14,7 @@ import { normalizeError, readName } from "../shared/admin-utils";
 
 async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
   const supabase = getSupabaseBrowserClient();
+
   const { data, error } = await supabase
     .from("drivers")
     .select(`
@@ -30,8 +31,8 @@ async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
       vehicle_type,
       vehicle_plate,
       profile:profiles!drivers_user_id_fkey(
-      full_name,
-      phone
+        full_name,
+        phone
       )
     `)
     .order("created_at", { ascending: false });
@@ -52,13 +53,15 @@ async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
           | { full_name?: string; phone?: string | null }
           | { full_name?: string; phone?: string | null }[]
           | null,
-        "السائق"
+        "السائق",
       ),
       phone: profile?.phone ?? null,
       approvalStatus: String(driver.approval_status),
       isAvailable: Boolean(driver.is_available),
-      currentLat: driver.current_lat == null ? null : Number(driver.current_lat),
-      currentLng: driver.current_lng == null ? null : Number(driver.current_lng),
+      currentLat:
+        driver.current_lat == null ? null : Number(driver.current_lat),
+      currentLng:
+        driver.current_lng == null ? null : Number(driver.current_lng),
       profileImageUrl: driver.profile_image_url ?? null,
       passportImageUrl: driver.passport_image_url ?? null,
       vehicleImageUrl: driver.vehicle_image_url ?? null,
@@ -70,7 +73,13 @@ async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
   });
 }
 
-function ReviewImageLink({ href, label }: { href: string | null; label: string }) {
+function ReviewImageLink({
+  href,
+  label,
+}: {
+  href: string | null;
+  label: string;
+}) {
   if (!href) {
     return <span className="muted">{label}: غير مرفق</span>;
   }
@@ -98,8 +107,15 @@ function AdminDriversManager() {
     error: null,
     loading: true,
   });
-  const [updatingDriverId, setUpdatingDriverId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const [updatingDriverId, setUpdatingDriverId] = useState<string | null>(
+    null,
+  );
+
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   async function load() {
     setState({
@@ -110,6 +126,7 @@ function AdminDriversManager() {
 
     try {
       const data = await loadAdminDriversData();
+
       setState({
         data,
         error: null,
@@ -128,7 +145,11 @@ function AdminDriversManager() {
     void load();
   }, []);
 
-  async function updateDriverApproval(driverId: string, approvalStatus: string, message: string) {
+  async function updateDriverApproval(
+    driverId: string,
+    approvalStatus: string,
+    message: string,
+  ) {
     setUpdatingDriverId(driverId);
     setFeedback(null);
 
@@ -146,6 +167,7 @@ function AdminDriversManager() {
         type: "success",
         message,
       });
+
       await load();
     } catch (error) {
       setFeedback({
@@ -168,7 +190,10 @@ function AdminDriversManager() {
   if (state.error) {
     return (
       <Card className="medical-panel">
-        <ErrorState message={state.error} onRetry={() => void load()} />
+        <ErrorState
+          message={state.error}
+          onRetry={() => void load()}
+        />
       </Card>
     );
   }
@@ -177,10 +202,18 @@ function AdminDriversManager() {
 
   return (
     <div className="stack">
-      {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{feedback.message}</p> : null}
+      {feedback ? (
+        <p className={feedback.type === "error" ? "danger" : "success"}>
+          {feedback.message}
+        </p>
+      ) : null}
+
       {drivers.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="لا يوجد سائقون بعد" message="لا توجد حسابات سائقين متاحة بعد." />
+          <EmptyState
+            title="لا يوجد سائقون بعد"
+            message="لا توجد حسابات سائقين متاحة بعد."
+          />
         </Card>
       ) : (
         <Table
@@ -194,45 +227,81 @@ function AdminDriversManager() {
             "المستندات",
             "الإجراءات",
           ]}
-
           rows={drivers.map((driver) => [
             driver.fullName,
             driver.phone ?? "-",
-            `${driver.approvalStatus} / ${driver.isAvailable ? "متاح" : "غير متاح"}`,
-            `${driver.vehicleType ?? "-"} / ${driver.vehiclePlate ?? "-"}`,
-            `${driver.emergencyContactName ?? "-"} / ${driver.emergencyContactPhone ?? "-"}`,
-            
-            <div
-            key={`${driver.id}-docs`}
-            className="table-actions"
-            style={{ gap: 10, alignItems: "center" }}
-            >
-              <ReviewImageLink href={driver.profileImageUrl} label="عرض الصورة" />
-              <ReviewImageLink href={driver.passportImageUrl} label="عرض الجواز" />
-              <ReviewImageLink href={driver.vehicleImageUrl} label="عرض المركبة" />
-              </div>,
-              
-              <div key={`${driver.id}-actions`} className="table-actions">
-                <Button
-    className="secondary-button"
-    disabled={updatingDriverId === driver.id || driver.approvalStatus === "approved"}
-    onClick={() =>
-      void updateDriverApproval(driver.id, "approved", `تم اعتماد ${driver.fullName} بنجاح.`)
-    }
-  >
-    {updatingDriverId === driver.id ? "جارٍ الحفظ..." : "اعتماد"}
-  </Button>
+            `${driver.approvalStatus} / ${
+              driver.isAvailable ? "متاح" : "غير متاح"
+            }`,
+            `${driver.vehicleType ?? "-"} / ${
+              driver.vehiclePlate ?? "-"
+            }`,
+            `${driver.emergencyContactName ?? "-"} / ${
+              driver.emergencyContactPhone ?? "-"
+            }`,
 
-  <Button
-    className="danger-button"
-    disabled={updatingDriverId === driver.id || driver.approvalStatus === "rejected"}
-    onClick={() =>
-      void updateDriverApproval(driver.id, "rejected", `تم رفض ${driver.fullName} بنجاح.`)
-    }
-  >
-    {updatingDriverId === driver.id ? "جارٍ الحفظ..." : "رفض"}
-  </Button>
-</div>          ])}
+            <div
+              key={`${driver.id}-docs`}
+              className="table-actions"
+              style={{ gap: 10, alignItems: "center" }}
+            >
+              <ReviewImageLink
+                href={driver.profileImageUrl}
+                label="عرض الصورة"
+              />
+              <ReviewImageLink
+                href={driver.passportImageUrl}
+                label="عرض الجواز"
+              />
+              <ReviewImageLink
+                href={driver.vehicleImageUrl}
+                label="عرض المركبة"
+              />
+            </div>,
+
+            <div
+              key={`${driver.id}-actions`}
+              className="table-actions"
+            >
+              <Button
+                className="secondary-button"
+                disabled={
+                  updatingDriverId === driver.id ||
+                  driver.approvalStatus === "approved"
+                }
+                onClick={() =>
+                  void updateDriverApproval(
+                    driver.id,
+                    "approved",
+                    `تم اعتماد ${driver.fullName} بنجاح.`,
+                  )
+                }
+              >
+                {updatingDriverId === driver.id
+                  ? "جارٍ الحفظ..."
+                  : "اعتماد"}
+              </Button>
+
+              <Button
+                className="danger-button"
+                disabled={
+                  updatingDriverId === driver.id ||
+                  driver.approvalStatus === "rejected"
+                }
+                onClick={() =>
+                  void updateDriverApproval(
+                    driver.id,
+                    "rejected",
+                    `تم رفض ${driver.fullName} بنجاح.`,
+                  )
+                }
+              >
+                {updatingDriverId === driver.id
+                  ? "جارٍ الحفظ..."
+                  : "رفض"}
+              </Button>
+            </div>,
+          ])}
           emptyMessage="لا توجد حسابات سائقين متاحة بعد."
         />
       )}
