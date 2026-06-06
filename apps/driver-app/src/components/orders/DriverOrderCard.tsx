@@ -283,7 +283,7 @@ return (
 
       <View style={styles.orderIdentityCard}>
         <Text style={[styles.listCardTitle, styles.textRight]} numberOfLines={2}>
-          العميل: {customerName}
+          الزبون: {customerName}
         </Text>
         <Text style={[styles.listCardSubtitle, styles.textRight]} numberOfLines={2}>
           {dropoffAddress}

@@ -168,7 +168,7 @@ export default function DriverOrderDetailScreen() {
     const phone = normalizePhoneForTel(order?.customerPhone);
 
     if (!phone) {
-      setFeedback({ type: "error", message: "رقم العميل غير متاح لهذا الطلب." });
+      setFeedback({ type: "error", message: "رقم الزبون غير متاح لهذا الطلب." });
       return;
     }
 
@@ -293,7 +293,7 @@ export default function DriverOrderDetailScreen() {
             <DriverCard compact>
               <DriverSectionTitle>أدوات التوصيل</DriverSectionTitle>
               <DriverUtilityRow>
-                <DriverQuickAction label="اتصال بالعميل" onPress={() => void openCustomerPhone()} disabled={!canCallCustomer} tone="primary" />
+                <DriverQuickAction label="اتصال بالزبون" onPress={() => void openCustomerPhone()} disabled={!canCallCustomer} tone="primary" />
                 <DriverQuickAction label="واتساب" onPress={() => void openCustomerWhatsApp()} disabled={!canWhatsAppCustomer} />
                 <DriverQuickAction label="نسخ العنوان" onPress={() => void copyDropoffAddress()} />
               </DriverUtilityRow>
@@ -326,7 +326,7 @@ export default function DriverOrderDetailScreen() {
               <DriverCard compact>
                 <DriverSectionTitle>ملاحظات التشغيل</DriverSectionTitle>
                 {order.pharmacyInstructions ? <DriverNoteCard title="تعليمات الصيدلية">{order.pharmacyInstructions}</DriverNoteCard> : null}
-                {order.deliveryNotes ? <DriverNoteCard title="ملاحظات العميل">{order.deliveryNotes}</DriverNoteCard> : null}
+                {order.deliveryNotes ? <DriverNoteCard title="ملاحظات الزبون">{order.deliveryNotes}</DriverNoteCard> : null}
               </DriverCard>
             ) : null}
 
@@ -358,7 +358,7 @@ export default function DriverOrderDetailScreen() {
 
             <DriverCard compact>
               <DriverSectionTitle>معلومات الطلب</DriverSectionTitle>
-              <DriverRow label="العميل" value={order.customerName} />
+              <DriverRow label="الزبون" value={order.customerName} />
               <DriverRow label="الدفع" value={getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)} valueTone="muted" />
               <DriverRow label="الإجمالي" value={formatCurrency(order.total)} />
               <DriverRow label="رسوم التوصيل" value={formatCurrency(order.deliveryFee)} valueTone="muted" />

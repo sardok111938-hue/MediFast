@@ -39,35 +39,38 @@ export default function DriverOrdersListScreen() {
   const [error, setError] = useState<string | null>(null);
   const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
 
-  const loadOrders = useCallback(async (mode: "initial" | "refresh" = "initial") => {
-    if (mode === "refresh") {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+  const loadOrders = useCallback(
+    async (mode: "initial" | "refresh" = "initial") => {
+      if (mode === "refresh") {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-    setError(null);
+      setError(null);
 
-    try {
-      const profile = await getCurrentDriverProfile();
-      setDriverId(profile.driverId);
+      try {
+        const profile = await getCurrentDriverProfile();
+        setDriverId(profile.driverId);
 
-      const [assignedOrders, pickupOrders] = await Promise.all([
-        listCurrentDriverOrders(profile.driverId),
-        listAvailablePickupOrders(),
-      ]);
+        const [assignedOrders, pickupOrders] = await Promise.all([
+          listCurrentDriverOrders(profile.driverId),
+          listAvailablePickupOrders(),
+        ]);
 
-      setOrders(assignedOrders);
-      setAvailableOrders(pickupOrders);
-    } catch (nextError) {
-      setError(normalizeError(nextError));
-      setOrders([]);
-      setAvailableOrders([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+        setOrders(assignedOrders);
+        setAvailableOrders(pickupOrders);
+      } catch (nextError) {
+        setError(normalizeError(nextError));
+        setOrders([]);
+        setAvailableOrders([]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     void loadOrders();
@@ -93,44 +96,44 @@ export default function DriverOrdersListScreen() {
   }, [driverId, loadOrders]);
 
   useEffect(() => {
-  if (!driverId || orders.length === 0) {
-    return;
-  }
-
-  const currentDriverId = driverId;
-  let isMounted = true;
-  let subscription: Location.LocationSubscription | null = null;
-
-  async function startLocationTracking() {
-    const permission = await Location.requestForegroundPermissionsAsync();
-
-    if (!isMounted || permission.status !== "granted") {
+    if (!driverId || orders.length === 0) {
       return;
     }
 
-    subscription = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 15000,
-        distanceInterval: 25,
-      },
-      (location) => {
-        void updateDriverLocation({
-          driverId: currentDriverId,
-          lat: location.coords.latitude,
-          lng: location.coords.longitude,
-        });
+    const currentDriverId = driverId;
+    let isMounted = true;
+    let subscription: Location.LocationSubscription | null = null;
+
+    async function startLocationTracking() {
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+      if (!isMounted || permission.status !== "granted") {
+        return;
       }
-    );
-  }
 
-  void startLocationTracking();
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 15000,
+          distanceInterval: 25,
+        },
+        (location) => {
+          void updateDriverLocation({
+            driverId: currentDriverId,
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
+          });
+        }
+      );
+    }
 
-  return () => {
-    isMounted = false;
-    subscription?.remove();
-  };
-}, [driverId, orders.length]);
+    void startLocationTracking();
+
+    return () => {
+      isMounted = false;
+      subscription?.remove();
+    };
+  }, [driverId, orders.length]);
 
   async function handleClaimOrder(orderId: string) {
     setClaimingOrderId(orderId);
@@ -147,62 +150,72 @@ export default function DriverOrdersListScreen() {
   }
 
   return (
-    <DriverScreen
-      title="الطلبات"
-      subtitle="طلبات متاحة أولًا، ثم توصيلاتك النشطة."
-      scroll={false}
-    >
+    <DriverScreen title="الطلبات" scroll={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadOrders("refresh")} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void loadOrders("refresh")}
+          />
+        }
         contentContainerStyle={styles.scrollContent}
       >
-        {loading ? (
-          <DriverLoadingCard message="جارٍ تحميل الطلبات..." />
-        ) : error ? (
-          error === "السائق غير متاح حالياً." ? (
-  <DriverCard>
-    <Text style={styles.unavailableText}>السائق غير متاح حالياً.</Text>
+{loading ? (
+  <DriverLoadingCard message="جارٍ تحميل الطلبات..." />
+) : error ? (
+  error === "السائق غير متاح حالياً." ? (
+    <DriverCard>
+      <Text style={styles.unavailableText}>
+        أنت غير متاح حالياً لاستقبال الطلبات.
+      </Text>
 
-    <DriverButton
-      label="الذهاب للرئيسية"
-      onPress={() => router.push("/(tabs)/home")}
-    />
-  </DriverCard>
+      <DriverButton
+        label="الذهاب للرئيسية"
+        onPress={() => router.push("/(tabs)/home")}
+      />
+    </DriverCard>
+  ) : (
+    <DriverErrorCard message={error} onRetry={() => void loadOrders("refresh")} />
+  )
 ) : (
-  <DriverErrorCard message={error} onRetry={() => void loadOrders("refresh")} />
-)
-        ) : (
-          <>
-            <DriverOrdersSection
-              title="الطلبات المتاحة"
-              hint="طلبات جاهزة للاستلام ولم تُسند لسائق بعد."
-              count={availableOrders.length}
-              emptyTitle="لا توجد طلبات متاحة"
-              emptyMessage="لا توجد طلبات جاهزة للاستلام الآن."
-              orders={availableOrders}
-              mode="available"
-              claimingOrderId={claimingOrderId}
-              onClaimOrder={(orderId) => void handleClaimOrder(orderId)}
-            />
+  <>
+    <DriverOrdersSection
+      title="الطلبات المتاحة"
+      hint="طلبات جاهزة للاستلام من الصيدليات."
+      emptyMessage="لا توجد طلبات متاحة حالياً."
+      count={availableOrders.length}
+      emptyTitle="لا توجد طلبات متاحة"
+      orders={availableOrders}
+      mode="available"
+      claimingOrderId={claimingOrderId}
+      onClaimOrder={(orderId) => void handleClaimOrder(orderId)}
+    />
 
-            <DriverOrdersSection
-              title="توصيلاتي الحالية"
-              hint="طلبات مسندة لك وتحتاج متابعة حتى التسليم."
-              count={orders.length}
-              emptyTitle="لا توجد توصيلات"
-              emptyMessage="ستظهر التوصيلات المقبولة أو المسندة لك هنا."
-              orders={orders}
-              mode="current"
-              onOpenOrder={(orderId) =>
-                router.push({
-                  pathname: "/(tabs)/orders/[orderId]",
-                  params: { orderId },
-                })
-              }
-            />
-          </>
-        )}
+    <DriverOrdersSection
+      title="توصيلاتي الحالية"
+      hint="طلباتك المسندة قيد التوصيل."
+      emptyMessage="لا توجد طلبات حالية."
+      count={orders.length}
+      emptyTitle="لا توجد توصيلات"
+      orders={orders}
+      mode="current"
+      onOpenOrder={(orderId) =>
+        router.push({
+          pathname: "/(tabs)/orders/[orderId]",
+          params: { orderId },
+        })
+      }
+    />
+
+    <DriverCard>
+      <DriverButton
+        label="سجل التوصيلات"
+        onPress={() => router.push("/(tabs)/orders/history" as never)}
+      />
+    </DriverCard>
+  </>
+)}
       </ScrollView>
     </DriverScreen>
   );
@@ -214,10 +227,10 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   unavailableText: {
-  textAlign: "center",
-  fontWeight: "900",
-  fontSize: 16,
-  color: "#B23A48",
-  marginBottom: 12,
-},
+    textAlign: "center",
+    fontWeight: "900",
+    fontSize: 16,
+    color: "#B23A48",
+    marginBottom: 12,
+  },
 });

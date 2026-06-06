@@ -19,11 +19,6 @@ export function DriverReadyStateCard({ availablePickups }: { availablePickups: n
         </View>
       </View>
 
-      <View style={[styles.readyFooter, isRTL ? styles.rowReverse : null]}>
-        <Text style={[styles.readyText, isRTL ? styles.textRight : null]}>
-          {availablePickups > 0 ? `${availablePickups} طلب جاهز للاستلام` : "سنحدّث الحالة عند وصول طلب جديد."}
-        </Text>
-      </View>
     </DriverCard>
   );
 }
