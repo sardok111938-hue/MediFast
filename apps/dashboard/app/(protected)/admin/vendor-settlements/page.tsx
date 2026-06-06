@@ -55,7 +55,7 @@ async function generateSettlement(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/admin/settlements");
+  revalidatePath("/admin/vendor-settlements");
 }
 
 async function markSettlementPaid(formData: FormData) {
@@ -77,7 +77,7 @@ async function markSettlementPaid(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/admin/settlements");
+  revalidatePath("/admin/vendor-settlements");
 }
 
 function formatDate(value: string | null) {
