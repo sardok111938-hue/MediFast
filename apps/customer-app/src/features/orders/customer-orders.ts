@@ -410,7 +410,7 @@ const CUSTOMER_ORDER_SELECT = `
     lat,
     lng
   ),
-  driver:drivers(
+  driver:drivers!orders_driver_id_fkey(
   vehicle_type,
   current_lat,
   current_lng,
@@ -442,13 +442,19 @@ export async function listCustomerOrders(customerId: string): Promise<CustomerOr
 }
 
 export async function getCustomerOrder(customerId: string, orderId: string): Promise<CustomerOrder | null> {
-  const { data, error } = await supabase
+  console.log("CUSTOMER ORDER IDS", { customerId, orderId });
 
+  const { data, error } = await supabase
     .from("orders")
     .select(CUSTOMER_ORDER_SELECT)
     .eq("id", orderId)
     .eq("customer_id", customerId)
     .maybeSingle();
+
+  console.log(
+    "ORDER DRIVER TEST",
+    JSON.stringify({ data, error }, null, 2)
+  );
 
   if (error) {
     throw error;
