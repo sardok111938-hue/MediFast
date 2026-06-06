@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { formatPaymentStatusLabel } from "@medifast/types";
+import { formatOrderNumber, formatPaymentStatusLabel } from "@medifast/types";
 import { OrderStatusBadge } from "./components/order-status-badge";
 import type { AdminOrderDetailRow, AdminOrderRow, TableModel, VendorOrderDetailRow, VendorOrderRow } from "../../types/dashboard";
 import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type PaginatedResult, type PaginationInput } from "../../lib/pagination";
@@ -367,7 +367,7 @@ export function getAdminOverviewOrdersTableModel(orders: AdminOrderRow[]): Table
     title: "Live Orders",
     headers: ["Order", "Vendor", "Driver", "Status"],
     rows: orders.map((order) => [
-      order.id,
+      formatOrderNumber(order.id),
       order.vendor_name,
       order.driver_name,
       createElement(OrderStatusBadge, {
@@ -383,7 +383,7 @@ export function getAdminOrdersTableModel(orders: AdminOrderRow[]): TableModel {
     title: "Orders",
     headers: ["Order", "Payment", "Payment Status", "Status"],
     rows: orders.map((order) => [
-      order.id,
+      formatOrderNumber(order.id),
       order.payment_method,
       formatPaymentStatusLabel(order.payment_status, order.payment_method),
       createElement(OrderStatusBadge, {
@@ -399,7 +399,7 @@ export function getVendorOverviewOrdersTableModel(orders: VendorOrderRow[]): Tab
     title: "Incoming Orders",
     headers: ["Order", "Payment", "Status", "Action"],
     rows: orders.map((order) => [
-      order.id,
+      formatOrderNumber(order.id),
       order.payment_method,
       createElement(OrderStatusBadge, {
         key: `${order.id}-vendor-overview-status`,
@@ -415,7 +415,7 @@ export function getVendorOrdersTableModel(orders: VendorOrderRow[]): TableModel 
     title: "Orders",
     headers: ["Order", "Total", "COD", "Status"],
     rows: orders.map((order) => [
-      order.id,
+      formatOrderNumber(order.id),
       formatCurrency(order.total),
       formatPaymentStatusLabel(order.payment_status, order.payment_method),
       createElement(OrderStatusBadge, {

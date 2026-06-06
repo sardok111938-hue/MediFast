@@ -85,14 +85,14 @@ export default async function VendorPrescriptionsPage({
   return (
     <DashboardShell
       title="الوصفات الطبية"
-      subtitle="مراجعة وصفات العملاء"
+      subtitle="مراجعة وصفات الزبائن"
       nav={dashboardNavigation.vendor}
     >
       <div className="stack">
               <div className="hero">
         <p className="text-sm font-bold text-emerald-700">الوصفات الطبية</p>
         <h1 className="mt-2 text-2xl font-black text-slate-950">
-          طلبات الوصفات من العملاء
+          طلبات الوصفات من الزبائن
         </h1>
         <p className="mt-2 text-sm font-semibold text-slate-500">
           راجع الوصفة، ثم اقبل أو ارفض الطلب. لا يتم تحويلها إلى طلب منتجات بعد.
@@ -189,7 +189,7 @@ export default async function VendorPrescriptionsPage({
                 </div>
 
                 <div className="detail-block">
-                  <p className="text-xs font-bold text-slate-400">معلومات العميل</p>
+                  <p className="text-xs font-bold text-slate-400">معلومات الزبون</p>
 
                   <div className="mt-2 space-y-2">
                     <p className="break-words text-sm font-black text-slate-900">
@@ -206,7 +206,7 @@ export default async function VendorPrescriptionsPage({
                           href={`tel:${request.customerPhone}`}
                           className="inline-flex w-fit rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"
                         >
-                          اتصال بالعميل
+                          اتصال بالزبون
                         </a>
                       ) : null}
                     </div>
@@ -221,7 +221,7 @@ export default async function VendorPrescriptionsPage({
                 </div>
 
                 <div className="detail-block">
-                  <p className="text-xs font-bold text-slate-400">ملاحظات العميل</p>
+                  <p className="text-xs font-bold text-slate-400">ملاحظات الزبون</p>
                   <p className="mt-1 break-words text-sm font-bold leading-6 text-slate-800">
                     {request.note || "لا توجد ملاحظات"}
                   </p>

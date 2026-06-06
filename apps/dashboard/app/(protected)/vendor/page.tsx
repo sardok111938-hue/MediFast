@@ -54,7 +54,7 @@ export default async function VendorDashboardPage() {
     { label: "طلبات جديدة", value: String(overview.orderCounts.placed), hint: "طلبات تحتاج قبولًا أو مراجعة سريعة." },
     { label: "قيد التحضير", value: String(overview.orderCounts.preparing), hint: "طلبات يعمل عليها فريق الصيدلية الآن." },
     { label: "جاهزة للاستلام", value: String(overview.orderCounts.readyForPickup), hint: "طلبات تنتظر الاستلام أو إسناد التوصيل." },
-    { label: "تم التسليم", value: String(overview.orderCounts.delivered), hint: "طلبات مكتملة وصلت للعملاء." },
+    { label: "تم التسليم", value: String(overview.orderCounts.delivered), hint: "طلبات مكتملة وصلت للزبائن." },
     { label: "دفع عند الاستلام", value: String(overview.orderCounts.codPending), hint: "طلبات نقدية ما زالت بانتظار التحصيل." },
     {
   label: "مبيعات آخر 7 أيام",
@@ -104,7 +104,7 @@ export default async function VendorDashboardPage() {
                 </span>
               </div>
               <h2>{overview.vendorName}</h2>
-              <p>{overview.description || "أضف وصفًا قصيرًا للمتجر ليظهر بصورة أوضح لفريق التشغيل والعملاء."}</p>
+              <p>{overview.description || "أضف وصفًا قصيرًا للمتجر ليظهر بصورة أوضح لفريق التشغيل والزبائن."}</p>
               <p className="muted vendor-profile-address">{overview.address}</p>
             </div>
             <div className="vendor-profile-actions">
@@ -216,7 +216,7 @@ export default async function VendorDashboardPage() {
       <section className="detail-grid">
         <Table
           title="أحدث الطلبات"
-          headers={["رقم الطلب", "العميل", "الإجمالي", "حالة الدفع", "عنوان التوصيل", "حالة الطلب"]}
+          headers={["رقم الطلب", "الزبون", "الإجمالي", "حالة الدفع", "عنوان التوصيل", "حالة الطلب"]}
           rows={overview.recentOrders.map((order) => [
             formatOrderNumber(order.id),
             order.customer_name,

@@ -9,10 +9,17 @@ import { LoadingState } from "../../../../components/ui/loading-state";
 import { Table } from "../../../../components/ui/table";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { adminUpdateDriverAction } from "../../actions";
-import type { AdminDriverRow, AsyncState } from "../shared/admin-types";
+import type {
+  AdminDriverRow,
+  AsyncState,
+} from "../shared/admin-types";
 import { normalizeError, readName } from "../shared/admin-utils";
 
-async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
+type AdminDriversData = {
+  drivers: AdminDriverRow[];
+};
+
+async function loadAdminDriversData(): Promise<AdminDriversData> {
   const supabase = getSupabaseBrowserClient();
 
   const { data, error } = await supabase
@@ -41,7 +48,7 @@ async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
     throw error;
   }
 
-  return (data ?? []).map((driver) => {
+  const drivers = (data ?? []).map((driver) => {
     const profile = Array.isArray(driver.profile)
       ? driver.profile[0]
       : driver.profile;
@@ -71,6 +78,10 @@ async function loadAdminDriversData(): Promise<AdminDriverRow[]> {
       vehiclePlate: driver.vehicle_plate ?? null,
     };
   });
+
+  return {
+    drivers,
+  };
 }
 
 function ReviewImageLink({
@@ -102,7 +113,7 @@ function ReviewImageLink({
 }
 
 function AdminDriversManager() {
-  const [state, setState] = useState<AsyncState<AdminDriverRow[]>>({
+  const [state, setState] = useState<AsyncState<AdminDriversData>>({
     data: null,
     error: null,
     loading: true,
@@ -198,7 +209,7 @@ function AdminDriversManager() {
     );
   }
 
-  const drivers = state.data ?? [];
+  const drivers = state.data?.drivers ?? [];
 
   return (
     <div className="stack">
@@ -207,7 +218,7 @@ function AdminDriversManager() {
           {feedback.message}
         </p>
       ) : null}
-
+      
       {drivers.length === 0 ? (
         <Card className="medical-panel">
           <EmptyState

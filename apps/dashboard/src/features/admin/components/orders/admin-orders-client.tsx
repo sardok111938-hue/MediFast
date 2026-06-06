@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatPaymentStatusLabel } from "@medifast/types";
+import {
+  formatOrderNumber,
+  formatPaymentStatusLabel,
+} from "@medifast/types";
 import { Card } from "../../../../components/ui/card";
 import { ErrorState } from "../../../../components/ui/error-state";
 import { LoadingState } from "../../../../components/ui/loading-state";
@@ -16,7 +19,18 @@ import { OrderStatusBadge } from "../../../orders/components/order-status-badge"
 import type { AdminOrderControlProps, AdminOrderManagerRow, AsyncState, DriverOption } from "../shared/admin-types";
 import { normalizeError, readCategoryName, readName, readSingle } from "../shared/admin-utils";
 
-const adminOverrideStatuses = ["placed", "accepted", "preparing", "rejected", "ready_for_pickup", "assigned", "on_the_way", "delivered", "cancelled"];
+const adminOverrideStatuses = [
+  "placed",
+  "accepted",
+  "preparing",
+  "rejected",
+  "ready_for_pickup",
+  "assigned",
+  "picked_up",
+  "on_the_way",
+  "delivered",
+  "cancelled",
+];
 
 type AdminOrdersData = PaginatedResult<AdminOrderManagerRow>;
 
@@ -38,7 +52,8 @@ async function loadAdminOrdersData(page: number): Promise<AdminOrdersData> {
         profile:profiles(full_name)
       ),
       driver:drivers(
-        profile:profiles!drivers_user_id_fkey(full_name)
+        profile:profiles!drivers_user_id_fkey(
+        full_name)
       )
     `, { count: "exact" })
     .order("created_at", { ascending: false })
@@ -53,7 +68,7 @@ async function loadAdminOrdersData(page: number): Promise<AdminOrdersData> {
     id: String(order.id),
     customerName: readName(
       readSingle((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile),
-      "العميل"
+      "الزبون"
     ),
     vendorName: readCategoryName(order.vendor as { name?: string } | { name?: string }[] | null),
     total: Number(order.total ?? 0),
@@ -182,7 +197,7 @@ function AdminOrdersManager() {
 
       setFeedback({
         type: "success",
-        message: `تم تحديث الطلب ${orderId} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
+        message: `تم تحديث الطلب ${formatOrderNumber(orderId)} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
       });
     } catch (error) {
       setState((current) => ({
@@ -257,7 +272,7 @@ function AdminOrdersManager() {
 
       setFeedback({
         type: "success",
-        message: `تم تعيين سائق للطلب ${orderId}.`,
+        message: `تم تعيين سائق للطلب ${formatOrderNumber(orderId)}.`,
       });
 
       await load();
@@ -312,7 +327,9 @@ function AdminOrdersManager() {
     new: orders.filter((order) => order.orderStatus === "placed").length,
     activeVendor: orders.filter((order) => ["accepted", "preparing", "ready_for_pickup"].includes(order.orderStatus)).length,
     readyForDriver: orders.filter((order) => order.orderStatus === "ready_for_pickup" && !order.driverId).length,
-    delivery: orders.filter((order) => ["assigned", "on_the_way"].includes(order.orderStatus)).length,
+    delivery: orders.filter((order) =>
+  ["assigned", "picked_up", "on_the_way"].includes(order.orderStatus)
+).length,
   };
 
   return (
@@ -349,9 +366,9 @@ function AdminOrdersManager() {
       />
       <Table
         title="مراقبة الطلبات"
-        headers={["معرّف الطلب", "العميل", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء", "تصحيح يدوي"]}
+        headers={["معرّف الطلب", "الزبون", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء", "تصحيح يدوي"]}
         rows={orders.map((order) => [
-          order.id,
+          formatOrderNumber(order.id),
           order.customerName,
           order.vendorName,
           formatCurrency(order.total),

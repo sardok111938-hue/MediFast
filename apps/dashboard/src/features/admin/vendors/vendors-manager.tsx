@@ -130,7 +130,7 @@ const initialVendorFormValues: VendorFormValues = {
   area: "",
   lat: "",
   lng: "",
-  deliveryRadiusKm: "10",
+  deliveryRadiusKm: "15",
   approvalStatus: "pending",
 };
 
@@ -184,7 +184,7 @@ function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
     area: vendor.area ?? "",
     lat: vendor.lat == null ? "" : String(vendor.lat),
     lng: vendor.lng == null ? "" : String(vendor.lng),
-    deliveryRadiusKm: vendor.deliveryRadiusKm == null ? "10" : String(vendor.deliveryRadiusKm),
+    deliveryRadiusKm: vendor.deliveryRadiusKm == null ? "15" : String(vendor.deliveryRadiusKm),
     approvalStatus: vendor.approvalStatus,
   };
 }
@@ -228,7 +228,7 @@ if (deliveryRadius.error) {
       area: values.area.trim(),
       lat: lat.value,
       lng: lng.value,
-      deliveryRadiusKm: deliveryRadius.value ?? 10,
+      deliveryRadiusKm: deliveryRadius.value ?? 15,
       setLat: lat.provided,
       setLng: lng.provided,
       approvalStatus: values.approvalStatus,
@@ -979,7 +979,7 @@ try {
         deliveryRadiusKm: event.target.value,
       }))
     }
-    placeholder="10"
+    placeholder="15"
   />
   <p className="muted">الحد الأقصى لمسافة التوصيل بالكيلومتر.</p>
 </div>

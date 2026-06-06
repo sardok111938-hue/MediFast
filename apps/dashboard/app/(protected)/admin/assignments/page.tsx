@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { DashboardShell } from "../../../../src/components/app-shell/dashboard-shell";
 import { PageHeader } from "../../../../src/components/ui/page-header";
+import { formatOrderNumber } from "@medifast/types";
 import { Table } from "../../../../src/components/ui/table";
 import { EmptyState } from "../../../../src/components/ui/empty-state";
 import { Card } from "../../../../src/components/ui/card";
@@ -13,7 +14,7 @@ import { formatDate } from "../../../../src/lib/utils/format-date";
 import { AssignmentSubmitButton } from "../../../../src/features/admin/components/assignment-submit-button";
 import { assignDriverAction } from "../../../../src/features/orders/actions";
 
-const assignmentFilters = ["ready_for_pickup", "assigned", "on_the_way", "delivered"] as const;
+const assignmentFilters = ["ready_for_pickup", "assigned", "picked_up", "on_the_way", "delivered"] as const;
 
 type AssignmentFilter = (typeof assignmentFilters)[number];
 
@@ -105,7 +106,7 @@ export default async function AdminAssignmentsPage({
                   href={filterHref(filter)}
                   className={`filter-chip ${currentFilter === filter ? "filter-chip-active" : ""}`.trim()}
                 >
-                  <span>{filter === "ready_for_pickup" ? "جاهزة للاستلام" : filter === "assigned" ? "مسندة" : filter === "on_the_way" ? "في الطريق" : "مكتملة"}</span>
+                  <span>{filter === "ready_for_pickup" ? "جاهزة للاستلام" : filter === "assigned" ? "مسندة" : filter === "picked_up" ? "تم الاستلام" : filter === "on_the_way" ? "في الطريق" : "مكتملة"}</span>
                   <strong>{count}</strong>
                 </a>
               ))}
@@ -121,7 +122,7 @@ export default async function AdminAssignmentsPage({
             </div>
             <div className="detail-block">
               <strong>المرحلة الحالية</strong>
-              <span>{currentFilter === "ready_for_pickup" ? "جاهزة للاستلام" : currentFilter === "assigned" ? "مسندة" : currentFilter === "on_the_way" ? "في الطريق" : "مكتملة"}</span>
+              <span>{currentFilter === "ready_for_pickup" ? "جاهزة للاستلام" : currentFilter === "assigned" ? "مسندة" : currentFilter === "picked_up" ? "تم الاستلام" : currentFilter === "on_the_way" ? "في الطريق" : "مكتملة"}</span>
             </div>
             <div className="detail-block">
               <strong>طلبات معروضة</strong>
@@ -163,14 +164,14 @@ export default async function AdminAssignmentsPage({
       ) : (
         <Table
           title="مراقبة الطلبات"
-          headers={["الطلب", "العميل", "الصيدلية", "عنوان التوصيل", "الإجمالي", "تاريخ الإنشاء", "حالة الطلب", "السائق"]}
+          headers={["الطلب", "الزبون", "الصيدلية", "عنوان التوصيل", "الإجمالي", "تاريخ الإنشاء", "حالة الطلب", "السائق"]}
           emptyMessage="لا توجد طلبات تنتظر إسناد سائق حاليًا."
           rows={filteredOrders.map((order) => {
             const assignable = order.order_status === "ready_for_pickup" && !blockedStatuses.has(order.order_status);
             const address = formatAddress(order);
 
             return [
-              order.id,
+              formatOrderNumber(order.id),
               order.customer_name,
               order.vendor_name,
               address || "-",
@@ -198,10 +199,12 @@ export default async function AdminAssignmentsPage({
                   <strong>{order.driver_name}</strong>
                   <span className="muted">
                     {order.order_status === "assigned"
-                      ? "تم إسناد السائق وينتظر بدء التوصيل."
-                      : order.order_status === "on_the_way"
-                        ? "التوصيل جارٍ حاليًا."
-                        : "هذا الطلب لم يعد متاحًا لإسناد سائق."}
+                      ? "تم إسناد السائق وينتظر الاستلام."
+                      : order.order_status === "picked_up"
+                        ? "تم استلام الطلب من الصيدلية."
+                        : order.order_status === "on_the_way"
+                          ? "التوصيل جارٍ حاليًا."
+                          : "هذا الطلب لم يعد متاحًا لإسناد سائق."}
                   </span>
                 </div>
               ),

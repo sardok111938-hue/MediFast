@@ -39,9 +39,9 @@ function getQuoteStatusLabel(status: string) {
     case "sent":
       return "مرسل للعميل";
     case "accepted":
-      return "قبله العميل";
+      return "قبله الزبون";
     case "rejected":
-      return "رفضه العميل";
+      return "رفضه الزبون";
     case "expired":
       return "منتهي";
     default:
@@ -188,7 +188,7 @@ export default async function VendorPrescriptionDetailPage({
   return (
     <DashboardShell
       title="متابعة الوصفة"
-      subtitle="تفاصيل وصفة العميل وتحويلها لاحقاً إلى طلب"
+      subtitle="تفاصيل وصفة الزبون وتحويلها لاحقاً إلى طلب"
       nav={dashboardNavigation.vendor}
     >
       <div className="stack" dir="rtl">
@@ -235,11 +235,11 @@ export default async function VendorPrescriptionDetailPage({
             <Card className="medical-panel">
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="detail-block">
-                  <strong>اسم العميل</strong>
+                  <strong>اسم الزبون</strong>
                   <span>{request.customerName}</span>
                 </div>
                 <div className="detail-block">
-                  <strong>هاتف العميل</strong>
+                  <strong>هاتف الزبون</strong>
                   <span dir="ltr">{request.customerPhone}</span>
                 </div>
                 <div className="detail-block md:col-span-2">
@@ -545,12 +545,12 @@ export default async function VendorPrescriptionDetailPage({
   </div>
 ) : quote.status === "accepted" ? (
   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
-    قبل العميل العرض. بانتظار تأكيده النهائي لإنشاء الطلب.
+    قبل الزبون العرض. بانتظار تأكيده النهائي لإنشاء الطلب.
   </div>
 ) : null}
                   {quote.status === "rejected" ? (
                     <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-700">
-                      رفض العميل هذا العرض.
+                      رفض الزبون هذا العرض.
                     </div>
                   ) : null}
                 </div>

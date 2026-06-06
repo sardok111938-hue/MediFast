@@ -101,9 +101,9 @@ stats: [
     hint: "إجمالي السائقين",
   },
   {
-    label: "العملاء",
+    label: "الزبائن",
     value: `${customersCount}`,
-    hint: "إجمالي العملاء",
+    hint: "إجمالي الزبائن",
   },
   {
     label: "الفئات",
@@ -124,10 +124,10 @@ stats: [
 
 ordersTable: {
       title: "أحدث الطلبات",
-      headers: ["الطلب", "العميل", "المتجر", "الحالة"],
+      headers: ["الطلب", "الزبون", "المتجر", "الحالة"],
       rows: (ordersResult.data ?? []).map((order) => [
         formatOrderNumber(String(order.id)),
-        readName((readSingle(order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile), "العميل"),
+        readName((readSingle(order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile), "الزبون"),
         readCategoryName(order.vendor as { name?: string } | { name?: string }[] | null),
         <OrderStatusBadge key={`overview-order-${order.id}`} status={String(order.order_status)} />,
       ]),

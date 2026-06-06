@@ -209,7 +209,7 @@ export function VendorSettingsForm({ vendor }: { vendor: VendorSettingsData }) {
           </strong>
 
           <p className="muted" style={{ margin: "6px 0 0" }}>
-            قم برفع صورة شعار أو واجهة المتجر لتظهر للعملاء داخل التطبيق.
+            قم برفع صورة شعار أو واجهة المتجر لتظهر للزبائن داخل التطبيق.
           </p>
         </div>
       </div>

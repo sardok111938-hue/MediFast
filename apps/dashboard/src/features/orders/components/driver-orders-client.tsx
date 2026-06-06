@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "../../../components/ui/button";
+import { formatOrderNumber } from "@medifast/types";
 import { Card } from "../../../components/ui/card";
 import { EmptyState } from "../../../components/ui/empty-state";
 import { ErrorState } from "../../../components/ui/error-state";
@@ -85,7 +86,7 @@ export function DriverOrdersClient() {
 
       setFeedback({
         type: "success",
-        message: `تم تحديث الطلب ${orderId} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
+        message: `تم تحديث الطلب ${formatOrderNumber(orderId)} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
       });
       await loadOrders();
     } catch (nextError) {
@@ -145,7 +146,7 @@ export function DriverOrdersClient() {
         title="الطلبات المعيّنة"
         headers={["معرّف الطلب", "المتجر", "العميل", "الإجمالي", "عنوان التوصيل", "حالة الطلب", "تاريخ الإنشاء"]}
         rows={data.orders.map((order) => [
-          order.id,
+          formatOrderNumber(order.id),
           order.vendorName,
           order.customerName,
           formatCurrency(order.total, intlLocale),
@@ -164,7 +165,7 @@ export function DriverOrdersClient() {
             <Card key={order.id} className="medical-panel">
               <div className="inline-actions split-actions">
                 <div>
-                  <h3 className="order-card-title">{`${t("Order")} ${order.id}`}</h3>
+                  <h3 className="order-card-title">{`${t("Order")} ${formatOrderNumber(order.id)}`}</h3>
                   <p className="muted order-card-subtitle">
                     {`${order.vendorName} ← ${order.customerName}`}
                   </p>

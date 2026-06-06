@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatOrderNumber } from "@medifast/types";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { EmptyState } from "../../../components/ui/empty-state";
@@ -91,10 +92,10 @@ export function DriverDashboardClient() {
     );
   }
 
-  const assignedCount = countOrdersByStatus(data, ["assigned", "on_the_way"]);
+  const assignedCount = countOrdersByStatus(data, ["assigned", "picked_up", "on_the_way"]);
   const pickupCount = countOrdersByStatus(data, ["assigned"]);
   const deliveredCount = countOrdersByStatus(data, ["delivered"]);
-  const currentOrders = data.orders.filter((order) => ["assigned", "on_the_way"].includes(order.orderStatus));
+  const currentOrders = data.orders.filter((order) => ["assigned", "picked_up", "on_the_way"].includes(order.orderStatus));
 
   return (
     <div className="stack">
@@ -116,9 +117,9 @@ export function DriverDashboardClient() {
       {data.availableOrders.length > 0 ? (
         <Table
           title="طلبات متاحة للاستلام"
-          headers={["معرّف الطلب", "المتجر", "العميل", "الإجمالي", "العنوان", "الإجراء"]}
+          headers={["معرّف الطلب", "المتجر", "الزبون", "الإجمالي", "العنوان", "الإجراء"]}
           rows={data.availableOrders.map((order) => [
-            order.id,
+            formatOrderNumber(order.id),
             order.vendorName,
             order.customerName,
             formatCurrency(order.total, intlLocale),
@@ -143,9 +144,9 @@ export function DriverDashboardClient() {
       ) : (
         <Table
           title="الشحنات الحالية"
-          headers={["معرّف الطلب", "المتجر", "العميل", "الإجمالي", "الحالة", "تاريخ الإنشاء"]}
+          headers={["معرّف الطلب", "المتجر", "الزبون", "الإجمالي", "الحالة", "تاريخ الإنشاء"]}
           rows={currentOrders.map((order) => [
-            order.id,
+            formatOrderNumber(order.id),
             order.vendorName,
             order.customerName,
             formatCurrency(order.total, intlLocale),

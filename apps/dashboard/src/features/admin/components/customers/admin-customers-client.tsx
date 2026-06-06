@@ -124,7 +124,7 @@ function AdminCustomersManager() {
   if (state.loading) {
     return (
       <Card className="medical-panel">
-        <LoadingState message="جارٍ تحميل العملاء من Supabase..." />
+        <LoadingState message="جارٍ تحميل الزبائن من Supabase..." />
       </Card>
     );
   }
@@ -141,7 +141,7 @@ function AdminCustomersManager() {
 
   return customers.length === 0 ? (
     <Card className="medical-panel">
-      <EmptyState title="لا يوجد عملاء بعد" message="لم يسجل أي عملاء بعد." />
+      <EmptyState title="لا يوجد زبائن بعد" message="لم يسجل أي زبائن بعد." />
     </Card>
   ) : (
     <div className="stack">
@@ -153,15 +153,15 @@ function AdminCustomersManager() {
         onNext={() => setPage((current) => Math.min(state.data?.pageCount ?? current, current + 1))}
       />
       <Table
-        title="العملاء"
-        headers={["العميل", "الهاتف", "تاريخ الانضمام", "الحالة"]}
+        title="الزبائن"
+        headers={["الزبون", "الهاتف", "تاريخ الانضمام", "الحالة"]}
         rows={customers.map((customer) => [
           customer.fullName,
           customer.phone ?? "-",
           customer.createdAt ? formatDate(customer.createdAt) : "-",
           "للقراءة فقط",
         ])}
-        emptyMessage="لم يسجل أي عملاء بعد."
+        emptyMessage="لم يسجل أي زبائن بعد."
       />
     </div>
   );

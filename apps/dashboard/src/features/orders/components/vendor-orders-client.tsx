@@ -44,8 +44,19 @@ type VendorOrderData = {
   statusCounts: Record<VendorOrderStatusFilter, number>;
 };
 
-const vendorOrderStatuses = ["placed", "accepted", "preparing", "ready_for_pickup", "assigned", "on_the_way", "delivered", "rejected"] as const;
+const vendorOrderStatuses = [
+  "placed",
+  "accepted",
+  "preparing",
+  "ready_for_pickup",
+  "assigned",
+  "picked_up",
+  "on_the_way",
+  "delivered",
+  "rejected",
+] as const;
 const activeVendorStatuses = new Set(["accepted", "preparing", "ready_for_pickup"]);
+const deliveryVendorStatuses = new Set(["assigned", "picked_up", "on_the_way"]);
 type VendorOrderStatusFilter = "all" | (typeof vendorOrderStatuses)[number];
 
 function readSingle<T extends Record<string, unknown>>(value: T | T[] | null | undefined) {
@@ -179,7 +190,7 @@ async function loadVendorOrdersData(page: number, statusFilter: VendorOrderStatu
 
     return {
       id: String(order.id),
-      customerName: readName((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "العميل"),
+      customerName: readName((order.customer as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "الزبون"),
       driverName: readName((order.driver as { profile?: { full_name?: string } | { full_name?: string }[] | null } | null)?.profile, "غير معيّن"),
       total: Number(order.total ?? 0),
       paymentMethod: String(order.payment_method ?? ""),
@@ -278,10 +289,21 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
 
   const newOrders = useMemo(() => filteredOrders.filter((order) => order.orderStatus === "placed"), [filteredOrders]);
   const activeOrders = useMemo(() => filteredOrders.filter((order) => activeVendorStatuses.has(order.orderStatus)), [filteredOrders]);
-  const historyOrders = useMemo(
-    () => filteredOrders.filter((order) => order.orderStatus !== "placed" && !activeVendorStatuses.has(order.orderStatus)),
+  const deliveryOrders = useMemo(
+    () => filteredOrders.filter((order) => deliveryVendorStatuses.has(order.orderStatus)),
     [filteredOrders]
   );
+  
+  const historyOrders = useMemo(
+  () =>
+    filteredOrders.filter(
+      (order) =>
+        order.orderStatus !== "placed" &&
+        !activeVendorStatuses.has(order.orderStatus) &&
+        !deliveryVendorStatuses.has(order.orderStatus)
+    ),
+  [filteredOrders]
+);
 
   async function updateVendorOrderStatus(orderId: string, nextStatus: string) {
     if (!data) {
@@ -376,7 +398,7 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
   if (!data || data.orders.totalCount === 0) {
     return (
       <Card className="medical-panel">
-        <EmptyState title="لا توجد طلبات بعد" message="ستظهر طلبات المتجر هنا بمجرد أن يبدأ العملاء في الشراء." />
+        <EmptyState title="لا توجد طلبات بعد" message="ستظهر طلبات المتجر هنا بمجرد أن يبدأ الزبائن في الشراء." />
       </Card>
     );
   }
@@ -389,7 +411,10 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
         <div className="split-actions">
           <div>
             <h3 className="order-card-title">طابور الصيدلية</h3>
-            <p className="muted order-card-subtitle">الطلبات الجديدة تحتاج قرار قبول أو رفض، ثم تنتقل الطلبات المقبولة إلى التحضير وجاهزية الاستلام.</p>
+            
+            <p className="muted order-card-subtitle"> 
+              الطلبات الجديدة والمقبولة التي تحتاج متابعة من الصيدلية.
+              </p>
           </div>
         </div>
         <div className="filter-chip-row">
@@ -422,11 +447,11 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
       <section className="stack">
         <div>
           <h3 className="order-card-title">طلبات جديدة</h3>
-          <p className="muted order-card-subtitle">طلبات العملاء بحالة placed وتحتاج قبول الطلب أو رفضه من الصيدلية.</p>
+          <p className="muted order-card-subtitle">طلبات الزبائن بحالة placed وتحتاج قبول الطلب أو رفضه من الصيدلية.</p>
         </div>
         {newOrders.length === 0 ? (
           <Card className="medical-panel">
-            <EmptyState title="لا توجد طلبات جديدة" message="ستظهر هنا الطلبات الجديدة فور إنشائها من العميل." />
+            <EmptyState title="لا توجد طلبات جديدة" message="ستظهر هنا الطلبات الجديدة فور إنشائها من الزبون." />
           </Card>
         ) : null}
         <section className="detail-grid">
@@ -469,9 +494,36 @@ export function VendorOrdersClient({ initialStatusFilter }: { initialStatusFilte
         </section>
       </section>
 
+      <section className="stack">
+        <div>
+          <h3 className="order-card-title">التوصيل جارٍ</h3>
+          <p className="muted order-card-subtitle">
+      طلبات استلمها السائق أو في طريقها للزبون.
+      </p>
+  </div>
+  {deliveryOrders.length === 0 ? (
+    <Card className="medical-panel">
+      <EmptyState title="لا توجد طلبات قيد التوصيل" message="ستظهر هنا الطلبات بعد إسنادها للسائق." />
+    </Card>
+  ) : null}
+  <section className="detail-grid">
+    {deliveryOrders.map((order) => (
+      <VendorOrderCard
+        key={order.id}
+        order={order}
+        actions={[]}
+        updatingOrderId={updatingOrderId}
+        onUpdate={updateVendorOrderStatus}
+        intlLocale={intlLocale}
+        t={t}
+      />
+    ))}
+  </section>
+</section>
+
       <Table
         title="سجل الطلبات"
-        headers={["معرّف الطلب", "العميل", "العناصر", "الإجمالي", "حالة الدفع", "عنوان التوصيل", "حالة الطلب", "تاريخ الإنشاء"]}
+        headers={["معرّف الطلب", "الزبون", "العناصر", "الإجمالي", "حالة الدفع", "عنوان التوصيل", "حالة الطلب", "تاريخ الإنشاء"]}
         rows={historyOrders.map((order) => [
           formatOrderNumber(order.id),
           order.customerName,
@@ -549,7 +601,14 @@ function VendorOrderCard({
       />
 
       <div className="inline-actions">
-        {actions.length === 0 ? <p className="muted">لا توجد إجراءات متاحة للمتجر لهذا الطلب.</p> : null}
+        {actions.length === 0 ? (
+          deliveryVendorStatuses.has(order.orderStatus) ? (
+          <p className="muted">السائق يتولى التوصيل حالياً.</p>
+        ) : (
+        <p className="muted">لا توجد إجراءات متاحة للمتجر لهذا الطلب.</p>
+        )
+      ) : null}
+        
         {actions.map((action) => (
           <Button
             key={`${order.id}-${action.nextStatus}`}

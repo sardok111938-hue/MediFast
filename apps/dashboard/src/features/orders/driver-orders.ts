@@ -64,7 +64,7 @@ function mapDriverOrder(order: Record<string, unknown>): DriverOrder {
     vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "المتجر"),
     customerName: readName(
       (order.customer as { profile?: SingleRecord<{ full_name?: string }> } | null)?.profile,
-      "العميل"
+      "الزبون"
     ),
     total: Number(order.total ?? 0),
     orderStatus: String(order.order_status ?? ""),

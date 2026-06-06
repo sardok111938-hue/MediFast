@@ -5,8 +5,8 @@ import { dashboardNavigation } from "../../../../src/lib/config/navigation";
 
 export default function AdminSupportPage() {
   return (
-    <DashboardShell title="تذاكر الدعم" subtitle="متابعة مشاكل العملاء والصيدليات والسائقين." nav={dashboardNavigation.admin}>
-      <PageHeader title="تذاكر الدعم" description="متابعة مشاكل العملاء والصيدليات والسائقين." />
+    <DashboardShell title="تذاكر الدعم" subtitle="متابعة مشاكل الزبائن والصيدليات والسائقين." nav={dashboardNavigation.admin}>
+      <PageHeader title="تذاكر الدعم" description="متابعة مشاكل الزبائن والصيدليات والسائقين." />
       <Table
         title="طابور الدعم"
         headers={["التذكرة", "النوع", "الأولوية", "الحالة"]}

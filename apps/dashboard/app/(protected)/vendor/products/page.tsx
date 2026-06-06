@@ -19,7 +19,7 @@ export default async function VendorProductsPage({
     >
       <PageHeader
         title="المنتجات"
-        description="أضف وعدّل منتجات الصيدلية، الأسعار، الصور، التصنيفات، وحالة الظهور للعملاء."
+        description="أضف وعدّل منتجات الصيدلية، الأسعار، الصور، التصنيفات، وحالة الظهور للزبائن."
       >
         <div className="inline-actions">
           <Link href="/vendor/inventory" className="button secondary-button">
