@@ -38,6 +38,7 @@ const statusLabelMap: Record<string, string> = {
   preparing: "قيد التحضير",
   ready_for_pickup: "جاهز للاستلام",
   assigned: "تم التعيين",
+  picked_up: "تم الاستلام من الصيدلية",
   on_the_way: "في الطريق",
   delivered: "تم التوصيل",
   cancelled: "ملغي",
@@ -82,6 +83,7 @@ export const customerOrderTimeline = [
   "preparing",
   "ready_for_pickup",
   "assigned",
+  "picked_up",
   "on_the_way",
   "delivered",
 ] as const;
@@ -198,7 +200,12 @@ export function orderStatusTone(status: string): "neutral" | "warning" | "succes
     return "success";
   }
 
-  if (status === "on_the_way" || status === "assigned" || status === "ready_for_pickup") {
+  if (
+  status === "on_the_way" ||
+  status === "assigned" ||
+  status === "picked_up" ||
+  status === "ready_for_pickup"
+) {
     return "info";
   }
 
@@ -284,6 +291,15 @@ export function getDeliveryHeadline(order: CustomerOrder) {
       message: order.driverName
         ? `تم تعيين السائق ${order.driverName} لاستلام طلبك.`
         : "تم تعيين سائق لاستلام طلبك.",
+    };
+  }
+
+    if (order.orderStatus === "picked_up") {
+    return {
+      tone: "info" as const,
+      message: order.driverName
+        ? `استلم ${order.driverName} طلبك من الصيدلية وهو يستعد للتوصيل.`
+        : "تم استلام طلبك من الصيدلية وهو في مرحلة التوصيل.",
     };
   }
 
