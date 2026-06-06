@@ -161,6 +161,9 @@ importers:
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))
+      '@supabase/postgrest-js':
+        specifier: ^2.107.0
+        version: 2.107.0
       '@supabase/supabase-js':
         specifier: ^2.49.8
         version: 2.105.4
@@ -1494,6 +1497,10 @@ packages:
 
   '@supabase/postgrest-js@2.105.4':
     resolution: {integrity: sha512-SppIyLo/kTwIlz1qpv2HN1EQqBg0GVktrDDFsXygYROha3MgVn4rT7p5EjFHFqXQm2rdRGb/BI7bc+jr10m91w==}
+    engines: {node: '>=20.0.0'}
+
+  '@supabase/postgrest-js@2.107.0':
+    resolution: {integrity: sha512-7ARs47/tyIjX7T0Ive20d4NY8zQYXsP5/P07jJWxffSIM2gpnSnGRnL/Fe15GPbdjsW2sTYeckHcyaoKbM6yWQ==}
     engines: {node: '>=20.0.0'}
 
   '@supabase/realtime-js@2.105.4':
@@ -5526,6 +5533,10 @@ snapshots:
   '@supabase/phoenix@0.4.2': {}
 
   '@supabase/postgrest-js@2.105.4':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/postgrest-js@2.107.0':
     dependencies:
       tslib: 2.8.1
 
