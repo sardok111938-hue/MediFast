@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@medifast/ui";
 import { useCallback, useEffect, useState } from "react";
+import { markCustomerNotificationsViewed } from "../src/lib/notification-read-state";
 import {
   ActivityIndicator,
   Pressable,
@@ -51,6 +52,7 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     let isMounted = true;
+    void markCustomerNotificationsViewed();
 
     async function setupNotifications() {
       const { data, error: customerError } =

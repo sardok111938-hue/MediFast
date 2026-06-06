@@ -40,6 +40,7 @@ import {
 } from "../../src/lib/customer-catalog";
 import type { ComponentProps } from "react";
 import type { GroupedProduct } from "../../src/lib/customer-catalog";
+import { getCustomerNotificationsLastViewedAt } from "../../src/lib/notification-read-state";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -168,11 +169,19 @@ export default function HomeScreen() {
     const safeCustomerId = String(nextCustomerId);
     setCustomerId(safeCustomerId);
 
-    const { count, error: countError } = await supabase
+    const lastViewedAt = await getCustomerNotificationsLastViewedAt();
+
+    let query = supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
       .eq("recipient_role", "customer")
       .eq("recipient_id", safeCustomerId);
+
+    if (lastViewedAt) {
+      query = query.gt("created_at", lastViewedAt);
+    }
+
+    const { count, error: countError } = await query;
 
     if (countError) {
       setNotificationCount(0);
