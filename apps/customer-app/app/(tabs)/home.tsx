@@ -1,15 +1,33 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
-import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../../src/components/CustomerUI";
+import {
+  EmptyCard,
+  ErrorCard,
+  LoadingCard,
+  PrimaryButton,
+  Screen,
+  SectionTitle,
+} from "../../src/components/CustomerUI";
 import {
   listCustomerFavoriteVendorIds,
   toggleCustomerFavoriteVendor,
 } from "../../src/features/favorites/vendor-favorites";
-
+import {
+  subscribeToCustomerNotifications,
+  supabase,
+} from "../../src/lib/supabase";
 import {
   buildPharmacyCategoryTree,
   getCategoryIcon,
@@ -75,70 +93,125 @@ export default function HomeScreen() {
   const productsScrollRef = useRef<ScrollView>(null);
   const [search, setSearch] = useState("");
   const [favoriteVendorIds, setFavoriteVendorIds] = useState<string[]>([]);
-  const { data: catalog, groupedProducts, loading, error, reload } = useGroupedCustomerProducts();
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const {
+    data: catalog,
+    groupedProducts,
+    loading,
+    error,
+    reload,
+  } = useGroupedCustomerProducts();
 
   const primaryAddress = getPrimaryAddress(
-  catalog.addresses,
-  catalog.defaultAddressId,
-);
-
-const sortedVendors = useMemo(() => {
-  return [...catalog.vendors].sort((a, b) => {
-    const distanceA = calculateDistanceKm(primaryAddress, a);
-    const distanceB = calculateDistanceKm(primaryAddress, b);
-
-    const aWithinRadius = isVendorWithinDeliveryRadius(primaryAddress, a);
-    const bWithinRadius = isVendorWithinDeliveryRadius(primaryAddress, b);
-
-    if (aWithinRadius !== bWithinRadius) {
-      return aWithinRadius ? -1 : 1;
-    }
-
-    if (a.is_open !== b.is_open) {
-      return a.is_open ? -1 : 1;
-    }
-
-    const aFavorite = favoriteVendorIds.includes(a.id);
-    const bFavorite = favoriteVendorIds.includes(b.id);
-
-    if (aFavorite !== bFavorite) {
-      return aFavorite ? -1 : 1;
-    }
-
-    if (distanceA === null) return 1;
-    if (distanceB === null) return -1;
-
-    return distanceA - distanceB;
-  });
-}, [catalog.vendors, favoriteVendorIds, primaryAddress]);
-
-useEffect(() => {
-  if (loading || error) {
-    return;
-  }
-
-  const hasUsableDefaultAddress = Boolean(
-    catalog.defaultAddressId &&
-      catalog.addresses.some((address) => address.id === catalog.defaultAddressId),
+    catalog.addresses,
+    catalog.defaultAddressId,
   );
 
-  if (!hasUsableDefaultAddress) {
-    router.replace("/address/setup");
-  }
-}, [loading, error, catalog.defaultAddressId, catalog.addresses, router]);
+  const sortedVendors = useMemo(() => {
+    return [...catalog.vendors].sort((a, b) => {
+      const distanceA = calculateDistanceKm(primaryAddress, a);
+      const distanceB = calculateDistanceKm(primaryAddress, b);
 
-useEffect(() => {
-  async function loadFavoriteVendors() {
-    try {
-      const ids = await listCustomerFavoriteVendorIds();
-      setFavoriteVendorIds(ids);
-    } catch (error) {
-      console.log("LOAD_VENDOR_FAVORITES_ERROR", error);
+      const aWithinRadius = isVendorWithinDeliveryRadius(primaryAddress, a);
+      const bWithinRadius = isVendorWithinDeliveryRadius(primaryAddress, b);
+
+      if (aWithinRadius !== bWithinRadius) {
+        return aWithinRadius ? -1 : 1;
+      }
+
+      if (a.is_open !== b.is_open) {
+        return a.is_open ? -1 : 1;
+      }
+
+      const aFavorite = favoriteVendorIds.includes(a.id);
+      const bFavorite = favoriteVendorIds.includes(b.id);
+
+      if (aFavorite !== bFavorite) {
+        return aFavorite ? -1 : 1;
+      }
+
+      if (distanceA === null) return 1;
+      if (distanceB === null) return -1;
+
+      return distanceA - distanceB;
+    });
+  }, [catalog.vendors, favoriteVendorIds, primaryAddress]);
+
+  useEffect(() => {
+    if (loading || error) {
+      return;
     }
-  }
 
-  void loadFavoriteVendors();
-}, []);
+    const hasUsableDefaultAddress = Boolean(
+      catalog.defaultAddressId &&
+      catalog.addresses.some(
+        (address) => address.id === catalog.defaultAddressId,
+      ),
+    );
+
+    if (!hasUsableDefaultAddress) {
+      router.replace("/address/setup");
+    }
+  }, [loading, error, catalog.defaultAddressId, catalog.addresses, router]);
+
+  const loadNotificationCount = useCallback(async () => {
+    const { data: nextCustomerId, error: customerError } =
+      await supabase.rpc("get_customer_id");
+
+    if (customerError || !nextCustomerId) {
+      setCustomerId(null);
+      setNotificationCount(0);
+      return;
+    }
+
+    const safeCustomerId = String(nextCustomerId);
+    setCustomerId(safeCustomerId);
+
+    const { count, error: countError } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("recipient_role", "customer")
+      .eq("recipient_id", safeCustomerId);
+
+    if (countError) {
+      setNotificationCount(0);
+      return;
+    }
+
+    setNotificationCount(count ?? 0);
+  }, []);
+
+  useEffect(() => {
+    void loadNotificationCount();
+  }, [loadNotificationCount]);
+
+  useEffect(() => {
+    if (!customerId) {
+      return;
+    }
+
+    const channel = subscribeToCustomerNotifications(customerId, () => {
+      void loadNotificationCount();
+    });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [customerId, loadNotificationCount]);
+
+  useEffect(() => {
+    async function loadFavoriteVendors() {
+      try {
+        const ids = await listCustomerFavoriteVendorIds();
+        setFavoriteVendorIds(ids);
+      } catch (error) {
+        console.log("LOAD_VENDOR_FAVORITES_ERROR", error);
+      }
+    }
+
+    void loadFavoriteVendors();
+  }, []);
 
   function openSearch() {
     const query = search.trim();
@@ -154,51 +227,63 @@ useEffect(() => {
     [catalog.categories],
   );
 
-  const recentGroupedProducts = useMemo(() => groupedProducts.slice(0, 10), [groupedProducts]);
+  const recentGroupedProducts = useMemo(
+    () => groupedProducts.slice(0, 10),
+    [groupedProducts],
+  );
 
   return (
     <Screen title="" subtitle="" contentContainerStyle={styles.screenContent}>
-<View style={styles.topToolbar}>
-  <Pressable onPress={() => router.push("/favorite-pharmacies")}>
-    <Ionicons name="heart-outline" size={24} color="#E5484D" />
-  </Pressable>
+      <View style={styles.topToolbar}>
+        <Pressable onPress={() => router.push("/favorite-pharmacies")}>
+          <Ionicons name="heart-outline" size={24} color="#E5484D" />
+        </Pressable>
 
-  <Pressable onPress={() => router.push("/prescriptions/new")}>
-    <Ionicons
-      name="document-text-outline"
-      size={24}
-      color={theme.colors.primaryDark}
-    />
-  </Pressable>
+        <Pressable onPress={() => router.push("/prescriptions/new")}>
+          <Ionicons
+            name="document-text-outline"
+            size={24}
+            color={theme.colors.primaryDark}
+          />
+        </Pressable>
 
-  <Pressable onPress={() => router.push("/notifications" as never)}>
-    <Ionicons
-      name="notifications-outline"
-      size={24}
-      color="#D97706"
-    />
-  </Pressable>
+        <Pressable onPress={() => router.push("/notifications" as never)}>
+          <View style={styles.notificationIconWrap}>
+            <Ionicons name="notifications-outline" size={24} color="#D97706" />
 
-  <Pressable onPress={() => router.push("/cart")}>
-    <Ionicons
-      name="cart-outline"
-      size={24}
-      color="#1E9A58"
-    />
-  </Pressable>
-</View>
+            {notificationCount > 0 ? (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {notificationCount > 99 ? "99+" : notificationCount}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </Pressable>
 
-<Pressable style={styles.heroBanner} onPress={() => router.push("/search")}>
-  <Image
-    source={require("../../assets/images/hero-banner.png")}
-    style={styles.heroBannerImage}
-    resizeMode="cover"
-  />
-</Pressable>
+        <Pressable onPress={() => router.push("/cart")}>
+          <Ionicons name="cart-outline" size={24} color="#1E9A58" />
+        </Pressable>
+      </View>
+
+      <Pressable
+        style={styles.heroBanner}
+        onPress={() => router.push("/search")}
+      >
+        <Image
+          source={require("../../assets/images/hero-banner.png")}
+          style={styles.heroBannerImage}
+          resizeMode="cover"
+        />
+      </Pressable>
 
       <View style={styles.searchBox}>
         <Pressable onPress={openSearch} style={styles.searchIconWrap}>
-          <Ionicons name="search-outline" size={21} color={theme.colors.primaryDark} />
+          <Ionicons
+            name="search-outline"
+            size={21}
+            color={theme.colors.primaryDark}
+          />
         </Pressable>
 
         <TextInput
@@ -214,7 +299,9 @@ useEffect(() => {
       </View>
 
       {loading ? <LoadingCard message="جارٍ تحميل المنتجات..." /> : null}
-      {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
+      {!loading && error ? (
+        <ErrorCard message={error} onRetry={() => void reload()} />
+      ) : null}
 
       {!loading && !error ? (
         <>
@@ -222,11 +309,16 @@ useEffect(() => {
             <SectionTitle label="الأقسام الرئيسية" />
 
             {parentCategories.length === 0 ? (
-              <EmptyCard title="لا توجد فئات متاحة" message="ستظهر الفئات الرئيسية عند تفعيلها في لوحة الإدارة." />
+              <EmptyCard
+                title="لا توجد فئات متاحة"
+                message="ستظهر الفئات الرئيسية عند تفعيلها في لوحة الإدارة."
+              />
             ) : (
               <View style={styles.categoryGrid}>
                 {parentCategories.map((category) => {
-                  const categoryTheme = getCategoryTheme(category.category.slug);
+                  const categoryTheme = getCategoryTheme(
+                    category.category.slug,
+                  );
 
                   return (
                     <Pressable
@@ -245,15 +337,28 @@ useEffect(() => {
                         })
                       }
                     >
-                      <View style={[styles.categoryIcon, { backgroundColor: categoryTheme.accentSoft }]}>
+                      <View
+                        style={[
+                          styles.categoryIcon,
+                          { backgroundColor: categoryTheme.accentSoft },
+                        ]}
+                      >
                         <Ionicons
-                          name={getCategoryIcon(category.category.slug) as IconName}
+                          name={
+                            getCategoryIcon(category.category.slug) as IconName
+                          }
                           size={22}
                           color={categoryTheme.accent}
                         />
                       </View>
 
-                      <Text style={[styles.categoryTitle, { color: categoryTheme.text }]} numberOfLines={2}>
+                      <Text
+                        style={[
+                          styles.categoryTitle,
+                          { color: categoryTheme.text },
+                        ]}
+                        numberOfLines={2}
+                      >
                         {category.label}
                       </Text>
                     </Pressable>
@@ -270,17 +375,25 @@ useEffect(() => {
               <EmptyCard
                 title="لا توجد صيدليات متاحة الآن"
                 message="ستظهر الصيدليات هنا بمجرد توفر متاجر معتمدة ونشطة."
-                action={<PrimaryButton label="إعادة المحاولة" onPress={() => void reload()} />}
+                action={
+                  <PrimaryButton
+                    label="إعادة المحاولة"
+                    onPress={() => void reload()}
+                  />
+                }
               />
             ) : (
               <View style={styles.pharmacyList}>
                 {sortedVendors.map((vendor) => {
                   const summary = {
-  productCount: 0,
-  ratingLabel: vendor.rating > 0 ? vendor.rating.toFixed(1) : "جديد",
-};
+                    productCount: 0,
+                    ratingLabel:
+                      vendor.rating > 0 ? vendor.rating.toFixed(1) : "جديد",
+                  };
                   const vendorImage = vendor.image_url ?? null;
-                  const isFavoriteVendor = favoriteVendorIds.includes(vendor.id);
+                  const isFavoriteVendor = favoriteVendorIds.includes(
+                    vendor.id,
+                  );
                   const primaryAddress = getPrimaryAddress(
                     catalog.addresses,
                     catalog.defaultAddressId,
@@ -301,7 +414,9 @@ useEffect(() => {
                       key={vendor.id}
                       style={[
                         styles.pharmacyCard,
-                        !withinRadius || !vendor.is_open ? styles.pharmacyCardDisabled : null,
+                        !withinRadius || !vendor.is_open
+                          ? styles.pharmacyCardDisabled
+                          : null,
                       ]}
                       disabled={!withinRadius}
                       onPress={() =>
@@ -312,27 +427,34 @@ useEffect(() => {
                       }
                     >
                       <View style={styles.pharmacyImageShell}>
-                                                <Pressable
-  hitSlop={10}
-  style={styles.favoriteVendorButton}
-  onPress={async (event) => {
-    event.stopPropagation();
+                        <Pressable
+                          hitSlop={10}
+                          style={styles.favoriteVendorButton}
+                          onPress={async (event) => {
+                            event.stopPropagation();
 
-    try {
-      const result = await toggleCustomerFavoriteVendor(vendor.id);
+                            try {
+                              const result = await toggleCustomerFavoriteVendor(
+                                vendor.id,
+                              );
 
-      setFavoriteVendorIds(result.favoriteVendorIds);
-    } catch (error) {
-      console.log("TOGGLE_VENDOR_FAVORITE_ERROR", error);
-    }
-  }}
->
-  <Ionicons
-    name={isFavoriteVendor ? "heart" : "heart-outline"}
-    size={20}
-    color={isFavoriteVendor ? "#E53935" : theme.colors.muted}
-  />
-</Pressable>
+                              setFavoriteVendorIds(result.favoriteVendorIds);
+                            } catch (error) {
+                              console.log(
+                                "TOGGLE_VENDOR_FAVORITE_ERROR",
+                                error,
+                              );
+                            }
+                          }}
+                        >
+                          <Ionicons
+                            name={isFavoriteVendor ? "heart" : "heart-outline"}
+                            size={20}
+                            color={
+                              isFavoriteVendor ? "#E53935" : theme.colors.muted
+                            }
+                          />
+                        </Pressable>
                         <CatalogImage
                           uri={vendorImage}
                           alt={vendor.name}
@@ -347,7 +469,9 @@ useEffect(() => {
 
                         {!vendor.is_open ? (
                           <View style={styles.closedWatermark}>
-                            <Text style={styles.closedWatermarkText}>مغلقة</Text>
+                            <Text style={styles.closedWatermarkText}>
+                              مغلقة
+                            </Text>
                           </View>
                         ) : null}
 
@@ -369,7 +493,9 @@ useEffect(() => {
                           <View style={styles.pharmacyInfoColumn}>
                             <View style={styles.infoItem}>
                               <Ionicons name="star" size={13} color="#F5A400" />
-                              <Text style={styles.infoText}>{summary.ratingLabel}</Text>
+                              <Text style={styles.infoText}>
+                                {summary.ratingLabel}
+                              </Text>
                             </View>
 
                             <Text style={styles.productCountText}>
@@ -378,56 +504,76 @@ useEffect(() => {
                           </View>
                         </View>
 
-<View style={styles.pharmacyMetaRail}>
-  <View style={[styles.statusPill, !vendor.is_open ? styles.statusPillClosed : null]}>
-    <Text style={[styles.statusPillText, !vendor.is_open ? styles.statusPillTextClosed : null]}>
-      {vendor.is_open ? "مفتوح الآن" : "مغلق الآن"}
-    </Text>
-  </View>
+                        <View style={styles.pharmacyMetaRail}>
+                          <View
+                            style={[
+                              styles.statusPill,
+                              !vendor.is_open ? styles.statusPillClosed : null,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusPillText,
+                                !vendor.is_open
+                                  ? styles.statusPillTextClosed
+                                  : null,
+                              ]}
+                            >
+                              {vendor.is_open ? "مفتوح الآن" : "مغلق الآن"}
+                            </Text>
+                          </View>
 
-  <View style={styles.metaItem}>
-    <Text style={styles.pharmacyLocation} numberOfLines={1}>
-      {distanceKm !== null ? formatDistanceKm(distanceKm) : "—"}
-    </Text>
+                          <View style={styles.metaItem}>
+                            <Text
+                              style={styles.pharmacyLocation}
+                              numberOfLines={1}
+                            >
+                              {distanceKm !== null
+                                ? formatDistanceKm(distanceKm)
+                                : "—"}
+                            </Text>
 
-    <Ionicons
-      name="location"
-      size={13}
-      color={theme.colors.muted}
-    />
-  </View>
+                            <Ionicons
+                              name="location"
+                              size={13}
+                              color={theme.colors.muted}
+                            />
+                          </View>
 
-  <View style={styles.metaItem}>
-    <Text style={styles.pharmacyLocation} numberOfLines={1}>
-      {distanceKm === null
-        ? "—"
-        : distanceKm <= 3
-          ? "3 د.ل"
-          : distanceKm <= 8
-            ? "5 د.ل"
-            : distanceKm <= 15
-              ? "8 د.ل"
-              : "12 د.ل"}
-    </Text>
+                          <View style={styles.metaItem}>
+                            <Text
+                              style={styles.pharmacyLocation}
+                              numberOfLines={1}
+                            >
+                              {distanceKm === null
+                                ? "—"
+                                : distanceKm <= 3
+                                  ? "3 د.ل"
+                                  : distanceKm <= 8
+                                    ? "5 د.ل"
+                                    : distanceKm <= 15
+                                      ? "8 د.ل"
+                                      : "12 د.ل"}
+                            </Text>
 
-    <Ionicons
-      name="bicycle-outline"
-      size={13}
-      color={theme.colors.muted}
-    />
-  </View>
-</View>
-</View>
+                            <Ionicons
+                              name="bicycle-outline"
+                              size={13}
+                              color={theme.colors.muted}
+                            />
+                          </View>
+                        </View>
+                      </View>
 
-{withinRadius ? (
-  <View style={styles.pharmacyChevron}>
-    <Ionicons
-      name="chevron-back"
-      size={18}
-      color={theme.colors.primaryDark}
-    />
-  </View>
-) : null}
+                      {withinRadius ? (
+                        <View style={styles.pharmacyChevron}>
+                          <Ionicons
+                            name="chevron-back"
+                            size={18}
+                            color={theme.colors.primaryDark}
+                          />
+                        </View>
+                      ) : null}
                     </Pressable>
                   );
                 })}
@@ -436,10 +582,17 @@ useEffect(() => {
           </View>
 
           <View style={styles.productsSection}>
-            <SectionTitle label="أضيفت حديثاً" actionLabel="عرض الكل" onAction={() => router.push("/search")} />
+            <SectionTitle
+              label="أضيفت حديثاً"
+              actionLabel="عرض الكل"
+              onAction={() => router.push("/search")}
+            />
 
             {recentGroupedProducts.length === 0 ? (
-              <EmptyCard title="لا توجد منتجات مطابقة" message="جرّب البحث باسم آخر أو تصفح الفئات." />
+              <EmptyCard
+                title="لا توجد منتجات مطابقة"
+                message="جرّب البحث باسم آخر أو تصفح الفئات."
+              />
             ) : (
               <ScrollView
                 ref={productsScrollRef}
@@ -471,7 +624,6 @@ useEffect(() => {
     </Screen>
   );
 }
-
 
 const styles = StyleSheet.create({
   screenContent: {
@@ -807,47 +959,69 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   heroBanner: {
-  borderRadius: 34,
-  overflow: "hidden",
-  marginTop: -18,
-  marginBottom: 14,
+    borderRadius: 34,
+    overflow: "hidden",
+    marginTop: -18,
+    marginBottom: 14,
 
-  shadowColor: "#0F3D2E",
-  shadowOpacity: 0.10,
-  shadowRadius: 24,
-  shadowOffset: { width: 0, height: 12 },
+    shadowColor: "#0F3D2E",
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
 
-  elevation: 4,
-},
-
-heroBannerImage: {
-  width: "100%",
-  height: 250,
-},
-topToolbar: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 8,
-  marginBottom: 12,
-},
-
-topIconButton: {
-  width: 50,
-  height: 50,
-  borderRadius: 25,
-  backgroundColor: "#FFFFFF",
-
-  alignItems: "center",
-  justifyContent: "center",
-
-  shadowColor: "#0F3D2E",
-  shadowOpacity: 0.08,
-  shadowRadius: 16,
-  shadowOffset: {
-    width: 0,
-    height: 8,
+    elevation: 4,
   },
 
-  elevation: 3,
-},
+  heroBannerImage: {
+    width: "100%",
+    height: 250,
+  },
+  topToolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  topIconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#FFFFFF",
+
+    alignItems: "center",
+    justifyContent: "center",
+
+    shadowColor: "#0F3D2E",
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+
+    elevation: 3,
+  },
+  notificationIconWrap: {
+    position: "relative",
+  },
+
+  notificationBadge: {
+    position: "absolute",
+    top: -7,
+    right: -9,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#DC2626",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+
+  notificationBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "900",
+  },
 });
