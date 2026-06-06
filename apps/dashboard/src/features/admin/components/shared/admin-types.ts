@@ -88,6 +88,8 @@ export type AdminDriverRow = {
   emergencyContactPhone: string | null;
   vehicleType: string | null;
   vehiclePlate: string | null;
+  currentOrderId: string | null;
+  currentOrderStatus: string | null;
 };
 
 export type AdminCustomerRow = {

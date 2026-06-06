@@ -9,10 +9,7 @@ import { LoadingState } from "../../../../components/ui/loading-state";
 import { Table } from "../../../../components/ui/table";
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { adminUpdateDriverAction } from "../../actions";
-import type {
-  AdminDriverRow,
-  AsyncState,
-} from "../shared/admin-types";
+import type { AdminDriverRow, AsyncState } from "../shared/admin-types";
 import { normalizeError, readName } from "../shared/admin-utils";
 
 type AdminDriversData = {
@@ -24,7 +21,8 @@ async function loadAdminDriversData(): Promise<AdminDriversData> {
 
   const { data, error } = await supabase
     .from("drivers")
-    .select(`
+    .select(
+      `
       id,
       approval_status,
       is_available,
@@ -38,10 +36,15 @@ async function loadAdminDriversData(): Promise<AdminDriversData> {
       vehicle_type,
       vehicle_plate,
       profile:profiles!drivers_user_id_fkey(
-        full_name,
-        phone
-      )
-    `)
+      full_name,
+      phone
+      ),
+      current_orders:orders!orders_driver_id_fkey(
+        id,
+        order_status
+        )
+    `,
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -52,6 +55,17 @@ async function loadAdminDriversData(): Promise<AdminDriversData> {
     const profile = Array.isArray(driver.profile)
       ? driver.profile[0]
       : driver.profile;
+
+    const currentOrders = Array.isArray(driver.current_orders)
+      ? driver.current_orders
+      : [];
+
+    const currentOrder =
+      currentOrders.find((order) =>
+        ["assigned", "arrived_at_pharmacy", "picked_up", "on_the_way"].includes(
+          String(order.order_status),
+        ),
+      ) ?? null;
 
     return {
       id: String(driver.id),
@@ -76,6 +90,10 @@ async function loadAdminDriversData(): Promise<AdminDriversData> {
       emergencyContactPhone: driver.emergency_contact_phone ?? null,
       vehicleType: driver.vehicle_type ?? null,
       vehiclePlate: driver.vehicle_plate ?? null,
+      currentOrderId: currentOrder?.id ? String(currentOrder.id) : null,
+      currentOrderStatus: currentOrder?.order_status
+        ? String(currentOrder.order_status)
+        : null,
     };
   });
 
@@ -119,9 +137,7 @@ function AdminDriversManager() {
     loading: true,
   });
 
-  const [updatingDriverId, setUpdatingDriverId] = useState<string | null>(
-    null,
-  );
+  const [updatingDriverId, setUpdatingDriverId] = useState<string | null>(null);
 
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -201,10 +217,7 @@ function AdminDriversManager() {
   if (state.error) {
     return (
       <Card className="medical-panel">
-        <ErrorState
-          message={state.error}
-          onRetry={() => void load()}
-        />
+        <ErrorState message={state.error} onRetry={() => void load()} />
       </Card>
     );
   }
@@ -218,7 +231,7 @@ function AdminDriversManager() {
           {feedback.message}
         </p>
       ) : null}
-      
+
       {drivers.length === 0 ? (
         <Card className="medical-panel">
           <EmptyState
@@ -233,6 +246,7 @@ function AdminDriversManager() {
             "السائق",
             "الهاتف",
             "الحالة",
+            "الطلب الحالي",
             "المركبة",
             "الطوارئ",
             "المستندات",
@@ -244,9 +258,10 @@ function AdminDriversManager() {
             `${driver.approvalStatus} / ${
               driver.isAvailable ? "متاح" : "غير متاح"
             }`,
-            `${driver.vehicleType ?? "-"} / ${
-              driver.vehiclePlate ?? "-"
-            }`,
+            driver.currentOrderId
+              ? `${driver.currentOrderStatus ?? "طلب نشط"} / ${driver.currentOrderId.slice(0, 8)}`
+              : "لا يوجد",
+            `${driver.vehicleType ?? "-"} / ${driver.vehiclePlate ?? "-"}`,
             `${driver.emergencyContactName ?? "-"} / ${
               driver.emergencyContactPhone ?? "-"
             }`,
@@ -270,10 +285,7 @@ function AdminDriversManager() {
               />
             </div>,
 
-            <div
-              key={`${driver.id}-actions`}
-              className="table-actions"
-            >
+            <div key={`${driver.id}-actions`} className="table-actions">
               <Button
                 className="secondary-button"
                 disabled={
@@ -288,9 +300,7 @@ function AdminDriversManager() {
                   )
                 }
               >
-                {updatingDriverId === driver.id
-                  ? "جارٍ الحفظ..."
-                  : "اعتماد"}
+                {updatingDriverId === driver.id ? "جارٍ الحفظ..." : "اعتماد"}
               </Button>
 
               <Button
@@ -307,9 +317,7 @@ function AdminDriversManager() {
                   )
                 }
               >
-                {updatingDriverId === driver.id
-                  ? "جارٍ الحفظ..."
-                  : "رفض"}
+                {updatingDriverId === driver.id ? "جارٍ الحفظ..." : "رفض"}
               </Button>
             </div>,
           ])}
