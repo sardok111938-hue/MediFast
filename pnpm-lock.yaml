@@ -176,6 +176,9 @@ importers:
       expo-device:
         specifier: ^55.0.17
         version: 55.0.17(expo@54.0.34)
+      expo-image-manipulator:
+        specifier: ~14.0.8
+        version: 14.0.8(expo@54.0.34)
       expo-image-picker:
         specifier: ^55.0.20
         version: 55.0.20(expo@54.0.34)

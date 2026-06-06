@@ -32,6 +32,13 @@ export function isSupabaseConfigured() {
   return Boolean(supabaseUrl && supabaseAnonKey);
 }
 
+function normalizeEmail(value: string) {
+  return value
+    .replace(/[\u200E\u200F\u061C]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
 function normalizePhone(value: string) {
   return value.replace(/[^\d+]/g, "").trim();
 }
@@ -57,9 +64,9 @@ export async function getActiveSession() {
   const sessionResponse = await supabase.auth.getSession();
 
   if (sessionResponse.error) {
-  console.log("Session error:", sessionResponse.error);
-  return null;
-}
+    console.log("Session error:", sessionResponse.error);
+    return null;
+  }
 
   if (sessionResponse.data.session) {
     return sessionResponse.data.session;
@@ -94,7 +101,7 @@ export async function signUpDriver({
   vehicleType: string;
   vehiclePlate: string;
 }) {
-  const safeEmail = email.trim();
+  const safeEmail = normalizeEmail(email);
   const safeFullName = fullName.trim();
   const safePhone = normalizePhone(phone);
   const safeVehicleType = vehicleType.trim();
@@ -135,9 +142,11 @@ export async function signUpDriver({
 export async function signInDriver(email: string, password: string) {
   await resetSession();
 
+  const safeEmail = normalizeEmail(email);
+
   const authResponse = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password,
+    email: safeEmail,
+    password: password.trim(),
   });
 
   if (authResponse.error || !authResponse.data.user) {
