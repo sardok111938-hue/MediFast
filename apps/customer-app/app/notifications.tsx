@@ -10,7 +10,10 @@ import {
 } from "react-native";
 
 import { EmptyCard, Screen } from "../src/components/CustomerUI";
-import { supabase } from "../src/lib/supabase";
+import {
+  subscribeToCustomerNotifications,
+  supabase,
+} from "../src/lib/supabase";
 
 type CustomerNotification = {
   id: string;
@@ -47,7 +50,40 @@ export default function NotificationsScreen() {
   }, []);
 
   useEffect(() => {
-    void loadNotifications();
+    let isMounted = true;
+
+    async function setupNotifications() {
+      const { data, error: customerError } =
+        await supabase.rpc("get_customer_id");
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (customerError || !data) {
+        void loadNotifications();
+        return;
+      }
+
+      void loadNotifications();
+
+      const channel = subscribeToCustomerNotifications(String(data), () => {
+        void loadNotifications();
+      });
+
+      return () => {
+        void supabase.removeChannel(channel);
+      };
+    }
+
+    const cleanupPromise = setupNotifications();
+
+    return () => {
+      isMounted = false;
+      void cleanupPromise.then((cleanup) => {
+        cleanup?.();
+      });
+    };
   }, [loadNotifications]);
 
   return (

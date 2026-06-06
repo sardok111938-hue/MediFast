@@ -1,6 +1,9 @@
 import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createAppSupabaseClient, resolveSupabaseConfig } from "@medifast/supabase";
+import {
+  createAppSupabaseClient,
+  resolveSupabaseConfig,
+} from "@medifast/supabase";
 
 const { url, anonKey, isConfigured } = resolveSupabaseConfig("expo");
 
@@ -23,7 +26,10 @@ type CustomerBootstrapInput = {
   phone?: string | null;
 };
 
-export async function ensureCustomerBootstrap({ fullName, phone }: CustomerBootstrapInput) {
+export async function ensureCustomerBootstrap({
+  fullName,
+  phone,
+}: CustomerBootstrapInput) {
   const safeFullName = fullName?.trim() || "عميل بدون اسم";
 
   const { data, error } = await supabase.rpc("ensure_customer_account", {
@@ -138,7 +144,7 @@ export async function signOutCustomer() {
 
 export function subscribeToCustomerOrders(
   customerId: string,
-  onChange: (payload: unknown) => void
+  onChange: (payload: unknown) => void,
 ) {
   return supabase
     .channel(`customer-orders-${customerId}-${Date.now()}`)
@@ -150,14 +156,14 @@ export function subscribeToCustomerOrders(
         table: "orders",
         filter: `customer_id=eq.${customerId}`,
       },
-      onChange
+      onChange,
     )
     .subscribe();
 }
 
 export function subscribeToCustomerPrescriptionRequests(
   customerId: string,
-  onChange: (payload: unknown) => void
+  onChange: (payload: unknown) => void,
 ) {
   return supabase
     .channel(`customer-prescriptions-${customerId}-${Date.now()}`)
@@ -169,7 +175,7 @@ export function subscribeToCustomerPrescriptionRequests(
         table: "prescription_requests",
         filter: `customer_id=eq.${customerId}`,
       },
-      onChange
+      onChange,
     )
     .on(
       "postgres_changes",
@@ -179,14 +185,33 @@ export function subscribeToCustomerPrescriptionRequests(
         table: "prescription_quotes",
         filter: `customer_id=eq.${customerId}`,
       },
-      onChange
+      onChange,
+    )
+    .subscribe();
+}
+
+export function subscribeToCustomerNotifications(
+  customerId: string,
+  onChange: (payload: unknown) => void,
+) {
+  return supabase
+    .channel(`customer-notifications-${customerId}-${Date.now()}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "notifications",
+        filter: `recipient_id=eq.${customerId}`,
+      },
+      onChange,
     )
     .subscribe();
 }
 
 export function subscribeToOrderTracking(
   orderId: string,
-  onChange: (payload: unknown) => void
+  onChange: (payload: unknown) => void,
 ) {
   return supabase
     .channel(`customer-order-${orderId}-${Date.now()}`)
@@ -198,7 +223,7 @@ export function subscribeToOrderTracking(
         table: "orders",
         filter: `id=eq.${orderId}`,
       },
-      onChange
+      onChange,
     )
     .on(
       "postgres_changes",
@@ -208,7 +233,7 @@ export function subscribeToOrderTracking(
         table: "delivery_tracking",
         filter: `order_id=eq.${orderId}`,
       },
-      onChange
+      onChange,
     )
     .subscribe();
 }
