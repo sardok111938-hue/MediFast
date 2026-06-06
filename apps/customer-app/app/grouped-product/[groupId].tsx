@@ -27,13 +27,38 @@ export default function GroupedProductDetailScreen() {
   const groupId = Array.isArray(params.groupId) ? params.groupId[0] : params.groupId;
   const { data, groupedProducts, loading, error, reload } = useGroupedCustomerProducts();
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
+  const [showAllOffers, setShowAllOffers] = useState(false);
   const product = getGroupedProductById(groupedProducts, groupId);
   const primaryAddress = getPrimaryAddress(data.addresses, data.defaultAddressId);
 
-  const offers = useMemo(
-    () => (product ? [...product.offers].sort(compareOffersByPrice) : []),
-    [product],
-  );
+  const offers = useMemo(() => {
+    if (!product) {
+      return [];
+    }
+
+    return [...product.offers].sort((a, b) => {
+      const aDistance = calculateDistanceKm(primaryAddress, a.vendor);
+      const bDistance = calculateDistanceKm(primaryAddress, b.vendor);
+
+      const aOpen = a.vendor?.is_open ? 1 : 0;
+      const bOpen = b.vendor?.is_open ? 1 : 0;
+
+      if (aOpen !== bOpen) {
+        return bOpen - aOpen;
+      }
+
+      if (a.product.price !== b.product.price) {
+        return a.product.price - b.product.price;
+      }
+
+      if (aDistance === null) return 1;
+      if (bDistance === null) return -1;
+
+      return aDistance - bDistance;
+    });
+  }, [product, primaryAddress]);
+
+  const visibleOffers = showAllOffers ? offers : offers.slice(0, 3);
 
   if (loading) {
     return (
@@ -57,9 +82,11 @@ export default function GroupedProductDetailScreen() {
         <EmptyCard
           title="المنتج غير متاح"
           message="لم نتمكن من العثور على هذا المنتج في السوق حالياً."
-          action={<Pressable style={styles.emptyButton} onPress={() => router.push("/search")}>
-            <Text style={styles.emptyButtonText}>العودة إلى البحث</Text>
-          </Pressable>}
+          action={
+            <Pressable style={styles.emptyButton} onPress={() => router.push("/search")}>
+              <Text style={styles.emptyButtonText}>العودة إلى البحث</Text>
+            </Pressable>
+          }
         />
       </Screen>
     );
@@ -105,7 +132,7 @@ export default function GroupedProductDetailScreen() {
       </View>
 
       <View style={styles.offerList}>
-        {offers.map((offer) => {
+        {visibleOffers.map((offer) => {
           const vendor = offer.vendor;
           const distanceKm = calculateDistanceKm(primaryAddress, vendor);
           const stockQuantity = offer.product.stock_quantity ?? 0;
@@ -158,6 +185,17 @@ export default function GroupedProductDetailScreen() {
           );
         })}
       </View>
+
+      {offers.length > 3 && !showAllOffers ? (
+        <Pressable
+          style={styles.showMoreButton}
+          onPress={() => setShowAllOffers(true)}
+        >
+          <Text style={styles.showMoreText}>
+            عرض {offers.length - 3} صيدليات إضافية
+          </Text>
+        </Pressable>
+      ) : null}
     </Screen>
   );
 }
@@ -338,5 +376,18 @@ heroIconButton: {
   alignItems: "center",
   justifyContent: "center",
   backgroundColor: "rgba(255,255,255,0.94)",
+},
+showMoreButton: {
+  height: 48,
+  borderRadius: 16,
+  backgroundColor: "#EAF7EF",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+showMoreText: {
+  color: theme.colors.primaryDark,
+  fontSize: theme.typography.body.md,
+  fontWeight: "900",
 },
 });

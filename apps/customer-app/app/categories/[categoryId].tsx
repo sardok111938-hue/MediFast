@@ -14,7 +14,6 @@ import {
   buildPharmacyCategoryTree,
   groupProductsByMarketplaceListing,
 } from "../../src/lib/customer-catalog";
-import type { GroupedProduct } from "../../src/lib/customer-catalog";
 
 function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
@@ -24,14 +23,22 @@ function formatPrice(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
+type CategoryProductCardModel = {
+  id: string;
+  name: string;
+  image_url: string;
+  lowestPrice: number;
+  pharmaciesCount: number;
+};
+
 function GroupedCategoryProductCard({
   product,
   onPress,
 }: {
-  product: GroupedProduct;
+  product: CategoryProductCardModel;
   onPress: () => void;
 }) {
-  return (
+    return (
     <Pressable
       style={({ pressed }) => [
         styles.groupedProductCard,
@@ -94,21 +101,24 @@ const pharmacyId = Array.isArray(params.pharmacyId)
     [categoryId, data.categories],
   );
 
-  const filteredProducts = useMemo(() => {
+  const filteredRawProducts = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
 
-    const nextProducts = normalizedQuery
-      ? products.filter((product) => {
+    return normalizedQuery
+    ? products.filter((product) => {
       return (
-        normalizeSearch(product.name).includes(normalizedQuery) ||
-        normalizeSearch(product.description).includes(normalizedQuery) ||
-        normalizeSearch(product.barcode ?? "").includes(normalizedQuery)
-      );
-    })
-      : products;
+          normalizeSearch(product.name).includes(normalizedQuery) ||
+          normalizeSearch(product.description).includes(normalizedQuery) ||
+          normalizeSearch(product.barcode ?? "").includes(normalizedQuery)
+        );
+      })
+    : products;
+}, [products, query]);
 
-    return groupProductsByMarketplaceListing(nextProducts, data.vendors);
-  }, [data.vendors, products, query]);
+const filteredGroupedProducts = useMemo(
+  () => groupProductsByMarketplaceListing(filteredRawProducts, data.vendors),
+  [data.vendors, filteredRawProducts],
+);
 
   useEffect(() => {
     setActiveSubcategoryId(requestedCategory?.parent_id ? requestedCategory.id : null);
@@ -238,22 +248,41 @@ const pharmacyId = Array.isArray(params.pharmacyId)
 
       {selectedSubcategory ? <SectionTitle label={selectedSubcategory.label} /> : null}
 
-      {filteredProducts.length === 0 ? (
+      {(pharmacyId ? filteredRawProducts : filteredGroupedProducts).length === 0 ? (
         <EmptyCard title="لا توجد منتجات" message="لا توجد منتجات متاحة لهذا الاختيار حاليًا." />
       ) : (
         <View style={styles.productList}>
-          {filteredProducts.map((product) => (
-            <GroupedCategoryProductCard
-              key={product.id}
-              product={product}
-              onPress={() =>
-                router.push({
-                  pathname: "/grouped-product/[groupId]",
-                  params: { groupId: product.id },
-                })
-              }
-            />
-          ))}
+          {pharmacyId
+            ? filteredRawProducts.map((product) => (
+                <GroupedCategoryProductCard
+                  key={product.id}
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    image_url: product.image_url,
+                    lowestPrice: product.price,
+                    pharmaciesCount: 1,
+                  }}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/product-detail",
+                      params: { productId: product.id },
+                    })
+                  }
+                />
+              ))
+            : filteredGroupedProducts.map((product) => (
+                <GroupedCategoryProductCard
+                  key={product.id}
+                  product={product}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/grouped-product/[groupId]",
+                      params: { groupId: product.id },
+                    })
+                  }
+                />
+              ))}
         </View>
       )}
     </Screen>

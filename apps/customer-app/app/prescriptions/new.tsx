@@ -17,21 +17,35 @@ import { Card, PrimaryButton, Screen } from "../../src/components/CustomerUI";
 export default function NewPrescriptionScreen() {
   const router = useRouter();
 
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [note, setNote] = useState("");
   const params = useLocalSearchParams<{
-  selectedAddressId?: string;
-}>();
+    selectedAddressId?: string;
+    imageUri?: string;
+    note?: string;
+  }>();
 
-const [addressId, setAddressId] = useState<string | null>(
-  params.selectedAddressId ?? null
-);
+  const [imageUri, setImageUri] = useState<string | null>(
+    params.imageUri ?? null
+  );
 
-useEffect(() => {
-  if (params.selectedAddressId) {
-    setAddressId(params.selectedAddressId);
-  }
-}, [params.selectedAddressId]);
+  const [note, setNote] = useState(params.note ?? "");
+
+  const [addressId, setAddressId] = useState<string | null>(
+    params.selectedAddressId ?? null
+  );
+
+  useEffect(() => {
+    if (params.selectedAddressId) {
+      setAddressId(params.selectedAddressId);
+    }
+
+    if (params.imageUri) {
+      setImageUri(params.imageUri);
+    }
+
+    if (typeof params.note === "string") {
+      setNote(params.note);
+    }
+  }, [params.selectedAddressId, params.imageUri, params.note]);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -50,24 +64,24 @@ useEffect(() => {
       allowsEditing: true,
     });
 
-if (!result.canceled) {
-  const selectedUri = result.assets[0]?.uri;
+    if (!result.canceled) {
+      const selectedUri = result.assets[0]?.uri;
 
-  if (!selectedUri) {
-    return;
-  }
+      if (!selectedUri) {
+        return;
+      }
 
-  const compressed = await ImageManipulator.manipulateAsync(
-    selectedUri,
-    [{ resize: { width: 1600 } }],
-    {
-      compress: 0.72,
-      format: ImageManipulator.SaveFormat.JPEG,
-    },
-  );
+      const compressed = await ImageManipulator.manipulateAsync(
+        selectedUri,
+        [{ resize: { width: 1600 } }],
+        {
+          compress: 0.72,
+          format: ImageManipulator.SaveFormat.JPEG,
+        },
+      );
 
-  setImageUri(compressed.uri);
-}
+      setImageUri(compressed.uri);
+    }
   }
 
   function continueToPharmacies() {
@@ -123,13 +137,15 @@ if (!result.canceled) {
         <Pressable
           style={styles.addressButton}
           onPress={() => {
-  router.push({
-    pathname: "/address-selection",
-    params: {
-      from: "prescription",
-    },
-  });
-}}
+            router.push({
+              pathname: "/address-selection",
+              params: {
+                from: "prescription",
+                imageUri: imageUri ?? "",
+                note,
+              },
+            });
+          }}
         >
           <Text style={styles.addressText}>
             {addressId ? "تم اختيار عنوان التوصيل" : "اختر عنوان التوصيل"}
