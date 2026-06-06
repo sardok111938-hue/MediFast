@@ -132,11 +132,11 @@ async function loadVendorOrdersData(page: number, statusFilter: VendorOrderStatu
       payment_status,
       order_status,
       created_at,
-      customer:customers(
-        profile:profiles(full_name)
+      customer:customers!orders_customer_id_fkey(
+        profile:profiles!customers_user_id_fkey(full_name)
       ),
-      driver:drivers(
-        profile:profiles(full_name)
+      driver:drivers!orders_driver_id_fkey(
+        profile:profiles!drivers_user_id_fkey(full_name)
       ),
       address:addresses(
   line_1,
@@ -172,7 +172,6 @@ async function loadVendorOrdersData(page: number, statusFilter: VendorOrderStatu
   ];
 
   const [{ data, error, count }, allCountResult, ...statusCountResults] = await Promise.all([query, ...countQueries]);
-
   if (error) {
     throw error;
   }
