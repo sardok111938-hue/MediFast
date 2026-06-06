@@ -8,7 +8,6 @@ import {
   DetailRow,
   EmptyCard,
   ErrorCard,
-  HelperText,
   LoadingCard,
   PrimaryButton,
   Screen,
@@ -19,9 +18,7 @@ import {
   customerOrderTimeline,
   formatCustomerCurrency,
   formatCustomerDate,
-  formatCustomerPaymentStatusLabel,
   formatOrderStatusLabel,
-  getDeliveryHeadline,
   getTimelineStepState,
   loadCurrentCustomerOrder,
   normalizeCustomerOrderError,
@@ -34,6 +31,7 @@ export default function CustomerOrderDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ orderId?: string | string[] }>();
   const orderId = Array.isArray(params.orderId) ? params.orderId[0] : params.orderId;
+
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [order, setOrder] = useState<CustomerOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,145 +77,195 @@ export default function CustomerOrderDetailScreen() {
     };
   }, [customerId, loadOrder, orderId]);
 
-const deliveryHeadline = order ? getDeliveryHeadline(order) : null;
+  const driverLabel = order?.driverName
+    ? `السائق: ${order.driverName}`
+    : ["assigned", "picked_up", "on_the_way"].includes(order?.orderStatus ?? "")
+      ? "السائق: تم التعيين"
+      : "السائق: لم يتم التعيين بعد";
 
-const driverLabel = order?.driverName
-  ? order.driverName
-  : order?.driverPhone
-    ? "تم تعيين السائق"
-    : "لا يوجد سائق";
-
-const handleCallDriver = useCallback(async () => {
+  const handleCallDriver = useCallback(async () => {
     if (!order?.driverPhone) {
-    return;
-  }
+      return;
+    }
 
-  try {
-    await Linking.openURL(`tel:${order.driverPhone}`);
-  } catch {
-    // ignore for now
-  }
-}, [order?.driverPhone]);
+    try {
+      await Linking.openURL(`tel:${order.driverPhone}`);
+    } catch {
+      // ignore for now
+    }
+  }, [order?.driverPhone]);
+
   return (
     <Screen
-  title="تفاصيل الطلب"
-  subtitle="تابع تقدم الطلب وحالة الدفع وتحديثات التوصيل بشكل مباشر."
-  scroll={false}
-  backHref="/(tabs)/orders"
-  backLabel="العودة إلى الطلبات"
->
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      title="تفاصيل الطلب"
+      subtitle="تابع تقدم الطلب وحالة الدفع وتحديثات التوصيل بشكل مباشر."
+      scroll={false}
+      backHref="/(tabs)/orders"
+      backLabel="العودة إلى الطلبات"
+    >
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {loading ? (
           <LoadingCard message="جارٍ تحميل الطلب..." />
         ) : error ? (
           <ErrorCard message={error} onRetry={() => void loadOrder()} />
         ) : !order ? (
-          <EmptyCard title="الطلب غير موجود" message="هذا الطلب غير متاح لحساب الزبون الحالي." />
+          <EmptyCard
+            title="الطلب غير موجود"
+            message="هذا الطلب غير متاح لحساب الزبون الحالي."
+          />
         ) : (
           <>
-<Card style={styles.statusCard}>
-  <View style={styles.statusHeader}>
-    <View style={styles.statusHeaderCopy}>
-      <Text style={styles.vendorName}>{order.vendorName}</Text>
+            <Card style={styles.statusCard}>
+              <View style={styles.statusHeader}>
+                <View style={styles.statusHeaderCopy}>
+                  <Text style={styles.vendorName}>{order.vendorName}</Text>
 
-      <Text style={styles.orderNumber}>
-        {`#${formatOrderNumber(order.id).toUpperCase()}`}
-      </Text>
-    </View>
+                  <Text style={styles.orderNumber}>
+                    {`#${formatOrderNumber(order.id).toUpperCase()}`}
+                  </Text>
+                </View>
 
-    <View style={styles.badgeRow}>
-      <StatusBadge
-        label={formatOrderStatusLabel(order.orderStatus)}
-        tone={orderStatusTone(order.orderStatus)}
-      />
+                <View style={styles.badgeRow}>
+                  <StatusBadge
+                    label={formatOrderStatusLabel(order.orderStatus)}
+                    tone={orderStatusTone(order.orderStatus)}
+                  />
+                </View>
+              </View>
 
-      <StatusBadge
-        label={formatCustomerPaymentStatusLabel(
-          order.paymentStatus,
-          order.paymentMethod
-        )}
-        tone={orderStatusTone(order.paymentStatus)}
-      />
-    </View>
-  </View>
+              <View style={styles.driverSection}>
+                <Text style={styles.addressText}>{driverLabel}</Text>
 
-  {deliveryHeadline ? (
-    <HelperText tone={deliveryHeadline.tone}>
-      {deliveryHeadline.message}
-    </HelperText>
-  ) : null}
+                {order.driverVehicleType ? (
+                  <Text style={styles.addressText}>
+                    نوع المركبة:{" "}
+                    {order.driverVehicleType === "Car"
+                      ? "سيارة"
+                      : order.driverVehicleType}
+                  </Text>
+                ) : null}
+              </View>
 
-  <View style={styles.compactMetaRow}>
-    <Text style={styles.metaText}>
-      {driverLabel}
-    </Text>
+              <Text style={styles.addressText} numberOfLines={2}>
+                عنوان التوصيل: {order.deliveryAddress}
+              </Text>
 
-    {order.driverVehicleType ? (
-      <Text style={styles.metaText}>
-        • {order.driverVehicleType}
-      </Text>
-    ) : null}
-  </View>
+              {order.driverPhone ? (
+                <PrimaryButton
+                  label="اتصال بالسائق"
+                  onPress={() => void handleCallDriver()}
+                />
+              ) : null}
+            </Card>
 
-  <Text style={styles.addressText} numberOfLines={2}>
-    {order.deliveryAddress}
-  </Text>
+            <Card>
+              <SectionTitle label="تتبع الطلب" />
 
-  {order.driverPhone ? (
-    <PrimaryButton
-      label="اتصال بالسائق"
-      onPress={() => void handleCallDriver()}
-    />
-  ) : null}
+              {customerOrderTimeline.map((step, index) => {
+                const state = getTimelineStepState(order.orderStatus, step);
+                const isCompleted = state === "completed";
+                const isCurrent = state === "current";
 
-</Card>
-<Card>
-  <SectionTitle label="ملخص الدفع" />
+                return (
+                  <View key={step} style={styles.timelineRow}>
+                    <View style={styles.timelineRail}>
+                      <View
+                        style={[
+                          styles.timelineDot,
+                          isCompleted ? styles.timelineDotCompleted : null,
+                          isCurrent ? styles.timelineDotCurrent : null,
+                        ]}
+                      />
 
-<View style={styles.itemHighlight}>
-  {order.items.map((item) => (
-    <Text key={item.id} style={styles.itemHighlightText}>
-      {item.productName}
-    </Text>
-  ))}
-</View>
+                      {index < customerOrderTimeline.length - 1 ? (
+                        <View
+                          style={[
+                            styles.timelineLine,
+                            isCompleted ? styles.timelineLineCompleted : null,
+                          ]}
+                        />
+                      ) : null}
+                    </View>
 
-<DetailRow
-  label="تاريخ الطلب"
-  value={formatCustomerDate(order.createdAt)}
-/>
+                    <View style={styles.timelineCopy}>
+                      <Text
+                        style={[
+                          styles.timelineLabel,
+                          !isCompleted && !isCurrent
+                            ? styles.timelineLabelUpcoming
+                            : null,
+                        ]}
+                      >
+                        {formatOrderStatusLabel(step)}
+                      </Text>
 
-{order.deliveredAt ? (
-  <DetailRow
-    label="تاريخ التسليم"
-    value={formatCustomerDate(order.deliveredAt)}
-  />
-  ) : null}
+                      <Text style={styles.timelineHint}>
+                        {isCurrent
+                          ? "الحالة الحالية"
+                          : isCompleted
+                            ? "تمت"
+                            : "قادم"}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </Card>
 
+            <Card>
+              <SectionTitle label="ملخص الدفع" />
 
-  <DetailRow
-  label={`${order.items.length} ${
-    order.items.length === 1 ? "منتج" : "منتجات"
-  }`}
-  value={formatCustomerCurrency(order.total - (order.deliveryFee ?? 0))}
-/>
+              <View style={styles.itemHighlight}>
+                {order.items.map((item) => (
+                  <Text key={item.id} style={styles.itemHighlightText}>
+                    {item.productName}
+                  </Text>
+                ))}
+              </View>
 
-  <DetailRow
-    label="التوصيل"
-    value={formatCustomerCurrency(order.deliveryFee ?? 0)}
-  />
+              <DetailRow
+                label="تاريخ الطلب"
+                value={formatCustomerDate(order.createdAt)}
+              />
 
-  <DetailRow
-    label="الإجمالي"
-    value={formatCustomerCurrency(order.total)}
-  />
+              {order.deliveredAt ? (
+                <DetailRow
+                  label="تاريخ التسليم"
+                  value={formatCustomerDate(order.deliveredAt)}
+                />
+              ) : null}
 
-  <DetailRow
-    label="الدفع"
-    value="عند الاستلام"
-  />
-</Card>
-<PrimaryButton label="العودة للبحث" variant="secondary" onPress={() => router.push("/search")} />
+              <DetailRow
+                label={`${order.items.length} ${
+                  order.items.length === 1 ? "منتج" : "منتجات"
+                }`}
+                value={formatCustomerCurrency(
+                  order.total - (order.deliveryFee ?? 0)
+                )}
+              />
+
+              <DetailRow
+                label="التوصيل"
+                value={formatCustomerCurrency(order.deliveryFee ?? 0)}
+              />
+
+              <DetailRow
+                label="الإجمالي"
+                value={formatCustomerCurrency(order.total)}
+              />
+
+              <DetailRow label="الدفع" value="عند الاستلام" />
+            </Card>
+
+            <PrimaryButton
+              label="العودة للبحث"
+              variant="secondary"
+              onPress={() => router.push("/search")}
+            />
           </>
         )}
       </ScrollView>
@@ -232,37 +280,41 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing[12],
     paddingBottom: 132,
   },
+
   scrollView: {
     flex: 1,
   },
+
   statusCard: {
     backgroundColor: "#E8F7EE",
     borderColor: "#D0E9D9",
   },
+
   orderNumber: {
     color: theme.colors.primaryDark,
     fontWeight: "800",
     fontSize: theme.typography.caption.md,
     textAlign: "right",
   },
+
   vendorName: {
     color: theme.colors.text,
     fontWeight: "800",
     fontSize: theme.typography.heading.lg,
     textAlign: "right",
   },
-  badgeStack: {
-    gap: theme.spacing[8],
-  },
+
   timelineRow: {
     flexDirection: "row-reverse",
     gap: theme.spacing[12],
     minHeight: 64,
   },
+
   timelineRail: {
     alignItems: "center",
     width: 20,
   },
+
   timelineDot: {
     width: 14,
     height: 14,
@@ -271,114 +323,91 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
+
   timelineDotCompleted: {
     borderColor: theme.colors.success,
     backgroundColor: theme.colors.success,
   },
+
   timelineDotCurrent: {
     borderColor: theme.colors.primary,
     backgroundColor: theme.colors.primary,
   },
+
   timelineLine: {
     flex: 1,
     width: 2,
     backgroundColor: theme.colors.border,
     marginTop: 4,
   },
+
   timelineLineCompleted: {
     backgroundColor: theme.colors.success,
   },
+
   timelineCopy: {
     flex: 1,
     gap: 4,
     paddingBottom: theme.spacing[8],
   },
+
   timelineLabel: {
     color: theme.colors.text,
     fontSize: theme.typography.body.md,
     fontWeight: "800",
     textAlign: "right",
   },
+
   timelineLabelUpcoming: {
     color: theme.colors.muted,
   },
+
   timelineHint: {
     color: theme.colors.muted,
     fontSize: theme.typography.caption.md,
     textAlign: "right",
   },
-  itemCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing[16],
-    gap: theme.spacing[8],
-    backgroundColor: theme.colors.background,
+
+  driverSection: {
+    gap: theme.spacing[12],
   },
-  itemTitle: {
-    fontWeight: "800",
-    fontSize: theme.typography.body.lg,
+
+  statusHeader: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: theme.spacing[12],
+  },
+
+  statusHeaderCopy: {
+    flex: 1,
+    gap: 2,
+  },
+
+  badgeRow: {
+    gap: theme.spacing[8],
+    alignItems: "flex-end",
+  },
+
+  addressText: {
     color: theme.colors.text,
     textAlign: "right",
+    lineHeight: 20,
   },
-  driverSection: {
-  gap: theme.spacing[12],
-},
-statusDivider: {
-  height: 1,
-  backgroundColor: "#D0E9D9",
-  marginVertical: theme.spacing[16],
-},
-statusHeader: {
-  flexDirection: "row-reverse",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: theme.spacing[12],
-},
 
-statusHeaderCopy: {
-  flex: 1,
-  gap: 2,
-},
+  itemHighlight: {
+    backgroundColor: "#FFF7ED",
+    borderRadius: 10,
+    paddingHorizontal: theme.spacing[12],
+    paddingVertical: theme.spacing[8],
+    alignSelf: "stretch",
+    gap: 4,
+  },
 
-badgeRow: {
-  gap: theme.spacing[8],
-  alignItems: "flex-end",
-},
-
-compactMetaRow: {
-  flexDirection: "row-reverse",
-  flexWrap: "wrap",
-  gap: theme.spacing[8],
-},
-addressText: {
-  color: theme.colors.text,
-  textAlign: "right",
-  lineHeight: 20,
-},
-orderItemSummary: {
-  alignSelf: "stretch",
-  gap: 4,
-},
-
-metaText: {
-  color: theme.colors.muted,
-  fontSize: theme.typography.caption.md,
-  textAlign: "right",
-  alignSelf: "stretch",
-},
-itemHighlight: {
-  backgroundColor: "#FFF7ED",
-  borderRadius: 10,
-  paddingHorizontal: theme.spacing[12],
-  paddingVertical: theme.spacing[8],
-  alignSelf: "stretch",
-  gap: 4,
-},
-itemHighlightText: {
-  color: "#C2410C",
-  fontSize: theme.typography.body.sm,
-  fontWeight: "800",
-  textAlign: "right",
-},
+  itemHighlightText: {
+    color: "#C2410C",
+    fontSize: theme.typography.body.sm,
+    fontWeight: "800",
+    textAlign: "right",
+  },
 });
