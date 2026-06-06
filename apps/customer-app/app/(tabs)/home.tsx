@@ -84,31 +84,31 @@ export default function HomeScreen() {
 
 const sortedVendors = useMemo(() => {
   return [...catalog.vendors].sort((a, b) => {
-  const aFavorite = favoriteVendorIds.includes(a.id);
-  const bFavorite = favoriteVendorIds.includes(b.id);
+    const distanceA = calculateDistanceKm(primaryAddress, a);
+    const distanceB = calculateDistanceKm(primaryAddress, b);
 
-  if (aFavorite !== bFavorite) {
-    return aFavorite ? -1 : 1;
-  }
+    const aWithinRadius = isVendorWithinDeliveryRadius(primaryAddress, a);
+    const bWithinRadius = isVendorWithinDeliveryRadius(primaryAddress, b);
 
-  const distanceA = calculateDistanceKm(primaryAddress, a);
-  const distanceB = calculateDistanceKm(primaryAddress, b);
+    if (aWithinRadius !== bWithinRadius) {
+      return aWithinRadius ? -1 : 1;
+    }
 
-  const aWithinRadius = isVendorWithinDeliveryRadius(primaryAddress, a);
-  const bWithinRadius = isVendorWithinDeliveryRadius(primaryAddress, b);
+    if (a.is_open !== b.is_open) {
+      return a.is_open ? -1 : 1;
+    }
 
-  if (aWithinRadius !== bWithinRadius) {
-    return aWithinRadius ? -1 : 1;
-  }
+    const aFavorite = favoriteVendorIds.includes(a.id);
+    const bFavorite = favoriteVendorIds.includes(b.id);
 
-  if (a.is_open !== b.is_open) {
-    return a.is_open ? -1 : 1;
-  }
+    if (aFavorite !== bFavorite) {
+      return aFavorite ? -1 : 1;
+    }
 
-  if (distanceA === null) return 1;
-  if (distanceB === null) return -1;
+    if (distanceA === null) return 1;
+    if (distanceB === null) return -1;
 
-  return distanceA - distanceB;
+    return distanceA - distanceB;
   });
 }, [catalog.vendors, favoriteVendorIds, primaryAddress]);
 
@@ -121,15 +121,6 @@ useEffect(() => {
     catalog.defaultAddressId &&
       catalog.addresses.some((address) => address.id === catalog.defaultAddressId),
   );
-
-  console.log("HOME ADDRESS DEBUG", {
-  loading,
-  error,
-  defaultAddressId: catalog.defaultAddressId,
-  addressCount: catalog.addresses.length,
-  addressIds: catalog.addresses.map((a) => a.id),
-  hasUsableDefaultAddress,
-});
 
   if (!hasUsableDefaultAddress) {
     router.replace("/address/setup");
@@ -158,8 +149,7 @@ useEffect(() => {
     });
   }
 
-const promotedVendor = catalog.vendors[0] ?? null;
-const parentCategories = useMemo(
+  const parentCategories = useMemo(
     () => buildPharmacyCategoryTree(catalog.categories).parents,
     [catalog.categories],
   );
@@ -196,19 +186,9 @@ const parentCategories = useMemo(
       color="#1E9A58"
     />
   </Pressable>
-</View><Pressable
-  style={styles.heroBanner}
-  onPress={() =>
-    router.push(
-      promotedVendor
-        ? {
-            pathname: "/pharmacies/[pharmacyId]",
-            params: { pharmacyId: promotedVendor.id },
-          }
-        : "/search",
-    )
-  }
->
+</View>
+
+<Pressable style={styles.heroBanner} onPress={() => router.push("/search")}>
   <Image
     source={require("../../assets/images/hero-banner.png")}
     style={styles.heroBannerImage}

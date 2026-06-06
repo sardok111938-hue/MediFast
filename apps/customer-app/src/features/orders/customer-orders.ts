@@ -331,7 +331,7 @@ export async function getCurrentCustomerId() {
   }
 
   if (!customerId) {
-    throw new Error("حساب العميل غير مرتبط بشكل صحيح.");
+    throw new Error("حساب الزبون غير مرتبط بشكل صحيح.");
   }
 
   return String(customerId);

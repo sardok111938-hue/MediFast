@@ -94,7 +94,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { data, loading, error, reload } = useCustomerAddressesData();
 
-  const [fullName, setFullName] = useState("العميل");
+  const [fullName, setFullName] = useState("الزبون");
   const [draftFullName, setDraftFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("customer@example.com");
@@ -132,7 +132,7 @@ export default function ProfileScreen() {
       const resolvedFullName =
         profile?.full_name?.trim() ||
         (typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "") ||
-        "العميل";
+        "الزبون";
 
       setFullName(resolvedFullName);
       setDraftFullName(resolvedFullName);
@@ -217,7 +217,7 @@ function openWhatsappSupport() {
   return (
     <Screen
   title="الملف الشخصي"
-  subtitle="إدارة الحساب والعناوين والطلبات المحفوظة."
+  subtitle=""
   contentContainerStyle={{ paddingBottom: 120 }}
 >
       {loading ? <LoadingCard message="جارٍ تحميل بيانات الحساب..." /> : null}
@@ -248,7 +248,6 @@ function openWhatsappSupport() {
       <DetailRow label="الاسم" value={fullName} />
       <DetailRow label="رقم الهاتف" value={phone || "غير مضاف"} />
       <DetailRow label="البريد الإلكتروني" value={email} />
-      <DetailRow label="طريقة الدفع" value="Cash on Delivery" />
     </View>
   )}
 

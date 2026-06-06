@@ -55,8 +55,21 @@ function validateAddressForm(values: AddressFormState) {
 
 export default function AddressSelectionScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ from?: string | string[] }>();
+
+  const params = useLocalSearchParams<{
+    from?: string | string[];
+    imageUri?: string | string[];
+    note?: string | string[];
+  }>();
   const from = Array.isArray(params.from) ? params.from[0] : params.from;
+  const prescriptionImageUri = Array.isArray(params.imageUri)
+  ? params.imageUri[0]
+  : params.imageUri;
+
+  const prescriptionNote = Array.isArray(params.note)
+  ? params.note[0]
+  : params.note;
+
   const { data, loading, error, reload } = useCustomerAddressesData();
   const addresses = useMemo(() => getSavedAddresses(data.addresses), [data.addresses]);
 
@@ -157,7 +170,7 @@ const { data: rows, error } = await supabase
     const { data: customerId, error: customerError } = await supabase.rpc("get_customer_id");
 
     if (customerError) throw customerError;
-    if (!customerId) throw new Error("تعذر تحديد حساب العميل. سجّل الدخول مرة أخرى.");
+    if (!customerId) throw new Error("تعذر تحديد حساب الزبون. سجّل الدخول مرة أخرى.");
 
     return String(customerId);
   }
@@ -195,17 +208,20 @@ if (from === "prescription") {
     pathname: "/prescriptions/new",
     params: {
       selectedAddressId: addressId,
+      imageUri: prescriptionImageUri ?? "",
+      note: prescriptionNote ?? "",
     },
   });
 
   return;
 }
-    } catch (nextError) {
-      setSaveError(normalizeAddressError(nextError, "تعذر حفظ العنوان."));
-    } finally {
-      setSavingAddressId(null);
-    }
-  }
+
+} catch (nextError) {
+  setSaveError(normalizeAddressError(nextError, "تعذر حفظ العنوان."));
+} finally {
+  setSavingAddressId(null);
+}
+}
 
   async function handleDeleteAddress(addressId: string) {
   setDeletingAddressId(addressId);
@@ -305,6 +321,8 @@ if (from === "prescription") {
     pathname: "/prescriptions/new",
     params: {
       selectedAddressId: createdAddressId,
+      imageUri: prescriptionImageUri ?? "",
+      note: prescriptionNote ?? "",
     },
   });
 

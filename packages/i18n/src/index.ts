@@ -227,7 +227,7 @@ export const translations = {
     "Continue": "متابعة",
     "Loading...": "جارٍ التحميل...",
     "Continue into the real customer app. If you're signed out, you'll be taken to login first.":
-      "تابع إلى تطبيق العميل الفعلي. إذا لم تكن مسجل الدخول فسيتم توجيهك إلى صفحة الدخول أولاً.",
+      "تابع إلى تطبيق الزبون الفعلي. إذا لم تكن مسجل الدخول فسيتم توجيهك إلى صفحة الدخول أولاً.",
     "Supabase auth is not configured, so Continue opens the MVP home directly.":
       "مصادقة Supabase غير مهيأة، لذا سيتم فتح الصفحة الرئيسية التجريبية مباشرة.",
     "Home": "الرئيسية",
@@ -262,7 +262,7 @@ export const translations = {
     "Loading your order...": "جارٍ تحميل طلبك...",
     "Loading order details...": "جارٍ تحميل تفاصيل الطلب...",
     "Order not found": "الطلب غير موجود",
-    "This order is not available for the current customer account.": "هذا الطلب غير متاح لحساب العميل الحالي.",
+    "This order is not available for the current customer account.": "هذا الطلب غير متاح لحساب الزبون الحالي.",
     "Vendor / Store": "المتجر / الصيدلية",
     "Delivery Address": "عنوان التوصيل",
     "Total": "الإجمالي",
@@ -287,12 +287,12 @@ export const translations = {
     "Open Orders": "فتح الطلبات",
     "Login or Sign Up": "تسجيل الدخول أو إنشاء حساب",
     "Use real Supabase email/password auth for customer access.": "استخدم تسجيل Supabase الحقيقي بالبريد الإلكتروني وكلمة المرور للوصول كعميل.",
-    "Customer access": "دخول العملاء",
+    "Customer access": "دخول الزبائن",
     "Full name for signup": "الاسم الكامل للتسجيل",
     "Email address": "البريد الإلكتروني",
     "Password": "كلمة المرور",
     "New customers can sign up here. Existing customers can sign in with the same form.":
-      "يمكن للعملاء الجدد التسجيل هنا. ويمكن للعملاء الحاليين تسجيل الدخول من نفس النموذج.",
+      "يمكن للزبائن الجدد التسجيل هنا. ويمكن للزبائن الحاليين تسجيل الدخول من نفس النموذج.",
     "Sign in": "تسجيل الدخول",
     "Signing in...": "جارٍ تسجيل الدخول...",
     "Sign up": "إنشاء حساب",
@@ -332,7 +332,7 @@ export const translations = {
     "No assigned orders": "لا توجد طلبات معيّنة",
     "Orders will appear here when dispatch assigns them to your account.": "ستظهر الطلبات هنا عند تعيينها إلى حسابك.",
     "View Details": "عرض التفاصيل",
-    "Customer": "العميل",
+    "Customer": "الزبون",
     "Dropoff": "التسليم",
     "Payment": "الدفع",
     "Review pickup, dropoff, items, and delivery status updates.": "راجع الاستلام والتسليم والعناصر وتحديثات حالة التوصيل.",
@@ -448,6 +448,7 @@ const orderStatusLabels = {
   preparing: "قيد التحضير",
   ready_for_pickup: "جاهز للاستلام",
   assigned: "تم تعيين سائق",
+  picked_up: "تم الاستلام",
   on_the_way: "في الطريق",
   delivered: "تم التوصيل",
   rejected: "مرفوض",
@@ -468,7 +469,7 @@ const approvalStatusLabels = {
 
 const roleLabels = {
   admin: "مدير",
-  customer: "العميل",
+  customer: "الزبون",
   driver: "السائق",
   vendor: "المتجر",
 } as const;

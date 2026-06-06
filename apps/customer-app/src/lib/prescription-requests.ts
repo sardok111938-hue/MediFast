@@ -213,7 +213,7 @@ export async function listCurrentCustomerPrescriptionRequests(): Promise<Custome
   }
 
   if (!customerId) {
-    throw new Error("حساب العميل غير مرتبط بشكل صحيح.");
+    throw new Error("حساب الزبون غير مرتبط بشكل صحيح.");
   }
 
   const { data, error } = await supabase

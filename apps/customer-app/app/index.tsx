@@ -82,7 +82,7 @@ export default function SplashScreen() {
 
         router.replace("/(tabs)/home");
       } catch (error) {
-        setSessionError(error instanceof Error ? error.message : "تعذر تجهيز حساب العميل.");
+        setSessionError(error instanceof Error ? error.message : "تعذر تجهيز حساب الزبون.");
         setContinueLoading(false);
       }
 
@@ -109,7 +109,7 @@ export default function SplashScreen() {
         {sessionError ? <HelperText>{sessionError}</HelperText> : null}
         <HelperText>
           {configured
-            ? "تابع إلى تطبيق العميل. إذا لم تكن مسجل الدخول فسيتم توجيهك أولًا إلى صفحة الحساب."
+            ? "تابع إلى تطبيق الزبون. إذا لم تكن مسجل الدخول فسيتم توجيهك أولًا إلى صفحة الحساب."
             : "مصادقة Supabase غير مهيأة، لذلك سيتم فتح الصفحة الرئيسية التجريبية مباشرة."}
         </HelperText>
       </Card>

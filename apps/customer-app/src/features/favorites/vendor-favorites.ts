@@ -42,7 +42,7 @@ async function getCustomerId() {
   }
 
   if (!data) {
-    throw new Error("تعذر تحديد العميل.");
+    throw new Error("تعذر تحديد الزبون.");
   }
 
   return String(data);

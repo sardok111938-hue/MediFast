@@ -112,7 +112,7 @@ const handleCallDriver = useCallback(async () => {
         ) : error ? (
           <ErrorCard message={error} onRetry={() => void loadOrder()} />
         ) : !order ? (
-          <EmptyCard title="الطلب غير موجود" message="هذا الطلب غير متاح لحساب العميل الحالي." />
+          <EmptyCard title="الطلب غير موجود" message="هذا الطلب غير متاح لحساب الزبون الحالي." />
         ) : (
           <>
 <Card style={styles.statusCard}>

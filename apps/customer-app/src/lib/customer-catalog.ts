@@ -568,7 +568,7 @@ export function useCustomerAddressesData() {
 
 export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
   if (!isSupabaseConfigured()) {
-    throw new Error("إعدادات Supabase غير مكتملة في تطبيق العميل.");
+    throw new Error("إعدادات Supabase غير مكتملة في تطبيق الزبون.");
   }
 
   const [categoriesResult, vendorsResult, addressData] = await Promise.all([
@@ -784,7 +784,7 @@ export function useCustomerCatalogData() {
     if (!isSupabaseConfigured()) {
       setData(getEmptyCatalogData());
       setLoading(false);
-      setError("إعدادات Supabase غير مكتملة في تطبيق العميل.");
+      setError("إعدادات Supabase غير مكتملة في تطبيق الزبون.");
       return;
     }
 
@@ -896,7 +896,7 @@ export function isVendorWithinDeliveryRadius(
     return true;
   }
 
-  return distanceKm <= Number(vendor?.delivery_radius_km ?? 10);
+  return distanceKm <= Number(vendor?.delivery_radius_km ?? 15);
 }
 
 export function getCategoryById(categories: Category[], categoryId?: string | null) {

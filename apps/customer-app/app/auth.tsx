@@ -110,12 +110,12 @@ export default function AuthScreen() {
     }
 
     if (!fullName.trim()) {
-      setMessage("الاسم الكامل مطلوب لإنشاء حساب العميل.");
+      setMessage("الاسم الكامل مطلوب لإنشاء حساب الزبون.");
       return;
     }
 
     if (!phone.trim()) {
-      setMessage("رقم الهاتف مطلوب لإنشاء حساب العميل.");
+      setMessage("رقم الهاتف مطلوب لإنشاء حساب الزبون.");
       return;
     }
 
@@ -161,9 +161,9 @@ export default function AuthScreen() {
   }
 
   return (
-    <Screen title="تسجيل الدخول أو إنشاء حساب" subtitle="استخدم بريدك الإلكتروني وكلمة المرور للوصول إلى حساب العميل.">
+    <Screen title="تسجيل الدخول أو إنشاء حساب" subtitle="استخدم بريدك الإلكتروني وكلمة المرور للوصول إلى حساب الزبون.">
       <Card>
-        <Text style={{ fontWeight: "700", textAlign: "right" }}>دخول العميل</Text>
+        <Text style={{ fontWeight: "700", textAlign: "right" }}>دخول الزبون</Text>
 
         <FormInput value={fullName} onChangeText={setFullName} placeholder="الاسم الكامل للتسجيل" />
         <FormInput value={phone} onChangeText={setPhone} placeholder="رقم الهاتف للتسجيل" keyboardType="phone-pad" />
