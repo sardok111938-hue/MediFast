@@ -13,7 +13,7 @@ type DriverOrdersSectionProps = {
   emptyTitle: string;
   emptyMessage: string;
   orders: DriverOrder[];
-  mode: "available" | "current";
+  mode: "available" | "current" | "history";
   claimingOrderId?: string | null;
   onClaimOrder?: (orderId: string) => void;
   onOpenOrder?: (orderId: string) => void;
@@ -38,7 +38,9 @@ export function DriverOrdersSection({
           <DriverSectionTitle>{title}</DriverSectionTitle>
           <Text style={styles.sectionCount}>{count}</Text>
         </View>
-        <Text style={styles.sectionHint}>{hint}</Text>
+        {hint ? (
+          <Text style={styles.sectionHint}>{hint}</Text>
+        ) : null}
       </View>
 
       {orders.length === 0 ? (
@@ -48,12 +50,12 @@ export function DriverOrdersSection({
           <DriverOrderCard
             key={mode === "available" ? `available-${order.id}` : order.id}
             vendorName={order.vendorName}
-            customerName={order.customerName}
+            customerName={mode === "available" ? "مخفية حتى قبول الطلب" : order.customerName}
             orderRef={`طلب ${shortOrderRef(order.id)}`}
             statusLabel={getStatusLabel(order.orderStatus)}
             statusTone={statusTone(order.orderStatus)}
             pickupAddress={order.pickupAddress}
-            dropoffAddress={order.dropoffAddress}
+            dropoffAddress={mode === "available" ? "تظهر بعد قبول الطلب" : order.dropoffAddress}
             action={
               mode === "available" ? (
                 <DriverButton
@@ -66,7 +68,7 @@ export function DriverOrdersSection({
                 <DriverButton label="عرض التفاصيل" size="sm" onPress={() => onOpenOrder?.(order.id)} />
               )
             }
-            utilities={<DriverOrderUtilities order={order} mapTarget={mode === "available" ? "pickup" : "dropoff"} />}
+            utilities={mode === "available" ? undefined : <DriverOrderUtilities order={order} mapTarget="dropoff" />}
             footer={<DriverOrderFooter order={order} showTotal={mode === "available"} />}
             compact
           />

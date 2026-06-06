@@ -5,9 +5,14 @@ import { getActiveSession, getAuthenticatedUser, supabase } from "./supabase";
 export type DriverProfile = {
   driverId: string;
   fullName: string;
+  phone: string | null;
+  vehicleType: string | null;
+  vehiclePlate: string | null;
   isAvailable: boolean;
   approvalStatus: string;
   profileImageUrl: string | null;
+  passportImageUrl: string | null;
+  vehicleImageUrl: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
 };
@@ -239,9 +244,14 @@ export function statusTone(status: string): "neutral" | "warning" | "success" | 
     return "success";
   }
 
-  if (status === "on_the_way" || status === "assigned" || status === "ready_for_pickup") {
-    return "info";
-  }
+if (
+  status === "on_the_way" ||
+  status === "assigned" ||
+  status === "picked_up" ||
+  status === "ready_for_pickup"
+) {
+  return "info";
+}
 
   if (status === "preparing" || status === "pending") {
     return "warning";
@@ -264,6 +274,10 @@ export function getPaymentStatusLabel(paymentStatus: string, paymentMethod: stri
 
 export function getDriverNextActions(status: string) {
   if (status === "assigned") {
+    return [{ label: "تم الاستلام", nextStatus: "picked_up" }];
+  }
+
+  if (status === "picked_up") {
     return [{ label: "في الطريق", nextStatus: "on_the_way" }];
   }
 
@@ -276,7 +290,8 @@ export function getDriverNextActions(status: string) {
 
 function isDriverNextStatusAllowed(currentStatus: string | undefined, nextStatus: string) {
   return (
-    (currentStatus === "assigned" && nextStatus === "on_the_way") ||
+    (currentStatus === "assigned" && nextStatus === "picked_up") ||
+    (currentStatus === "picked_up" && nextStatus === "on_the_way") ||
     (currentStatus === "on_the_way" && nextStatus === "delivered")
   );
 }
@@ -303,14 +318,21 @@ const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_
 
   const { data, error } = await supabase
     .from("drivers")
-    .select(`
+.select(`
   id,
   is_available,
   approval_status,
   profile_image_url,
+  passport_image_url,
+  vehicle_image_url,
   emergency_contact_name,
   emergency_contact_phone,
-  profile:profiles!drivers_user_id_fkey(full_name)
+  vehicle_type,
+  vehicle_plate,
+  profile:profiles!drivers_user_id_fkey(
+    full_name,
+    phone
+  )
 `)
     .eq("id", driverId)
     .maybeSingle();
@@ -323,12 +345,27 @@ const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_
     throw new Error("تعذر العثور على ملف السائق.");
   }
 
-  return {
+const profile = readSingle(
+  (data.profile as
+    | { full_name?: string; phone?: string }
+    | { full_name?: string; phone?: string }[]
+    | null) ?? null
+);
+
+return {
   driverId: String(data.id),
-  fullName: readName((data.profile as { full_name?: string } | { full_name?: string }[] | null) ?? null, "السائق"),
+  fullName: readName(
+    (data.profile as { full_name?: string } | { full_name?: string }[] | null) ?? null,
+    "السائق"
+  ),
+  phone: readOptionalText(profile?.phone),
+  vehicleType: readOptionalText(data.vehicle_type),
+  vehiclePlate: readOptionalText(data.vehicle_plate),
   isAvailable: Boolean(data.is_available),
   approvalStatus: String(data.approval_status ?? ""),
   profileImageUrl: readOptionalText(data.profile_image_url),
+  passportImageUrl: readOptionalText(data.passport_image_url),
+  vehicleImageUrl: readOptionalText(data.vehicle_image_url),
   emergencyContactName: readOptionalText(data.emergency_contact_name),
   emergencyContactPhone: readOptionalText(data.emergency_contact_phone),
 };
@@ -349,7 +386,7 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
 
   return {
     id: String(order.id),
-    customerName: readCustomerName(order.customer, "العميل"),
+    customerName: readCustomerName(order.customer, "الزبون"),
     customerPhone: readCustomerPhone(order.customer),
     vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "المتجر"),
     vendorPhone: readOptionalText(vendor?.phone),
@@ -362,7 +399,7 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
     estimatedDistanceKm,
     estimatedTravelMinutes: estimateRouteTravelMinutes(estimatedDistanceKm),
     deliveryFee,
-    deliveryPayout: deliveryFee > 0 ? deliveryFee : null,
+    deliveryPayout: deliveryFee > 0 ? 5 : null,
     codAmount: paymentMethod === "cash_on_delivery" ? total : null,
     deliveryNotes: readOptionalText(order.notes),
     pharmacyInstructions: null,
@@ -410,10 +447,28 @@ const DRIVER_ORDER_LIST_SELECT = `
   )
 `;
 
+const AVAILABLE_DRIVER_ORDER_SELECT = `
+  id,
+  total,
+  delivery_fee,
+  payment_method,
+  payment_status,
+  order_status,
+  notes,
+  created_at,
+  vendor:vendors(
+    name,
+    city,
+    area,
+    lat,
+    lng
+  )
+`;
+
 export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
   const { data, error } = await supabase
     .from("orders")
-    .select(DRIVER_ORDER_LIST_SELECT)
+    .select(AVAILABLE_DRIVER_ORDER_SELECT)
     .eq("order_status", "ready_for_pickup")
     .is("driver_id", null)
     .order("created_at", { ascending: true });
@@ -425,19 +480,42 @@ export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
   return ((data ?? []) as DriverOrderQueryRow[]).map((order) => mapOrder(order));
 }
 
-export async function listCurrentDriverOrders(driverId: string): Promise<DriverOrder[]> {
+export async function listCurrentDriverOrders(
+  driverId: string
+): Promise<DriverOrder[]> {
   const { data, error } = await supabase
     .from("orders")
     .select(DRIVER_ORDER_LIST_SELECT)
     .eq("driver_id", driverId)
-    .in("order_status", ["assigned", "on_the_way"])
-    .order("created_at", { ascending: false });
+    .in("order_status", ["assigned", "picked_up", "on_the_way"])
+    .order("created_at", { ascending: true });
 
   if (error) {
     throw error;
   }
 
-  return ((data ?? []) as DriverOrderQueryRow[]).map((order) => mapOrder(order));
+  return ((data ?? []) as DriverOrderQueryRow[]).map((order) =>
+    mapOrder(order)
+  );
+}
+
+export async function listDeliveredDriverOrders(
+  driverId: string
+): Promise<DriverOrder[]> {
+  const { data, error } = await supabase
+    .from("orders")
+    .select(DRIVER_ORDER_LIST_SELECT)
+    .eq("driver_id", driverId)
+    .eq("order_status", "delivered")
+    .order("delivered_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as DriverOrderQueryRow[]).map((order) =>
+    mapOrder(order)
+  );
 }
 
 export async function claimAvailableOrder(orderId: string) {

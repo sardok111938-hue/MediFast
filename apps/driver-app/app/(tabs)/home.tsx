@@ -38,7 +38,9 @@ export default function DriverDashboardScreen() {
 
       setSummary({
         availablePickups: availablePickups.length,
-        activeDeliveries: orders.filter((order) => order.orderStatus === "assigned" || order.orderStatus === "on_the_way").length,
+        activeDeliveries: orders.filter((order) =>
+          ["assigned", "picked_up", "on_the_way"].includes(order.orderStatus)
+      ).length,
         latestAssignedAt: orders[0]?.createdAt ?? "",
         nextDelivery: orders[0] ?? null,
       });
