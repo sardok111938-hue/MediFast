@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View, Linking } from "react-native";
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, Screen, SectionTitle } from "../../src/components/CustomerUI";
+import { DEFAULT_DELIVERY_FEE_ESTIMATE } from "../../src/features/checkout/cod-checkout";
 import {
   getPharmacyCategoryProductCount,
   getPharmacyParentCategoriesForProducts,
@@ -216,15 +217,7 @@ const distanceKm = calculateDistanceKm(
 );
 
 const estimatedDeliveryFee =
-  distanceKm === null
-    ? null
-    : distanceKm <= 3
-      ? 3
-      : distanceKm <= 8
-        ? 5
-        : distanceKm <= 15
-          ? 8
-          : 12;
+distanceKm === null ? null : DEFAULT_DELIVERY_FEE_ESTIMATE;
 
   if (loading || productsLoading) {
     return (

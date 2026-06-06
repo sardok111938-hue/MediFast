@@ -2,7 +2,7 @@ import type { CartItem } from "@medifast/types";
 import { calculateDistanceKm } from "../../lib/customer-catalog";
 import { supabase } from "../../lib/supabase";
 
-export const DEFAULT_DELIVERY_FEE_ESTIMATE = 3;
+export const DEFAULT_DELIVERY_FEE_ESTIMATE = 7;
 
 type CheckoutPreviewLocation = {
   address?: { lat?: number | null; lng?: number | null } | null;
