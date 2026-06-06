@@ -1,4 +1,7 @@
-import { formatOrderStatusLabel as formatSharedOrderStatusLabel, formatPaymentStatusLabel as formatSharedPaymentStatusLabel } from "@medifast/i18n";
+import {
+  formatOrderStatusLabel as formatSharedOrderStatusLabel,
+  formatPaymentStatusLabel as formatSharedPaymentStatusLabel,
+} from "@medifast/i18n";
 import { formatCurrencyLYD } from "@medifast/types";
 import { supabase } from "../../lib/supabase";
 
@@ -45,7 +48,11 @@ const statusLabelMap: Record<string, string> = {
   collected: "تم التحصيل",
 };
 
-type SingleRecord<T extends Record<string, unknown>> = T | T[] | null | undefined;
+type SingleRecord<T extends Record<string, unknown>> =
+  | T
+  | T[]
+  | null
+  | undefined;
 
 type CustomerOrderQueryRow = {
   id: unknown;
@@ -58,16 +65,20 @@ type CustomerOrderQueryRow = {
   created_at?: unknown;
   delivered_at?: unknown;
   vendor?: SingleRecord<{ name?: string }>;
-  address?: SingleRecord<{ line_1?: string; lat?: number | null; lng?: number | null }>;
-  driver?: SingleRecord<{
-  vehicle_type?: string | null;
-  current_lat?: number | string | null;
-  current_lng?: number | string | null;
-  profile?: SingleRecord<{
-    full_name?: string;
-    phone?: string | null;
+  address?: SingleRecord<{
+    line_1?: string;
+    lat?: number | null;
+    lng?: number | null;
   }>;
-}>;
+  driver?: SingleRecord<{
+    vehicle_type?: string | null;
+    current_lat?: number | string | null;
+    current_lng?: number | string | null;
+    profile?: SingleRecord<{
+      full_name?: string;
+      phone?: string | null;
+    }>;
+  }>;
   items?: Array<{
     id: unknown;
     quantity?: unknown;
@@ -96,15 +107,24 @@ function readSingle<T extends Record<string, unknown>>(value: SingleRecord<T>) {
   return value ?? null;
 }
 
-function readName(value: SingleRecord<{ full_name?: string }>, fallback: string) {
+function readName(
+  value: SingleRecord<{ full_name?: string }>,
+  fallback: string,
+) {
   return readSingle(value)?.full_name ?? fallback;
 }
 
-function readVendorName(value: SingleRecord<{ name?: string }>, fallback: string) {
+function readVendorName(
+  value: SingleRecord<{ name?: string }>,
+  fallback: string,
+) {
   return readSingle(value)?.name ?? fallback;
 }
 
-function readProductName(value: SingleRecord<{ name?: string }>, fallback: string) {
+function readProductName(
+  value: SingleRecord<{ name?: string }>,
+  fallback: string,
+) {
   return readSingle(value)?.name ?? fallback;
 }
 
@@ -118,7 +138,11 @@ function readOptionalNumber(value: unknown) {
 }
 
 function formatAddress(
-  value: SingleRecord<{ line_1?: string; lat?: number | null; lng?: number | null }>
+  value: SingleRecord<{
+    line_1?: string;
+    lat?: number | null;
+    lng?: number | null;
+  }>,
 ) {
   const address = readSingle(value);
 
@@ -146,23 +170,18 @@ function mapOrder(order: CustomerOrderQueryRow): CustomerOrder {
     orderStatus: String(order.order_status ?? ""),
     createdAt: String(order.created_at ?? ""),
     deliveredAt: order.delivered_at ? String(order.delivered_at) : null,
-    driverName:
-  driverProfile?.full_name?.trim()
-    ? driverProfile.full_name
-    : null,
+    driverName: driverProfile?.full_name?.trim()
+      ? driverProfile.full_name
+      : null,
 
-driverPhone:
-  driverProfile?.phone?.trim()
-    ? driverProfile.phone
-    : null,
+    driverPhone: driverProfile?.phone?.trim() ? driverProfile.phone : null,
 
-driverVehicleType:
-  driver?.vehicle_type?.trim()
-    ? driver.vehicle_type
-    : null,
+    driverVehicleType: driver?.vehicle_type?.trim()
+      ? driver.vehicle_type
+      : null,
     driverLat: readOptionalNumber(driver?.current_lat),
     driverLng: readOptionalNumber(driver?.current_lng),
-    
+
     items: items.map((item) => ({
       id: String(item.id),
       productName: readProductName(item.product, "المنتج"),
@@ -192,20 +211,29 @@ export function formatOrderStatusLabel(value: string) {
   return statusLabelMap[value] ?? formatSharedOrderStatusLabel(value);
 }
 
-export function formatCustomerPaymentStatusLabel(paymentStatus: string, paymentMethod: string) {
+export function formatCustomerPaymentStatusLabel(
+  paymentStatus: string,
+  paymentMethod: string,
+) {
   return formatSharedPaymentStatusLabel(paymentStatus, paymentMethod);
 }
-export function orderStatusTone(status: string): "neutral" | "warning" | "success" | "danger" | "info" {
-  if (status === "delivered" || status === "accepted" || status === "collected") {
+export function orderStatusTone(
+  status: string,
+): "neutral" | "warning" | "success" | "danger" | "info" {
+  if (
+    status === "delivered" ||
+    status === "accepted" ||
+    status === "collected"
+  ) {
     return "success";
   }
 
   if (
-  status === "on_the_way" ||
-  status === "assigned" ||
-  status === "picked_up" ||
-  status === "ready_for_pickup"
-) {
+    status === "on_the_way" ||
+    status === "assigned" ||
+    status === "picked_up" ||
+    status === "ready_for_pickup"
+  ) {
     return "info";
   }
 
@@ -225,7 +253,7 @@ export function isActiveCustomerOrder(order: CustomerOrder) {
 
 export function getTimelineStepState(
   orderStatus: string,
-  step: (typeof customerOrderTimeline)[number]
+  step: (typeof customerOrderTimeline)[number],
 ) {
   if (orderStatus === "pending") {
     return step === "placed" ? "current" : "upcoming";
@@ -236,7 +264,7 @@ export function getTimelineStepState(
   }
 
   const currentIndex = customerOrderTimeline.indexOf(
-    orderStatus as (typeof customerOrderTimeline)[number]
+    orderStatus as (typeof customerOrderTimeline)[number],
   );
 
   const stepIndex = customerOrderTimeline.indexOf(step);
@@ -294,7 +322,7 @@ export function getDeliveryHeadline(order: CustomerOrder) {
     };
   }
 
-    if (order.orderStatus === "picked_up") {
+  if (order.orderStatus === "picked_up") {
     return {
       tone: "info" as const,
       message: order.driverName
@@ -427,7 +455,9 @@ const CUSTOMER_ORDER_SELECT = `
     product:products!order_items_product_id_fkey(name)
   )
 `;
-export async function listCustomerOrders(customerId: string): Promise<CustomerOrder[]> {
+export async function listCustomerOrders(
+  customerId: string,
+): Promise<CustomerOrder[]> {
   const { data, error } = await supabase
     .from("orders")
     .select(CUSTOMER_ORDER_LIST_SELECT)
@@ -438,23 +468,21 @@ export async function listCustomerOrders(customerId: string): Promise<CustomerOr
     throw error;
   }
 
-  return ((data ?? []) as CustomerOrderQueryRow[]).map((order) => mapOrder(order));
+  return ((data ?? []) as CustomerOrderQueryRow[]).map((order) =>
+    mapOrder(order),
+  );
 }
 
-export async function getCustomerOrder(customerId: string, orderId: string): Promise<CustomerOrder | null> {
-  console.log("CUSTOMER ORDER IDS", { customerId, orderId });
-
+export async function getCustomerOrder(
+  customerId: string,
+  orderId: string,
+): Promise<CustomerOrder | null> {
   const { data, error } = await supabase
     .from("orders")
     .select(CUSTOMER_ORDER_SELECT)
     .eq("id", orderId)
     .eq("customer_id", customerId)
     .maybeSingle();
-
-  console.log(
-    "ORDER DRIVER TEST",
-    JSON.stringify({ data, error }, null, 2)
-  );
 
   if (error) {
     throw error;

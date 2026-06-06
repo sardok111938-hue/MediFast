@@ -675,6 +675,9 @@ export async function loadActiveVendors() {
       name,
        is_active,
        approval_status,
+       lat,
+       lng,
+       delivery_radius_km,
        vendor_operating_hours (
        day_of_week,
        opens_at,
