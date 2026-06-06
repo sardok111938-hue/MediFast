@@ -210,7 +210,8 @@ const categoryVisuals: Record<
       text: "#512633",
     },
     gradient: ["#FFF9FA", "#FBE3EA"],
-    fallbackImage: "https://placehold.co/800x600/FFF5F7/B84E6A?text=Mother+Baby",
+    fallbackImage:
+      "https://placehold.co/800x600/FFF5F7/B84E6A?text=Mother+Baby",
     subtitle: "رعاية الأم والطفل بلطف ووضوح",
   },
   "vitamins-nutrition": {
@@ -233,13 +234,15 @@ function normalizeSlug(slug?: string | null) {
 }
 
 function getVisualForSlug(slug?: string | null) {
-  return categoryVisuals[normalizeSlug(slug)] ?? {
-    icon: "grid-outline",
-    theme: defaultCategoryTheme,
-    gradient: ["#F8FCF9", "#E4F4EA"] as const,
-    fallbackImage: "https://placehold.co/800x600/F8FCF9/127244?text=MediFast",
-    subtitle: "منتجات صيدلية منظمة حسب احتياجك",
-  };
+  return (
+    categoryVisuals[normalizeSlug(slug)] ?? {
+      icon: "grid-outline",
+      theme: defaultCategoryTheme,
+      gradient: ["#F8FCF9", "#E4F4EA"] as const,
+      fallbackImage: "https://placehold.co/800x600/F8FCF9/127244?text=MediFast",
+      subtitle: "منتجات صيدلية منظمة حسب احتياجك",
+    }
+  );
 }
 
 export function getCategoryIcon(slug?: string | null) {
@@ -281,7 +284,9 @@ function getLibyaDateParts() {
 
   const weekday = parts.find((part) => part.type === "weekday")?.value;
   const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
-  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  const minute = Number(
+    parts.find((part) => part.type === "minute")?.value ?? 0,
+  );
 
   const dayByLabel: Record<string, number> = {
     Sun: 0,
@@ -357,22 +362,29 @@ function mapVendor(vendor: QueryVendor): Vendor {
     id: vendor.id,
     name: vendor.name,
     phone: vendor.phone ?? null,
-    address: [vendor.address_line_1, vendor.address_line_2, vendor.area, vendor.city].filter(Boolean).join("، "),
+    address: [
+      vendor.address_line_1,
+      vendor.address_line_2,
+      vendor.area,
+      vendor.city,
+    ]
+      .filter(Boolean)
+      .join("، "),
     rating: 0,
     eta_minutes: 0,
     is_open:
-      Boolean(vendor.is_active) &&
-      isVendorOpen(vendor.vendor_operating_hours),
-      image_url: vendor.image_url ?? null,
-      lat: vendor.lat ?? null,
-      lng: vendor.lng ?? null,
-      delivery_radius_km: vendor.delivery_radius_km ?? null,
-      operating_hours: vendor.vendor_operating_hours?.map((hour) => ({
-      day_of_week: hour.day_of_week,
-      opens_at: hour.opens_at ?? null,
-      closes_at: hour.closes_at ?? null,
-      is_closed: Boolean(hour.is_closed),
-    })) ?? [],
+      Boolean(vendor.is_active) && isVendorOpen(vendor.vendor_operating_hours),
+    image_url: vendor.image_url ?? null,
+    lat: vendor.lat ?? null,
+    lng: vendor.lng ?? null,
+    delivery_radius_km: vendor.delivery_radius_km ?? null,
+    operating_hours:
+      vendor.vendor_operating_hours?.map((hour) => ({
+        day_of_week: hour.day_of_week,
+        opens_at: hour.opens_at ?? null,
+        closes_at: hour.closes_at ?? null,
+        is_closed: Boolean(hour.is_closed),
+      })) ?? [],
   };
 }
 
@@ -385,9 +397,7 @@ function mapProduct(product: QueryProduct): Product {
     description: String(product.description ?? ""),
     price: Number(product.price ?? 0),
     image_url:
-  product.display_image_url?.trim() ||
-  product.image_url?.trim() ||
-  "",
+      product.display_image_url?.trim() || product.image_url?.trim() || "",
     barcode: product.barcode ?? null,
     stock_quantity: Number(product.stock_quantity ?? 0),
     is_active: Boolean(product.is_active),
@@ -460,23 +470,16 @@ export function groupProductsByMarketplaceListing(
       continue;
     }
 
-    existing.lowestPrice = Math.min(
-      existing.lowestPrice,
-      product.price,
-    );
+    existing.lowestPrice = Math.min(existing.lowestPrice, product.price);
 
-    existing.highestPrice = Math.max(
-      existing.highestPrice,
-      product.price,
-    );
+    existing.highestPrice = Math.max(existing.highestPrice, product.price);
 
     existing.offers.push({
       product,
       vendor,
     });
 
-    existing.pharmaciesCount =
-      existing.offers.length;
+    existing.pharmaciesCount = existing.offers.length;
 
     if (!existing.image_url && product.image_url) {
       existing.image_url = product.image_url;
@@ -484,13 +487,15 @@ export function groupProductsByMarketplaceListing(
   }
 
   return [...grouped.values()].sort(
-    (left, right) =>
-      left.lowestPrice - right.lowestPrice,
+    (left, right) => left.lowestPrice - right.lowestPrice,
   );
 }
 
-async function loadCustomerAddresses(): Promise<Pick<CustomerCatalogData, "addresses" | "defaultAddressId">> {
-  const { data: customerId, error: customerError } = await supabase.rpc("get_customer_id");
+async function loadCustomerAddresses(): Promise<
+  Pick<CustomerCatalogData, "addresses" | "defaultAddressId">
+> {
+  const { data: customerId, error: customerError } =
+    await supabase.rpc("get_customer_id");
 
   if (customerError) {
     throw customerError;
@@ -504,8 +509,16 @@ async function loadCustomerAddresses(): Promise<Pick<CustomerCatalogData, "addre
   }
 
   const [customerResult, addressesResult] = await Promise.all([
-    supabase.from("customers").select("default_address_id").eq("id", String(customerId)).maybeSingle(),
-    supabase.from("addresses").select("id, customer_id, line_1, lat, lng, created_at").eq("customer_id", String(customerId)).order("created_at", { ascending: true }),
+    supabase
+      .from("customers")
+      .select("default_address_id")
+      .eq("id", String(customerId))
+      .maybeSingle(),
+    supabase
+      .from("addresses")
+      .select("id, customer_id, line_1, lat, lng, created_at")
+      .eq("customer_id", String(customerId))
+      .order("created_at", { ascending: true }),
   ]);
 
   if (customerResult.error) {
@@ -516,13 +529,22 @@ async function loadCustomerAddresses(): Promise<Pick<CustomerCatalogData, "addre
     throw addressesResult.error;
   }
 
-  const customerAddressState = customerResult.data as QueryCustomerAddressState | null;
-  const defaultAddressId = customerAddressState?.default_address_id ? String(customerAddressState.default_address_id) : null;
-  const addresses = ((addressesResult.data ?? []) as QueryAddress[]).map(mapAddress);
+  const customerAddressState =
+    customerResult.data as QueryCustomerAddressState | null;
+  const defaultAddressId = customerAddressState?.default_address_id
+    ? String(customerAddressState.default_address_id)
+    : null;
+  const addresses = ((addressesResult.data ?? []) as QueryAddress[]).map(
+    mapAddress,
+  );
 
   return {
     defaultAddressId,
-    addresses: addresses.sort((left, right) => Number(right.id === defaultAddressId) - Number(left.id === defaultAddressId)),
+    addresses: addresses.sort(
+      (left, right) =>
+        Number(right.id === defaultAddressId) -
+        Number(left.id === defaultAddressId),
+    ),
   };
 }
 
@@ -547,7 +569,7 @@ export function useCustomerAddressesData() {
       setError(
         nextError instanceof Error
           ? nextError.message
-          : "تعذر تحميل العناوين الآن."
+          : "تعذر تحميل العناوين الآن.",
       );
     } finally {
       setLoading(false);
@@ -574,13 +596,16 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
   const [categoriesResult, vendorsResult, addressData] = await Promise.all([
     supabase
       .from("categories")
-      .select("id, name, name_ar, icon, parent_id, slug, sort_order, image_url, is_active")
+      .select(
+        "id, name, name_ar, icon, parent_id, slug, sort_order, image_url, is_active",
+      )
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase
       .from("vendors")
-.select(`
+      .select(
+        `
   id,
   name,
   phone,
@@ -600,7 +625,8 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
     closes_at,
     is_closed
   )
-`)
+`,
+      )
       .eq("is_active", true)
       .eq("approval_status", "approved"),
     loadCustomerAddresses(),
@@ -610,7 +636,9 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
     throw categoriesResult.error ?? vendorsResult.error;
   }
 
-  const categories = ((categoriesResult.data ?? []) as QueryCategory[]).map(mapCategory);
+  const categories = ((categoriesResult.data ?? []) as QueryCategory[]).map(
+    mapCategory,
+  );
   const categoryIds = new Set(categories.map((category) => category.id));
   const vendors = ((vendorsResult.data ?? []) as QueryVendor[]).map(mapVendor);
   const activeVendorIds = vendors.map((vendor) => vendor.id);
@@ -620,20 +648,25 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
   if (activeVendorIds.length > 0) {
     const { data: productsData, error: productsError } = await supabase
       .from("products_with_global_images")
-      .select("id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active")
+      .select(
+        "id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+      )
       .eq("is_active", true)
       .gt("stock_quantity", 0)
       .in("vendor_id", activeVendorIds)
       .order("created_at", { ascending: false })
-.limit(80);
+      .limit(80);
 
     if (productsError) {
       throw productsError;
     }
 
     products = ((productsData ?? []) as QueryProduct[])
-  .filter((product) => !product.category_id || categoryIds.has(String(product.category_id)))
-  .map(mapProduct);
+      .filter(
+        (product) =>
+          !product.category_id || categoryIds.has(String(product.category_id)),
+      )
+      .map(mapProduct);
   }
 
   return {
@@ -653,7 +686,9 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
   const { data, error } = await supabase
     .from("products_with_global_images")
-    .select("id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active")
+    .select(
+      "id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+    )
     .eq("is_active", true)
     .gt("stock_quantity", 0)
     .or(`name.ilike.%${term}%,barcode.ilike.%${term}%`)
@@ -670,7 +705,8 @@ export async function searchProducts(query: string): Promise<Product[]> {
 export async function loadActiveVendors() {
   const { data, error } = await supabase
     .from("vendors")
-    .select(`
+    .select(
+      `
       id,
       name,
        is_active,
@@ -684,7 +720,8 @@ export async function loadActiveVendors() {
        closes_at,
        is_closed
       )
-    `)
+    `,
+    )
     .eq("approval_status", "approved")
     .eq("is_active", true);
 
@@ -710,7 +747,7 @@ export function useCustomerVendors() {
       setError(
         nextError instanceof Error
           ? nextError.message
-          : "تعذر تحميل الصيدليات."
+          : "تعذر تحميل الصيدليات.",
       );
     } finally {
       setLoading(false);
@@ -736,7 +773,9 @@ export async function loadVendorProducts(vendorId: string): Promise<Product[]> {
 
   const { data, error } = await supabase
     .from("products_with_global_images")
-    .select("id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active")
+    .select(
+      "id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+    )
     .eq("is_active", true)
     .gt("stock_quantity", 0)
     .eq("vendor_id", vendorId)
@@ -759,7 +798,9 @@ export async function loadCategoryProducts(
 
   let query = supabase
     .from("products_with_global_images")
-    .select("id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active")
+    .select(
+      "id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+    )
     .eq("is_active", true)
     .gt("stock_quantity", 0)
     .in("category_id", categoryIds)
@@ -798,7 +839,11 @@ export function useCustomerCatalogData() {
     try {
       setData(await loadCustomerCatalogData());
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "تعذر تحميل بيانات المتجر الآن.");
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "تعذر تحميل بيانات المتجر الآن.",
+      );
     } finally {
       setLoading(false);
     }
@@ -816,17 +861,20 @@ export function useCustomerCatalogData() {
   };
 }
 
-export function getFeaturedProducts(
-  groupedProducts: GroupedProduct[],
-) {
+export function getFeaturedProducts(groupedProducts: GroupedProduct[]) {
   return groupedProducts.slice(0, 4);
 }
 
 export function getPopularProducts(products: Product[]) {
-  return [...products].sort((left, right) => right.stock_quantity - left.stock_quantity);
+  return [...products].sort(
+    (left, right) => right.stock_quantity - left.stock_quantity,
+  );
 }
 
-export function getPrimaryAddress(addresses: Address[], defaultAddressId?: string | null) {
+export function getPrimaryAddress(
+  addresses: Address[],
+  defaultAddressId?: string | null,
+) {
   if (!defaultAddressId) {
     return null;
   }
@@ -842,7 +890,9 @@ export function formatSavedAddressLine(address: Pick<Address, "line_1">) {
   return address.line_1;
 }
 
-export function hasSavedAddressCoordinates(address: Pick<Address, "lat" | "lng">) {
+export function hasSavedAddressCoordinates(
+  address: Pick<Address, "lat" | "lng">,
+) {
   return typeof address.lat === "number" && typeof address.lng === "number";
 }
 
@@ -859,7 +909,12 @@ export function calculateDistanceKm(
   const toLat = readCoordinate(to?.lat ?? null);
   const toLng = readCoordinate(to?.lng ?? null);
 
-  if (fromLat === null || fromLng === null || toLat === null || toLng === null) {
+  if (
+    fromLat === null ||
+    fromLng === null ||
+    toLat === null ||
+    toLng === null
+  ) {
     return null;
   }
 
@@ -902,7 +957,10 @@ export function isVendorWithinDeliveryRadius(
   return distanceKm <= Number(vendor?.delivery_radius_km ?? 15);
 }
 
-export function getCategoryById(categories: Category[], categoryId?: string | null) {
+export function getCategoryById(
+  categories: Category[],
+  categoryId?: string | null,
+) {
   if (!categoryId) {
     return null;
   }
@@ -945,7 +1003,10 @@ function toPharmacySubcategory(category: Category): PharmacySubcategory {
   };
 }
 
-function toPharmacyParentCategory(category: Category, childCategoriesByParentId: Map<string, Category[]>): PharmacyParentCategory {
+function toPharmacyParentCategory(
+  category: Category,
+  childCategoriesByParentId: Map<string, Category[]>,
+): PharmacyParentCategory {
   return {
     id: category.id,
     label: getCategoryDisplayLabel(category),
@@ -953,19 +1014,27 @@ function toPharmacyParentCategory(category: Category, childCategoriesByParentId:
     imageUrl: category.image_url ?? getCategoryFallbackImage(category.slug),
     sortOrder: getCategorySortOrder(category),
     category,
-    subcategories: (childCategoriesByParentId.get(category.id) ?? []).map(toPharmacySubcategory),
+    subcategories: (childCategoriesByParentId.get(category.id) ?? []).map(
+      toPharmacySubcategory,
+    ),
   };
 }
 
 function sortCategoriesByDisplayOrder(left: Category, right: Category) {
-  return getCategorySortOrder(left) - getCategorySortOrder(right) || getCategoryLabel(left).localeCompare(getCategoryLabel(right), "ar");
+  return (
+    getCategorySortOrder(left) - getCategorySortOrder(right) ||
+    getCategoryLabel(left).localeCompare(getCategoryLabel(right), "ar")
+  );
 }
 
 function isActiveCategory(category: Category) {
   return category.is_active !== false;
 }
 
-function buildCategoryAndDescendantIds(categoryId: string, childCategoriesByParentId: Map<string, Category[]>) {
+function buildCategoryAndDescendantIds(
+  categoryId: string,
+  childCategoriesByParentId: Map<string, Category[]>,
+) {
   const ids = new Set<string>([categoryId]);
   const stack = [...(childCategoriesByParentId.get(categoryId) ?? [])];
 
@@ -983,9 +1052,15 @@ function buildCategoryAndDescendantIds(categoryId: string, childCategoriesByPare
   return ids;
 }
 
-export function buildPharmacyCategoryTree(categories: Category[]): PharmacyCategoryTree {
-  const activeCategories = categories.filter(isActiveCategory).sort(sortCategoriesByDisplayOrder);
-  const categoryById = new Map(activeCategories.map((category) => [category.id, category]));
+export function buildPharmacyCategoryTree(
+  categories: Category[],
+): PharmacyCategoryTree {
+  const activeCategories = categories
+    .filter(isActiveCategory)
+    .sort(sortCategoriesByDisplayOrder);
+  const categoryById = new Map(
+    activeCategories.map((category) => [category.id, category]),
+  );
   const childCategoriesByParentId = new Map<string, Category[]>();
 
   for (const category of activeCategories) {
@@ -1002,15 +1077,22 @@ export function buildPharmacyCategoryTree(categories: Category[]): PharmacyCateg
     children.sort(sortCategoriesByDisplayOrder);
   }
 
-  const parentCategories = activeCategories.filter((category) => !category.parent_id);
+  const parentCategories = activeCategories.filter(
+    (category) => !category.parent_id,
+  );
   const categoryAndDescendantIdsById = new Map<string, Set<string>>();
 
   for (const category of activeCategories) {
-    categoryAndDescendantIdsById.set(category.id, buildCategoryAndDescendantIds(category.id, childCategoriesByParentId));
+    categoryAndDescendantIdsById.set(
+      category.id,
+      buildCategoryAndDescendantIds(category.id, childCategoriesByParentId),
+    );
   }
 
   return {
-    parents: parentCategories.map((category) => toPharmacyParentCategory(category, childCategoriesByParentId)),
+    parents: parentCategories.map((category) =>
+      toPharmacyParentCategory(category, childCategoriesByParentId),
+    ),
     categoryById,
     childCategoriesByParentId,
     categoryAndDescendantIdsById,
@@ -1018,18 +1100,30 @@ export function buildPharmacyCategoryTree(categories: Category[]): PharmacyCateg
 }
 
 export function getParentCategories(categories: Category[]) {
-  return buildPharmacyCategoryTree(categories).parents.map((parentCategory) => parentCategory.category);
+  return buildPharmacyCategoryTree(categories).parents.map(
+    (parentCategory) => parentCategory.category,
+  );
 }
 
-export function getSubcategoriesForParent(categories: Category[], parentCategoryId?: string | null) {
+export function getSubcategoriesForParent(
+  categories: Category[],
+  parentCategoryId?: string | null,
+) {
   if (!parentCategoryId) {
     return [];
   }
 
-  return buildPharmacyCategoryTree(categories).childCategoriesByParentId.get(parentCategoryId) ?? [];
+  return (
+    buildPharmacyCategoryTree(categories).childCategoriesByParentId.get(
+      parentCategoryId,
+    ) ?? []
+  );
 }
 
-export function getPharmacyParentCategoryById(categories: Category[], categoryId?: string | null) {
+export function getPharmacyParentCategoryById(
+  categories: Category[],
+  categoryId?: string | null,
+) {
   if (!categoryId) {
     return null;
   }
@@ -1041,20 +1135,33 @@ export function getPharmacyParentCategoryById(categories: Category[], categoryId
     return null;
   }
 
-  const parentCategory = category.parent_id ? tree.categoryById.get(category.parent_id) : category;
+  const parentCategory = category.parent_id
+    ? tree.categoryById.get(category.parent_id)
+    : category;
 
-  return parentCategory ? toPharmacyParentCategory(parentCategory, tree.childCategoriesByParentId) : null;
+  return parentCategory
+    ? toPharmacyParentCategory(parentCategory, tree.childCategoriesByParentId)
+    : null;
 }
 
-export function getPharmacySubcategoryById(parentCategory: PharmacyParentCategory, subcategoryId?: string | null) {
+export function getPharmacySubcategoryById(
+  parentCategory: PharmacyParentCategory,
+  subcategoryId?: string | null,
+) {
   if (!subcategoryId) {
     return null;
   }
 
-  return parentCategory.subcategories.find((subcategory) => subcategory.id === subcategoryId) ?? null;
+  return (
+    parentCategory.subcategories.find(
+      (subcategory) => subcategory.id === subcategoryId,
+    ) ?? null
+  );
 }
 
-export function getCategoryDisplayLabel(category: Pick<Category, "name" | "name_ar" | "slug">) {
+export function getCategoryDisplayLabel(
+  category: Pick<Category, "name" | "name_ar" | "slug">,
+) {
   const slug = normalizeSlug(category.slug);
 
   if (slug.endsWith("-other")) {
@@ -1064,7 +1171,10 @@ export function getCategoryDisplayLabel(category: Pick<Category, "name" | "name_
   return getCategoryLabel(category);
 }
 
-export function getProductCategoryBadgeLabel(categories: Category[], categoryId?: string | null) {
+export function getProductCategoryBadgeLabel(
+  categories: Category[],
+  categoryId?: string | null,
+) {
   const category = getCategoryById(categories, categoryId);
 
   if (!category) {
@@ -1074,7 +1184,10 @@ export function getProductCategoryBadgeLabel(categories: Category[], categoryId?
   return getCategoryDisplayLabel(category);
 }
 
-export function getCategoryPathLabel(categories: Category[], categoryId?: string | null) {
+export function getCategoryPathLabel(
+  categories: Category[],
+  categoryId?: string | null,
+) {
   const category = getCategoryById(categories, categoryId);
 
   if (!category) {
@@ -1087,17 +1200,29 @@ export function getCategoryPathLabel(categories: Category[], categoryId?: string
 
   const parentCategory = getCategoryById(categories, category.parent_id);
 
-  return parentCategory ? `${getCategoryDisplayLabel(parentCategory)} ← ${getCategoryDisplayLabel(category)}` : getCategoryDisplayLabel(category);
+  return parentCategory
+    ? `${getCategoryDisplayLabel(parentCategory)} ← ${getCategoryDisplayLabel(category)}`
+    : getCategoryDisplayLabel(category);
 }
 
-export function productMatchesPharmacyParentCategory(product: Product, categories: Category[], parentCategory: PharmacyParentCategory) {
+export function productMatchesPharmacyParentCategory(
+  product: Product,
+  categories: Category[],
+  parentCategory: PharmacyParentCategory,
+) {
   const tree = buildPharmacyCategoryTree(categories);
-  const categoryIds = tree.categoryAndDescendantIdsById.get(parentCategory.id) ?? new Set([parentCategory.id]);
+  const categoryIds =
+    tree.categoryAndDescendantIdsById.get(parentCategory.id) ??
+    new Set([parentCategory.id]);
 
   return categoryIds.has(product.category_id);
 }
 
-export function productMatchesPharmacySubcategory(product: Product, categories: Category[], subcategory: PharmacySubcategory) {
+export function productMatchesPharmacySubcategory(
+  product: Product,
+  categories: Category[],
+  subcategory: PharmacySubcategory,
+) {
   void categories;
   return product.category_id === subcategory.id;
 }
@@ -1108,54 +1233,99 @@ export function getProductsForPharmacyParentCategory(
   parentCategoryId?: string | null,
   subcategoryId?: string | null,
 ) {
-  const parentCategory = getPharmacyParentCategoryById(categories, parentCategoryId);
+  const parentCategory = getPharmacyParentCategoryById(
+    categories,
+    parentCategoryId,
+  );
 
   if (!parentCategory) {
     return [];
   }
 
   const tree = buildPharmacyCategoryTree(categories);
-  const categoryIds = tree.categoryAndDescendantIdsById.get(parentCategory.id) ?? new Set([parentCategory.id]);
-  const parentProducts = products.filter((product) => categoryIds.has(product.category_id));
+  const categoryIds =
+    tree.categoryAndDescendantIdsById.get(parentCategory.id) ??
+    new Set([parentCategory.id]);
+  const parentProducts = products.filter((product) =>
+    categoryIds.has(product.category_id),
+  );
   const subcategory = getPharmacySubcategoryById(parentCategory, subcategoryId);
 
   if (!subcategory) {
     return parentProducts;
   }
 
-  return parentProducts.filter((product) => productMatchesPharmacySubcategory(product, categories, subcategory));
+  return parentProducts.filter((product) =>
+    productMatchesPharmacySubcategory(product, categories, subcategory),
+  );
 }
 
-export function getPharmacyParentCategoriesForProducts(products: Product[], categories: Category[]) {
+export function getPharmacyParentCategoriesForProducts(
+  products: Product[],
+  categories: Category[],
+) {
   const tree = buildPharmacyCategoryTree(categories);
 
   return tree.parents.filter((parentCategory) => {
-    const categoryIds = tree.categoryAndDescendantIdsById.get(parentCategory.id) ?? new Set([parentCategory.id]);
+    const categoryIds =
+      tree.categoryAndDescendantIdsById.get(parentCategory.id) ??
+      new Set([parentCategory.id]);
 
     return products.some((product) => categoryIds.has(product.category_id));
   });
 }
 
-export function getPharmacyCategoryProductCount(products: Product[], categories: Category[], parentCategoryId: string) {
-  return getProductsForPharmacyParentCategory(products, categories, parentCategoryId).length;
+export function getPharmacyCategoryProductCount(
+  products: Product[],
+  categories: Category[],
+  parentCategoryId: string,
+) {
+  return getProductsForPharmacyParentCategory(
+    products,
+    categories,
+    parentCategoryId,
+  ).length;
 }
 
-export function getPharmacyCategoryImage(products: Product[], categories: Category[], parentCategoryId: string) {
+export function getPharmacyCategoryImage(
+  products: Product[],
+  categories: Category[],
+  parentCategoryId: string,
+) {
   const category = getCategoryById(categories, parentCategoryId);
-  return category?.image_url ?? getProductsForPharmacyParentCategory(products, categories, parentCategoryId).find((product) => product.image_url)?.image_url ?? getCategoryFallbackImage(category?.slug);
+  return (
+    category?.image_url ??
+    getProductsForPharmacyParentCategory(
+      products,
+      categories,
+      parentCategoryId,
+    ).find((product) => product.image_url)?.image_url ??
+    getCategoryFallbackImage(category?.slug)
+  );
 }
 
-export function filterProducts(products: Product[], input: { categories?: Category[]; categoryId?: string | null; query?: string | null }) {
+export function filterProducts(
+  products: Product[],
+  input: {
+    categories?: Category[];
+    categoryId?: string | null;
+    query?: string | null;
+  },
+) {
   const normalizedQuery = normalizeQuery(input.query ?? "");
   const categoryIds =
     input.categoryId && input.categories
-      ? (buildPharmacyCategoryTree(input.categories).categoryAndDescendantIdsById.get(input.categoryId) ?? new Set([input.categoryId]))
+      ? (buildPharmacyCategoryTree(
+          input.categories,
+        ).categoryAndDescendantIdsById.get(input.categoryId) ??
+        new Set([input.categoryId]))
       : input.categoryId
         ? new Set([input.categoryId])
         : null;
 
   return products.filter((product) => {
-    const matchesCategory = !categoryIds || categoryIds.has(product.category_id);
+    const matchesCategory =
+      !categoryIds || categoryIds.has(product.category_id);
     const matchesQuery =
       !normalizedQuery ||
       normalizeQuery(product.name).includes(normalizedQuery);
@@ -1176,26 +1346,21 @@ export function filterGroupedProducts(
 
   const categoryIds =
     input.categoryId && input.categories
-      ? (
-          buildPharmacyCategoryTree(input.categories)
-            .categoryAndDescendantIdsById.get(
-              input.categoryId,
-            ) ?? new Set([input.categoryId])
-        )
+      ? (buildPharmacyCategoryTree(
+          input.categories,
+        ).categoryAndDescendantIdsById.get(input.categoryId) ??
+        new Set([input.categoryId]))
       : input.categoryId
         ? new Set([input.categoryId])
         : null;
 
   return groupedProducts.filter((product) => {
     const matchesCategory =
-      !categoryIds ||
-      categoryIds.has(product.category_id);
+      !categoryIds || categoryIds.has(product.category_id);
 
     const matchesQuery =
       !normalizedQuery ||
-      normalizeQuery(product.name).includes(
-        normalizedQuery,
-      );
+      normalizeQuery(product.name).includes(normalizedQuery);
 
     return matchesCategory && matchesQuery;
   });
@@ -1212,10 +1377,17 @@ export function getGroupedProductById(
   return groupedProducts.find((product) => product.id === groupId) ?? null;
 }
 
-export function useFilteredProducts(input: { categoryId?: string | null; query?: string | null }) {
+export function useFilteredProducts(input: {
+  categoryId?: string | null;
+  query?: string | null;
+}) {
   const { data } = useCustomerCatalogData();
 
-  return useMemo(() => filterProducts(data.products, { ...input, categories: data.categories }), [data.categories, data.products, input]);
+  return useMemo(
+    () =>
+      filterProducts(data.products, { ...input, categories: data.categories }),
+    [data.categories, data.products, input],
+  );
 }
 
 export function useGroupedCustomerProducts() {
@@ -1303,12 +1475,10 @@ export async function toggleFavouriteVendor(vendorId: string) {
     return false;
   }
 
-  const { error } = await supabase
-    .from("customer_favorite_vendors")
-    .insert({
-      customer_id: customerId,
-      vendor_id: vendorId,
-    });
+  const { error } = await supabase.from("customer_favorite_vendors").insert({
+    customer_id: customerId,
+    vendor_id: vendorId,
+  });
 
   if (error) {
     throw error;
