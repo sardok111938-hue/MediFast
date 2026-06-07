@@ -18,7 +18,6 @@ import {
   DriverStatusSummaryCard,
 } from "../../src/components/home";
 import {
-  formatDate,
   getStatusLabel,
   listAvailablePickupOrders,
   listCurrentDriverOrders,
@@ -38,11 +37,13 @@ export default function DriverDashboardScreen() {
     activeDeliveries: number;
     latestAssignedAt: string;
     nextDelivery: DriverOrder | null;
+    activeOrders: DriverOrder[];
   }>({
     availablePickups: 0,
     activeDeliveries: 0,
     latestAssignedAt: "",
     nextDelivery: null,
+    activeOrders: [],
   });
   const [countsLoading, setCountsLoading] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
@@ -94,6 +95,7 @@ export default function DriverDashboardScreen() {
         activeDeliveries: activeOrders.length,
         latestAssignedAt: sortedActiveOrders[0]?.createdAt ?? "",
         nextDelivery: sortedActiveOrders[0] ?? null,
+        activeOrders: sortedActiveOrders,
       });
     } finally {
       setCountsLoading(false);
@@ -151,9 +153,7 @@ export default function DriverDashboardScreen() {
   }
 
   const nextDelivery = summary.nextDelivery;
-  const freshnessText = summary.latestAssignedAt
-    ? `آخر توصيل ${formatDate(summary.latestAssignedAt)}`
-    : "محدّث الآن";
+  const hasMultipleDeliveries = summary.activeOrders.length > 1;
 
   return (
     <DriverScreen>
@@ -202,26 +202,74 @@ export default function DriverDashboardScreen() {
           />
 
           {nextDelivery ? (
-            <DriverOrderCard
-              vendorName={nextDelivery.vendorName}
-              customerName={nextDelivery.customerName}
-              orderRef={`طلب ${shortOrderRef(nextDelivery.id)}`}
-              statusLabel={getStatusLabel(nextDelivery.orderStatus)}
-              statusTone={statusTone(nextDelivery.orderStatus)}
-              pickupAddress={nextDelivery.pickupAddress}
-              dropoffAddress={nextDelivery.dropoffAddress}
-              action={
-                <DriverHomeDeliveryAction
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(tabs)/orders/[orderId]",
-                      params: { orderId: nextDelivery.id },
-                    })
-                  }
-                />
-              }
-              compact
-            />
+            hasMultipleDeliveries ? (
+              <Pressable
+                style={styles.batchCard}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/orders",
+                  })
+                }
+              >
+                <View style={styles.batchTopRow}>
+                  <View style={styles.batchIcon}>
+                    <Ionicons
+                      name="layers-outline"
+                      size={20}
+                      color={theme.colors.primaryDark}
+                    />
+                  </View>
+
+                  <View style={styles.batchTextWrap}>
+                    <Text style={styles.batchTitle}>
+                      لديك {summary.activeOrders.length} توصيلات نشطة
+                    </Text>
+                    <Text style={styles.batchSubtitle}>
+                      الأقرب: طلب {shortOrderRef(nextDelivery.id)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.batchRouteBox}>
+                  <Text style={styles.batchRouteText} numberOfLines={1}>
+                    {nextDelivery.vendorName} → {nextDelivery.customerName}
+                  </Text>
+                  <Text style={styles.batchAddressText} numberOfLines={1}>
+                    {nextDelivery.dropoffAddress}
+                  </Text>
+                </View>
+
+                <View style={styles.batchActionRow}>
+                  <Text style={styles.batchActionText}>عرض جميع التوصيلات</Text>
+                  <Ionicons
+                    name="chevron-back"
+                    size={16}
+                    color={theme.colors.primaryDark}
+                  />
+                </View>
+              </Pressable>
+            ) : (
+              <DriverOrderCard
+                vendorName={nextDelivery.vendorName}
+                customerName={nextDelivery.customerName}
+                orderRef={`طلب ${shortOrderRef(nextDelivery.id)}`}
+                statusLabel={getStatusLabel(nextDelivery.orderStatus)}
+                statusTone={statusTone(nextDelivery.orderStatus)}
+                pickupAddress={nextDelivery.pickupAddress}
+                dropoffAddress={nextDelivery.dropoffAddress}
+                action={
+                  <DriverHomeDeliveryAction
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(tabs)/orders/[orderId]",
+                        params: { orderId: nextDelivery.id },
+                      })
+                    }
+                  />
+                }
+                compact
+              />
+            )
           ) : (
             <DriverReadyStateCard availablePickups={summary.availablePickups} />
           )}
@@ -263,6 +311,72 @@ const styles = StyleSheet.create({
   notificationBadgeText: {
     color: "#FFFFFF",
     fontSize: 10,
+    fontWeight: "900",
+  },
+  batchCard: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: "#E4EEE8",
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing[16],
+    gap: theme.spacing[12],
+  },
+  batchTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[12],
+  },
+  batchIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EEF7F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  batchTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  batchTitle: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body.lg,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  batchSubtitle: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  batchRouteBox: {
+    backgroundColor: "#F8FAF9",
+    borderRadius: theme.radius.md,
+    padding: theme.spacing[12],
+    gap: 4,
+  },
+  batchRouteText: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body.md,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  batchAddressText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  batchActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: theme.spacing[4],
+  },
+  batchActionText: {
+    color: theme.colors.primaryDark,
+    fontSize: theme.typography.body.sm,
     fontWeight: "900",
   },
 });
