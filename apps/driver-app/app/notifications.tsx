@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Pressable,
@@ -20,6 +21,7 @@ type DriverNotification = {
 };
 
 export default function DriverNotificationsScreen() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<DriverNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function DriverNotificationsScreen() {
   return (
     <DriverScreen>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => history.back()}>
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Ionicons
             name="chevron-forward"
             size={20}

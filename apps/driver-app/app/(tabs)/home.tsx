@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-import { DriverErrorCard, DriverLoadingCard, DriverOrderCard, DriverScreen, shortOrderRef } from "../../src/components/DriverUI";
+import { Ionicons } from "@expo/vector-icons";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { theme } from "@medifast/ui";
+import {
+  DriverErrorCard,
+  DriverLoadingCard,
+  DriverOrderCard,
+  DriverScreen,
+  shortOrderRef,
+} from "../../src/components/DriverUI";
 import {
   DriverHomeDeliveryAction,
   DriverHomeMetrics,
@@ -8,7 +17,15 @@ import {
   DriverReadyStateCard,
   DriverStatusSummaryCard,
 } from "../../src/components/home";
-import { formatDate, getStatusLabel, listAvailablePickupOrders, listCurrentDriverOrders, normalizeError, statusTone, type DriverOrder } from "../../src/lib/driver-data";
+import {
+  formatDate,
+  getStatusLabel,
+  listAvailablePickupOrders,
+  listCurrentDriverOrders,
+  normalizeError,
+  statusTone,
+  type DriverOrder,
+} from "../../src/lib/driver-data";
 import { useDriverSession } from "../../src/hooks/use-driver-session";
 
 export default function DriverDashboardScreen() {
@@ -39,8 +56,8 @@ export default function DriverDashboardScreen() {
       setSummary({
         availablePickups: availablePickups.length,
         activeDeliveries: orders.filter((order) =>
-          ["assigned", "picked_up", "on_the_way"].includes(order.orderStatus)
-      ).length,
+          ["assigned", "picked_up", "on_the_way"].includes(order.orderStatus),
+        ).length,
         latestAssignedAt: orders[0]?.createdAt ?? "",
         nextDelivery: orders[0] ?? null,
       });
@@ -64,17 +81,37 @@ export default function DriverDashboardScreen() {
   }
 
   const nextDelivery = summary.nextDelivery;
-  const freshnessText = summary.latestAssignedAt ? `آخر توصيل ${formatDate(summary.latestAssignedAt)}` : "محدّث الآن";
+  const freshnessText = summary.latestAssignedAt
+    ? `آخر توصيل ${formatDate(summary.latestAssignedAt)}`
+    : "محدّث الآن";
 
   return (
-<DriverScreen>
-    {loading ? (
+    <DriverScreen>
+      {loading ? (
         <DriverLoadingCard message="جارٍ تحميل لوحة السائق..." />
       ) : error ? (
         <DriverErrorCard message={error} onRetry={() => void handleRefresh()} />
       ) : (
         <>
-          <DriverStatusSummaryCard driver={driver} countsLoading={countsLoading} freshnessText={freshnessText} />
+          <View style={styles.headerRow}>
+            <Pressable
+              style={styles.notificationButton}
+              onPress={() => router.push("../notifications")}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={18}
+                color={theme.colors.primaryDark}
+              />
+              <Text style={styles.notificationButtonText}>الإشعارات</Text>
+            </Pressable>
+          </View>
+
+          <DriverStatusSummaryCard
+            driver={driver}
+            countsLoading={countsLoading}
+            freshnessText={freshnessText}
+          />
 
           <DriverHomeMetrics
             availablePickups={summary.availablePickups}
@@ -83,7 +120,10 @@ export default function DriverDashboardScreen() {
             loading={countsLoading}
           />
 
-          <DriverHomeSectionHeader hasDelivery={Boolean(nextDelivery)} onRefresh={() => void handleRefresh()} />
+          <DriverHomeSectionHeader
+            hasDelivery={Boolean(nextDelivery)}
+            onRefresh={() => void handleRefresh()}
+          />
 
           {nextDelivery ? (
             <DriverOrderCard
@@ -114,3 +154,25 @@ export default function DriverDashboardScreen() {
     </DriverScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  headerRow: {
+    alignItems: "flex-end",
+  },
+  notificationButton: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+    borderRadius: 17,
+    backgroundColor: "#EEF7F2",
+    borderWidth: 1,
+    borderColor: "#DCE8E1",
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
+  notificationButtonText: {
+    color: theme.colors.primaryDark,
+    fontSize: theme.typography.caption.sm,
+    fontWeight: "800",
+  },
+});
