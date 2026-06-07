@@ -153,7 +153,6 @@ export default function DriverDashboardScreen() {
   }
 
   const nextDelivery = summary.nextDelivery;
-  const hasMultipleDeliveries = summary.activeOrders.length > 1;
 
   return (
     <DriverScreen>
@@ -202,74 +201,26 @@ export default function DriverDashboardScreen() {
           />
 
           {nextDelivery ? (
-            hasMultipleDeliveries ? (
-              <Pressable
-                style={styles.batchCard}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(tabs)/orders",
-                  })
-                }
-              >
-                <View style={styles.batchTopRow}>
-                  <View style={styles.batchIcon}>
-                    <Ionicons
-                      name="layers-outline"
-                      size={20}
-                      color={theme.colors.primaryDark}
-                    />
-                  </View>
-
-                  <View style={styles.batchTextWrap}>
-                    <Text style={styles.batchTitle}>
-                      لديك {summary.activeOrders.length} توصيلات نشطة
-                    </Text>
-                    <Text style={styles.batchSubtitle}>
-                      الأقرب: طلب {shortOrderRef(nextDelivery.id)}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.batchRouteBox}>
-                  <Text style={styles.batchRouteText} numberOfLines={1}>
-                    {nextDelivery.vendorName} → {nextDelivery.customerName}
-                  </Text>
-                  <Text style={styles.batchAddressText} numberOfLines={1}>
-                    {nextDelivery.dropoffAddress}
-                  </Text>
-                </View>
-
-                <View style={styles.batchActionRow}>
-                  <Text style={styles.batchActionText}>عرض جميع التوصيلات</Text>
-                  <Ionicons
-                    name="chevron-back"
-                    size={16}
-                    color={theme.colors.primaryDark}
-                  />
-                </View>
-              </Pressable>
-            ) : (
-              <DriverOrderCard
-                vendorName={nextDelivery.vendorName}
-                customerName={nextDelivery.customerName}
-                orderRef={`طلب ${shortOrderRef(nextDelivery.id)}`}
-                statusLabel={getStatusLabel(nextDelivery.orderStatus)}
-                statusTone={statusTone(nextDelivery.orderStatus)}
-                pickupAddress={nextDelivery.pickupAddress}
-                dropoffAddress={nextDelivery.dropoffAddress}
-                action={
-                  <DriverHomeDeliveryAction
-                    onPress={() =>
-                      router.push({
-                        pathname: "/(tabs)/orders/[orderId]",
-                        params: { orderId: nextDelivery.id },
-                      })
-                    }
-                  />
-                }
-                compact
-              />
-            )
+            <DriverOrderCard
+              vendorName={nextDelivery.vendorName}
+              customerName={nextDelivery.customerName}
+              orderRef={`طلب ${shortOrderRef(nextDelivery.id)}`}
+              statusLabel={getStatusLabel(nextDelivery.orderStatus)}
+              statusTone={statusTone(nextDelivery.orderStatus)}
+              pickupAddress={nextDelivery.pickupAddress}
+              dropoffAddress={nextDelivery.dropoffAddress}
+              action={
+                <DriverHomeDeliveryAction
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(tabs)/orders/[orderId]",
+                      params: { orderId: nextDelivery.id },
+                    })
+                  }
+                />
+              }
+              compact
+            />
           ) : (
             <DriverReadyStateCard availablePickups={summary.availablePickups} />
           )}
