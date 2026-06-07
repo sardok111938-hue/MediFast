@@ -30,6 +30,7 @@ export type CustomerOrder = {
   driverVehicleType: string | null;
   driverLat: number | null;
   driverLng: number | null;
+  prescriptionQuoteId: string | null;
   items: CustomerOrderItem[];
 };
 
@@ -59,6 +60,7 @@ type CustomerOrderQueryRow = {
   total?: unknown;
   delivery_fee?: unknown;
   delivery_distance_km?: unknown;
+  prescription_quote_id?: unknown;
   payment_method?: unknown;
   payment_status?: unknown;
   order_status?: unknown;
@@ -189,6 +191,9 @@ function mapOrder(order: CustomerOrderQueryRow): CustomerOrder {
       unitPrice: Number(item.unit_price ?? 0),
       totalPrice: Number(item.total_price ?? 0),
     })),
+    prescriptionQuoteId: order.prescription_quote_id
+  ? String(order.prescription_quote_id)
+  : null,
   };
 }
 
@@ -201,7 +206,7 @@ export function formatCustomerCurrency(value: number) {
 }
 
 export function formatCustomerDate(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("ar-LY", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -403,6 +408,7 @@ export async function loadCurrentCustomerOrder(orderId: string) {
 
 const CUSTOMER_ORDER_LIST_SELECT = `
   id,
+  prescription_quote_id,
   total,
   delivery_fee,
   payment_method,
@@ -424,6 +430,7 @@ const CUSTOMER_ORDER_LIST_SELECT = `
 
 const CUSTOMER_ORDER_SELECT = `
   id,
+  prescription_quote_id,
   total,
   delivery_fee,
   delivery_distance_km,
