@@ -79,13 +79,21 @@ export default function DriverDashboardScreen() {
         listAvailablePickupOrders(),
       ]);
 
+      const activeOrders = orders.filter((order) =>
+        ["assigned", "picked_up", "on_the_way"].includes(order.orderStatus),
+      );
+
+      const sortedActiveOrders = [...activeOrders].sort(
+        (a, b) =>
+          (a.estimatedDistanceKm ?? Number.POSITIVE_INFINITY) -
+          (b.estimatedDistanceKm ?? Number.POSITIVE_INFINITY),
+      );
+
       setSummary({
         availablePickups: availablePickups.length,
-        activeDeliveries: orders.filter((order) =>
-          ["assigned", "picked_up", "on_the_way"].includes(order.orderStatus),
-        ).length,
-        latestAssignedAt: orders[0]?.createdAt ?? "",
-        nextDelivery: orders[0] ?? null,
+        activeDeliveries: activeOrders.length,
+        latestAssignedAt: sortedActiveOrders[0]?.createdAt ?? "",
+        nextDelivery: sortedActiveOrders[0] ?? null,
       });
     } finally {
       setCountsLoading(false);
@@ -179,14 +187,12 @@ export default function DriverDashboardScreen() {
           </View>
           <DriverStatusSummaryCard
             driver={driver}
-            countsLoading={countsLoading}
-            freshnessText={freshnessText}
+            isBusy={summary.activeDeliveries > 0}
           />
 
           <DriverHomeMetrics
             availablePickups={summary.availablePickups}
             activeDeliveries={summary.activeDeliveries}
-            isAvailable={driver?.isAvailable}
             loading={countsLoading}
           />
 

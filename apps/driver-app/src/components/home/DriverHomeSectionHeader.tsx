@@ -15,11 +15,26 @@ export function DriverHomeSectionHeader({
   return (
     <View style={[styles.sectionLine, isRTL ? styles.rowReverse : null]}>
       <View style={[styles.sectionTitleWrap, isRTL ? styles.rowReverse : null]}>
-        <Ionicons name={hasDelivery ? "trail-sign-outline" : "flash-outline"} size={18} color={theme.colors.primaryDark} />
-        <Text style={styles.sectionText}>{hasDelivery ? "التوصيلة الحالية" : "جاهز للعمل"}</Text>
+        <Ionicons
+          name={hasDelivery ? "trail-sign-outline" : "flash-outline"}
+          size={18}
+          color={theme.colors.primaryDark}
+        />
+        <Text style={styles.sectionText}>
+          {hasDelivery ? "التوصيلة الحالية" : "جاهز للعمل"}
+        </Text>
       </View>
-      <TouchableOpacity activeOpacity={0.75} style={styles.refreshChip} onPress={onRefresh}>
-        <Ionicons name="refresh-outline" size={14} color={theme.colors.primaryDark} />
+
+      <TouchableOpacity
+        activeOpacity={0.75}
+        style={styles.refreshChip}
+        onPress={onRefresh}
+      >
+        <Ionicons
+          name="refresh-outline"
+          size={14}
+          color="#C2410C"
+        />
         <Text style={styles.refreshChipText}>تحديث</Text>
       </TouchableOpacity>
     </View>
@@ -50,12 +65,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing[4],
     borderRadius: 999,
-    backgroundColor: "#EEF7F2",
+    backgroundColor: "#FFF4E5",
+    borderWidth: 1,
+    borderColor: "#FED7AA",
     paddingHorizontal: theme.spacing[8],
     paddingVertical: 6,
   },
   refreshChipText: {
-    color: theme.colors.primaryDark,
+    color: "#C2410C",
     fontSize: theme.typography.caption.sm,
     fontWeight: "800",
   },
