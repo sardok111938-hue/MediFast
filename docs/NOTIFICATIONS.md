@@ -143,6 +143,7 @@ Supported events:
 Supported events:
 
 * Order assigned
+* Order ready for pickup broadcast to approved available drivers
 
 ---
 
