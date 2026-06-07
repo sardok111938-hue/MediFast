@@ -39,6 +39,12 @@ export default function DriverOrdersListScreen() {
   const [error, setError] = useState<string | null>(null);
   const [claimingOrderId, setClaimingOrderId] = useState<string | null>(null);
 
+  const sortedCurrentOrders = [...orders].sort(
+    (a, b) =>
+      (a.estimatedDistanceKm ?? Number.POSITIVE_INFINITY) -
+      (b.estimatedDistanceKm ?? Number.POSITIVE_INFINITY),
+  );
+
   const loadOrders = useCallback(
     async (mode: "initial" | "refresh" = "initial") => {
       if (mode === "refresh") {
@@ -69,7 +75,7 @@ export default function DriverOrdersListScreen() {
         setRefreshing(false);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -123,7 +129,7 @@ export default function DriverOrdersListScreen() {
             lat: location.coords.latitude,
             lng: location.coords.longitude,
           });
-        }
+        },
       );
     }
 
@@ -161,61 +167,65 @@ export default function DriverOrdersListScreen() {
         }
         contentContainerStyle={styles.scrollContent}
       >
-{loading ? (
-  <DriverLoadingCard message="جارٍ تحميل الطلبات..." />
-) : error ? (
-  error === "السائق غير متاح حالياً." ? (
-    <DriverCard>
-      <Text style={styles.unavailableText}>
-        أنت غير متاح حالياً لاستقبال الطلبات.
-      </Text>
+        {loading ? (
+          <DriverLoadingCard message="جارٍ تحميل الطلبات..." />
+        ) : error ? (
+          error === "السائق غير متاح حالياً." ? (
+            <DriverCard>
+              <Text style={styles.unavailableText}>
+                أنت غير متاح حالياً لاستقبال الطلبات.
+              </Text>
 
-      <DriverButton
-        label="الذهاب للرئيسية"
-        onPress={() => router.push("/(tabs)/home")}
-      />
-    </DriverCard>
-  ) : (
-    <DriverErrorCard message={error} onRetry={() => void loadOrders("refresh")} />
-  )
-) : (
-  <>
-    <DriverOrdersSection
-      title="الطلبات المتاحة"
-      hint="طلبات جاهزة للاستلام من الصيدليات."
-      emptyMessage="لا توجد طلبات متاحة حالياً."
-      count={availableOrders.length}
-      emptyTitle="لا توجد طلبات متاحة"
-      orders={availableOrders}
-      mode="available"
-      claimingOrderId={claimingOrderId}
-      onClaimOrder={(orderId) => void handleClaimOrder(orderId)}
-    />
+              <DriverButton
+                label="الذهاب للرئيسية"
+                onPress={() => router.push("/(tabs)/home")}
+              />
+            </DriverCard>
+          ) : (
+            <DriverErrorCard
+              message={error}
+              onRetry={() => void loadOrders("refresh")}
+            />
+          )
+        ) : (
+          <>
+            <DriverOrdersSection
+              title="الطلبات المتاحة"
+              hint="طلبات جاهزة للاستلام من الصيدليات."
+              emptyMessage="لا توجد طلبات متاحة حالياً."
+              count={availableOrders.length}
+              emptyTitle="لا توجد طلبات متاحة"
+              orders={availableOrders}
+              mode="available"
+              claimingOrderId={claimingOrderId}
+              onClaimOrder={(orderId) => void handleClaimOrder(orderId)}
+            />
 
-    <DriverOrdersSection
-      title="توصيلاتي الحالية"
-      hint="طلباتك المسندة قيد التوصيل."
-      emptyMessage="لا توجد طلبات حالية."
-      count={orders.length}
-      emptyTitle="لا توجد توصيلات"
-      orders={orders}
-      mode="current"
-      onOpenOrder={(orderId) =>
-        router.push({
-          pathname: "/(tabs)/orders/[orderId]",
-          params: { orderId },
-        })
-      }
-    />
+            <DriverOrdersSection
+              title={`التوصيلات النشطة (${sortedCurrentOrders.length})`}
+              hint="مرتبة حسب أقرب وجهة توصيل."
+              emptyMessage="لا توجد طلبات حالية."
+              count={sortedCurrentOrders.length}
+              emptyTitle="لا توجد توصيلات"
+              orders={sortedCurrentOrders}
+              mode="current"
+              showNearestBadge={sortedCurrentOrders.length > 1}
+              onOpenOrder={(orderId) =>
+                router.push({
+                  pathname: "/(tabs)/orders/[orderId]",
+                  params: { orderId },
+                })
+              }
+            />
 
-    <DriverCard>
-      <DriverButton
-        label="سجل التوصيلات"
-        onPress={() => router.push("/(tabs)/orders/history" as never)}
-      />
-    </DriverCard>
-  </>
-)}
+            <DriverCard>
+              <DriverButton
+                label="سجل التوصيلات"
+                onPress={() => router.push("/(tabs)/orders/history" as never)}
+              />
+            </DriverCard>
+          </>
+        )}
       </ScrollView>
     </DriverScreen>
   );
