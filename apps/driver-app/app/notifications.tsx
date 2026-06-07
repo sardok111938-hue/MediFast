@@ -11,6 +11,7 @@ import {
 
 import { theme } from "@medifast/ui";
 import { DriverCard, DriverScreen } from "../src/components/DriverUI";
+import { markDriverNotificationsViewed } from "../src/lib/notification-read-state";
 import { supabase } from "../src/lib/supabase";
 
 type DriverNotification = {
@@ -47,6 +48,7 @@ export default function DriverNotificationsScreen() {
   }, []);
 
   useEffect(() => {
+    void markDriverNotificationsViewed();
     void loadNotifications();
   }, [loadNotifications]);
 
