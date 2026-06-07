@@ -1,4 +1,7 @@
-import { formatOrderStatusLabel, formatPaymentStatusLabel } from "@medifast/i18n";
+import {
+  formatOrderStatusLabel,
+  formatPaymentStatusLabel,
+} from "@medifast/i18n";
 import { formatCurrencyLYD } from "@medifast/types";
 import { getActiveSession, getAuthenticatedUser, supabase } from "./supabase";
 
@@ -71,7 +74,9 @@ type DriverOrderQueryRow = {
     lat?: number | string | null;
     lng?: number | string | null;
   }>;
-  customer?: SingleRecord<{ profile?: SingleRecord<{ full_name?: string; phone?: string | null }> }>;
+  customer?: SingleRecord<{
+    profile?: SingleRecord<{ full_name?: string; phone?: string | null }>;
+  }>;
   address?: SingleRecord<{
     line_1?: string;
     line_2?: string | null;
@@ -89,7 +94,11 @@ type DriverOrderQueryRow = {
   }> | null;
 };
 
-type SingleRecord<T extends Record<string, unknown>> = T | T[] | null | undefined;
+type SingleRecord<T extends Record<string, unknown>> =
+  | T
+  | T[]
+  | null
+  | undefined;
 
 function readSingle<T extends Record<string, unknown>>(value: SingleRecord<T>) {
   if (Array.isArray(value)) {
@@ -99,11 +108,17 @@ function readSingle<T extends Record<string, unknown>>(value: SingleRecord<T>) {
   return value ?? null;
 }
 
-function readName(value: SingleRecord<{ full_name?: string }>, fallback: string) {
+function readName(
+  value: SingleRecord<{ full_name?: string }>,
+  fallback: string,
+) {
   return readSingle(value)?.full_name ?? fallback;
 }
 
-function readVendorName(value: SingleRecord<{ name?: string }>, fallback: string) {
+function readVendorName(
+  value: SingleRecord<{ name?: string }>,
+  fallback: string,
+) {
   return readSingle(value)?.name ?? fallback;
 }
 
@@ -125,7 +140,10 @@ function readOptionalNumber(value: unknown) {
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
-function readProductName(value: SingleRecord<{ name?: string }>, fallback: string) {
+function readProductName(
+  value: SingleRecord<{ name?: string }>,
+  fallback: string,
+) {
   return readSingle(value)?.name ?? fallback;
 }
 
@@ -137,7 +155,7 @@ function formatAddress(
     area?: string | null;
     address_line_1?: string;
     address_line_2?: string | null;
-  }>
+  }>,
 ) {
   const address = readSingle(value);
 
@@ -146,18 +164,16 @@ function formatAddress(
   }
 
   return (
-    [address.area, address.city]
-      .filter(Boolean)
-      .join(" - ") ||
+    [address.area, address.city].filter(Boolean).join(" - ") ||
     address.line_1 ||
     address.address_line_1 ||
     "المنطقة غير متاحة"
   );
 }
-  
+
 function readCustomerName(
   value: SingleRecord<{ profile?: SingleRecord<{ full_name?: string }> }>,
-  fallback: string
+  fallback: string,
 ) {
   const customer = readSingle(value);
   const profile = readSingle(customer?.profile);
@@ -165,7 +181,9 @@ function readCustomerName(
   return profile?.full_name?.trim() || fallback;
 }
 
-function readCustomerPhone(value: SingleRecord<{ profile?: SingleRecord<{ phone?: string | null }> }>) {
+function readCustomerPhone(
+  value: SingleRecord<{ profile?: SingleRecord<{ phone?: string | null }> }>,
+) {
   return readOptionalText(readSingle(readSingle(value)?.profile)?.phone);
 }
 
@@ -173,9 +191,14 @@ function estimateRouteDistanceKm(
   pickupLat: number | null,
   pickupLng: number | null,
   dropoffLat: number | null,
-  dropoffLng: number | null
+  dropoffLng: number | null,
 ) {
-  if (pickupLat == null || pickupLng == null || dropoffLat == null || dropoffLng == null) {
+  if (
+    pickupLat == null ||
+    pickupLng == null ||
+    dropoffLat == null ||
+    dropoffLng == null
+  ) {
     return null;
   }
 
@@ -187,9 +210,14 @@ function estimateRouteDistanceKm(
   const dropoffLatRadians = toRadians(dropoffLat);
   const haversine =
     Math.sin(latDelta / 2) ** 2 +
-    Math.cos(pickupLatRadians) * Math.cos(dropoffLatRadians) * Math.sin(lngDelta / 2) ** 2;
+    Math.cos(pickupLatRadians) *
+      Math.cos(dropoffLatRadians) *
+      Math.sin(lngDelta / 2) ** 2;
 
-  const directDistanceKm = earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+  const directDistanceKm =
+    earthRadiusKm *
+    2 *
+    Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
   return Math.max(0.5, Math.round(directDistanceKm * 2) / 2);
 }
 
@@ -239,19 +267,25 @@ export function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export function statusTone(status: string): "neutral" | "warning" | "success" | "danger" | "info" {
-  if (status === "delivered" || status === "accepted" || status === "collected") {
+export function statusTone(
+  status: string,
+): "neutral" | "warning" | "success" | "danger" | "info" {
+  if (
+    status === "delivered" ||
+    status === "accepted" ||
+    status === "collected"
+  ) {
     return "success";
   }
 
-if (
-  status === "on_the_way" ||
-  status === "assigned" ||
-  status === "picked_up" ||
-  status === "ready_for_pickup"
-) {
-  return "info";
-}
+  if (
+    status === "on_the_way" ||
+    status === "assigned" ||
+    status === "picked_up" ||
+    status === "ready_for_pickup"
+  ) {
+    return "info";
+  }
 
   if (status === "preparing" || status === "pending") {
     return "warning";
@@ -268,7 +302,10 @@ export function getStatusLabel(status: string) {
   return formatOrderStatusLabel(status);
 }
 
-export function getPaymentStatusLabel(paymentStatus: string, paymentMethod: string) {
+export function getPaymentStatusLabel(
+  paymentStatus: string,
+  paymentMethod: string,
+) {
   return formatPaymentStatusLabel(paymentStatus, paymentMethod);
 }
 
@@ -288,7 +325,10 @@ export function getDriverNextActions(status: string) {
   return [];
 }
 
-function isDriverNextStatusAllowed(currentStatus: string | undefined, nextStatus: string) {
+function isDriverNextStatusAllowed(
+  currentStatus: string | undefined,
+  nextStatus: string,
+) {
   return (
     (currentStatus === "assigned" && nextStatus === "picked_up") ||
     (currentStatus === "picked_up" && nextStatus === "on_the_way") ||
@@ -299,26 +339,34 @@ function isDriverNextStatusAllowed(currentStatus: string | undefined, nextStatus
 export async function getCurrentDriverProfile(): Promise<DriverProfile> {
   const session = await getActiveSession();
   if (!session) {
-    throw new Error("لم يتم العثور على جلسة Supabase نشطة. يرجى تسجيل الدخول مرة أخرى.");
+    throw new Error(
+      "لم يتم العثور على جلسة Supabase نشطة. يرجى تسجيل الدخول مرة أخرى.",
+    );
   }
 
   const user = await getAuthenticatedUser();
   if (!user) {
-    throw new Error("جلسة Supabase الحالية لا تحتوي على هوية المستخدم. يرجى تسجيل الدخول مرة أخرى.");
+    throw new Error(
+      "جلسة Supabase الحالية لا تحتوي على هوية المستخدم. يرجى تسجيل الدخول مرة أخرى.",
+    );
   }
 
-const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_id");
+  const { data: driverId, error: driverIdError } =
+    await supabase.rpc("get_driver_id");
   if (driverIdError) {
     throw driverIdError;
   }
 
   if (!driverId) {
-    throw new Error(`حساب السائق غير مرتبط بشكل صحيح بالمستخدم الحالي ${user.id}.`);
+    throw new Error(
+      `حساب السائق غير مرتبط بشكل صحيح بالمستخدم الحالي ${user.id}.`,
+    );
   }
 
   const { data, error } = await supabase
     .from("drivers")
-.select(`
+    .select(
+      `
   id,
   is_available,
   approval_status,
@@ -333,7 +381,8 @@ const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_
     full_name,
     phone
   )
-`)
+`,
+    )
     .eq("id", driverId)
     .maybeSingle();
 
@@ -345,30 +394,33 @@ const { data: driverId, error: driverIdError } = await supabase.rpc("get_driver_
     throw new Error("تعذر العثور على ملف السائق.");
   }
 
-const profile = readSingle(
-  (data.profile as
-    | { full_name?: string; phone?: string }
-    | { full_name?: string; phone?: string }[]
-    | null) ?? null
-);
+  const profile = readSingle(
+    (data.profile as
+      | { full_name?: string; phone?: string }
+      | { full_name?: string; phone?: string }[]
+      | null) ?? null,
+  );
 
-return {
-  driverId: String(data.id),
-  fullName: readName(
-    (data.profile as { full_name?: string } | { full_name?: string }[] | null) ?? null,
-    "السائق"
-  ),
-  phone: readOptionalText(profile?.phone),
-  vehicleType: readOptionalText(data.vehicle_type),
-  vehiclePlate: readOptionalText(data.vehicle_plate),
-  isAvailable: Boolean(data.is_available),
-  approvalStatus: String(data.approval_status ?? ""),
-  profileImageUrl: readOptionalText(data.profile_image_url),
-  passportImageUrl: readOptionalText(data.passport_image_url),
-  vehicleImageUrl: readOptionalText(data.vehicle_image_url),
-  emergencyContactName: readOptionalText(data.emergency_contact_name),
-  emergencyContactPhone: readOptionalText(data.emergency_contact_phone),
-};
+  return {
+    driverId: String(data.id),
+    fullName: readName(
+      (data.profile as
+        | { full_name?: string }
+        | { full_name?: string }[]
+        | null) ?? null,
+      "السائق",
+    ),
+    phone: readOptionalText(profile?.phone),
+    vehicleType: readOptionalText(data.vehicle_type),
+    vehiclePlate: readOptionalText(data.vehicle_plate),
+    isAvailable: Boolean(data.is_available),
+    approvalStatus: String(data.approval_status ?? ""),
+    profileImageUrl: readOptionalText(data.profile_image_url),
+    passportImageUrl: readOptionalText(data.passport_image_url),
+    vehicleImageUrl: readOptionalText(data.vehicle_image_url),
+    emergencyContactName: readOptionalText(data.emergency_contact_name),
+    emergencyContactPhone: readOptionalText(data.emergency_contact_phone),
+  };
 }
 
 function mapOrder(order: DriverOrderQueryRow): DriverOrder {
@@ -379,7 +431,12 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
   const pickupLng = readOptionalNumber(vendor?.lng);
   const dropoffLat = readOptionalNumber(address?.lat);
   const dropoffLng = readOptionalNumber(address?.lng);
-  const estimatedDistanceKm = estimateRouteDistanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
+  const estimatedDistanceKm = estimateRouteDistanceKm(
+    pickupLat,
+    pickupLng,
+    dropoffLat,
+    dropoffLng,
+  );
   const deliveryFee = readOptionalNumber(order.delivery_fee) ?? 0;
   const paymentMethod = String(order.payment_method ?? "");
   const total = Number(order.total ?? 0);
@@ -388,12 +445,29 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
     id: String(order.id),
     customerName: readCustomerName(order.customer, "الزبون"),
     customerPhone: readCustomerPhone(order.customer),
-    vendorName: readVendorName(order.vendor as SingleRecord<{ name?: string }>, "المتجر"),
+    vendorName: readVendorName(
+      order.vendor as SingleRecord<{ name?: string }>,
+      "المتجر",
+    ),
     vendorPhone: readOptionalText(vendor?.phone),
-    pickupAddress: formatAddress(order.vendor as SingleRecord<{ address_line_1?: string; address_line_2?: string | null; city?: string; area?: string | null }>),
+    pickupAddress: formatAddress(
+      order.vendor as SingleRecord<{
+        address_line_1?: string;
+        address_line_2?: string | null;
+        city?: string;
+        area?: string | null;
+      }>,
+    ),
     pickupLat,
     pickupLng,
-    dropoffAddress: formatAddress(order.address as SingleRecord<{ line_1?: string; line_2?: string | null; city?: string; area?: string | null }>),
+    dropoffAddress: formatAddress(
+      order.address as SingleRecord<{
+        line_1?: string;
+        line_2?: string | null;
+        city?: string;
+        area?: string | null;
+      }>,
+    ),
     dropoffLat,
     dropoffLng,
     estimatedDistanceKm,
@@ -410,7 +484,10 @@ function mapOrder(order: DriverOrderQueryRow): DriverOrder {
     createdAt: String(order.created_at ?? ""),
     items: items.map((item) => ({
       id: String(item.id),
-      productName: readProductName(item.product as SingleRecord<{ name?: string }>, "المنتج"),
+      productName: readProductName(
+        item.product as SingleRecord<{ name?: string }>,
+        "المنتج",
+      ),
       quantity: Number(item.quantity ?? 0),
       unitPrice: Number(item.unit_price ?? 0),
       totalPrice: Number(item.total_price ?? 0),
@@ -477,11 +554,13 @@ export async function listAvailablePickupOrders(): Promise<DriverOrder[]> {
     throw error;
   }
 
-  return ((data ?? []) as DriverOrderQueryRow[]).map((order) => mapOrder(order));
+  return ((data ?? []) as DriverOrderQueryRow[]).map((order) =>
+    mapOrder(order),
+  );
 }
 
 export async function listCurrentDriverOrders(
-  driverId: string
+  driverId: string,
 ): Promise<DriverOrder[]> {
   const { data, error } = await supabase
     .from("orders")
@@ -495,12 +574,12 @@ export async function listCurrentDriverOrders(
   }
 
   return ((data ?? []) as DriverOrderQueryRow[]).map((order) =>
-    mapOrder(order)
+    mapOrder(order),
   );
 }
 
 export async function listDeliveredDriverOrders(
-  driverId: string
+  driverId: string,
 ): Promise<DriverOrder[]> {
   const { data, error } = await supabase
     .from("orders")
@@ -514,7 +593,7 @@ export async function listDeliveredDriverOrders(
   }
 
   return ((data ?? []) as DriverOrderQueryRow[]).map((order) =>
-    mapOrder(order)
+    mapOrder(order),
   );
 }
 
@@ -540,10 +619,14 @@ export async function claimAvailableOrder(orderId: string) {
   };
 }
 
-export async function getDriverOrderDetail(driverId: string, orderId: string): Promise<DriverOrder | null> {
+export async function getDriverOrderDetail(
+  driverId: string,
+  orderId: string,
+): Promise<DriverOrder | null> {
   const { data, error } = await supabase
     .from("orders")
-    .select(`
+    .select(
+      `
       id,
       total,
       delivery_fee,
@@ -579,7 +662,8 @@ address:addresses!orders_delivery_address_id_fkey(
         total_price,
         product:products!order_items_product_id_fkey(name)
       )
-    `)
+    `,
+    )
     .eq("id", orderId)
     .eq("driver_id", driverId)
     .maybeSingle();
