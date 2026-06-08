@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
-import type { ProductImportValidationError, VendorBulkCreateProductsInput, VendorBulkCreateProductsResult } from "../vendor-products/import/types";
+import type {
+  ProductImportValidationError,
+  VendorBulkCreateProductsInput,
+  VendorBulkCreateProductsResult,
+} from "../vendor-products/import/types";
 import { validateProductImportRows } from "../vendor-products/import/validate-product-import";
 
 type ProductActionResult = {
@@ -22,7 +26,7 @@ type VendorImportAccessResult =
 
 async function callProductRpc<TParams extends Record<string, unknown>>(
   fn: string,
-  params: TParams
+  params: TParams,
 ): Promise<ProductActionResult> {
   const supabase = await getSupabaseServerClient();
   const { error } = await supabase.rpc(fn, params);
@@ -54,7 +58,8 @@ async function getApprovedActiveVendorId(): Promise<VendorImportAccessResult> {
     };
   }
 
-  const { data: vendorId, error: vendorIdError } = await supabase.rpc("get_vendor_id");
+  const { data: vendorId, error: vendorIdError } =
+    await supabase.rpc("get_vendor_id");
 
   if (vendorIdError || !vendorId) {
     return {
@@ -64,24 +69,24 @@ async function getApprovedActiveVendorId(): Promise<VendorImportAccessResult> {
   }
 
   const { data: profile, error: profileError } = await supabase
-  .from("profiles")
-  .select("id")
-  .eq("auth_user_id", user.id)
-  .maybeSingle();
+    .from("profiles")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
 
-if (profileError || !profile) {
-  return {
-    success: false,
-    error: "تعذر العثور على ملف المستخدم المرتبط بالحساب الحالي.",
-  };
-}
+  if (profileError || !profile) {
+    return {
+      success: false,
+      error: "تعذر العثور على ملف المستخدم المرتبط بالحساب الحالي.",
+    };
+  }
 
-const { data: vendor, error: vendorError } = await supabase
-  .from("vendors")
-  .select("id, user_id, approval_status, is_active")
-  .eq("id", String(vendorId))
-  .eq("user_id", profile.id)
-  .maybeSingle();
+  const { data: vendor, error: vendorError } = await supabase
+    .from("vendors")
+    .select("id, user_id, approval_status, is_active")
+    .eq("id", String(vendorId))
+    .eq("user_id", profile.id)
+    .maybeSingle();
 
   if (vendorError || !vendor) {
     return {
@@ -90,7 +95,10 @@ const { data: vendor, error: vendorError } = await supabase
     };
   }
 
-  if (String(vendor.approval_status ?? "") !== "approved" || !vendor.is_active) {
+  if (
+    String(vendor.approval_status ?? "") !== "approved" ||
+    !vendor.is_active
+  ) {
     return {
       success: false,
       error: "الاستيراد متاح فقط للمتاجر النشطة والموافق عليها.",
@@ -111,6 +119,7 @@ export async function vendorCreateProductAction(input: {
   imageUrl: string | null;
   stockQuantity: number;
   lowStockThreshold: number;
+  barcode: string | null;
 }): Promise<ProductActionResult> {
   const result = await callProductRpc("vendor_create_product", {
     p_category_id: input.categoryId,
@@ -120,6 +129,7 @@ export async function vendorCreateProductAction(input: {
     p_price: input.price,
     p_stock_quantity: input.stockQuantity,
     p_low_stock_threshold: input.lowStockThreshold,
+    p_barcode: input.barcode,
   });
 
   if (result.success) {
@@ -138,8 +148,8 @@ export async function vendorUpdateProductAction(input: {
   imageUrl: string | null;
   stockQuantity: number;
   lowStockThreshold: number;
+  barcode: string | null;
 }): Promise<ProductActionResult> {
-  
   const result = await callProductRpc("vendor_update_product", {
     p_product_id: input.productId,
     p_name: input.name,
@@ -151,6 +161,8 @@ export async function vendorUpdateProductAction(input: {
     p_set_image: true,
     p_stock_quantity: input.stockQuantity,
     p_low_stock_threshold: input.lowStockThreshold,
+    p_barcode: input.barcode,
+    p_set_barcode: true,
   });
 
   if (result.success) {
@@ -207,7 +219,7 @@ export async function vendorActivateProductAction(input: {
 }
 
 export async function vendorBulkCreateProductsAction(
-  input: VendorBulkCreateProductsInput
+  input: VendorBulkCreateProductsInput,
 ): Promise<VendorBulkCreateProductsResult> {
   const vendorAccess = await getApprovedActiveVendorId();
 
@@ -241,24 +253,33 @@ export async function vendorBulkCreateProductsAction(
   const requestedCategorySlugs = Array.from(
     new Set(
       rows
-        .map((row) => String(row.values.category_slug ?? "").trim().toLowerCase())
-        .filter((slug) => slug.length > 0)
-    )
+        .map((row) =>
+          String(row.values.category_slug ?? "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter((slug) => slug.length > 0),
+    ),
   );
 
   const requestedBarcodes = Array.from(
     new Set(
       rows
         .map((row) => String(row.values.barcode ?? "").trim())
-        .filter((barcode) => barcode.length > 0)
-    )
+        .filter((barcode) => barcode.length > 0),
+    ),
   );
 
   const { data: categoriesData, error: categoriesError } = await supabase
     .from("categories")
     .select("id, slug")
     .eq("is_active", true)
-    .in("slug", requestedCategorySlugs.length > 0 ? requestedCategorySlugs : ["__no_match__"]);
+    .in(
+      "slug",
+      requestedCategorySlugs.length > 0
+        ? requestedCategorySlugs
+        : ["__no_match__"],
+    );
 
   if (categoriesError) {
     return {
@@ -275,14 +296,24 @@ export async function vendorBulkCreateProductsAction(
   const categoryIdBySlug = new Map<string, string>(
     (categoriesData ?? [])
       .filter((category) => category.slug)
-      .map((category) => [String(category.slug).trim().toLowerCase(), String(category.id)] as const)
+      .map(
+        (category) =>
+          [
+            String(category.slug).trim().toLowerCase(),
+            String(category.id),
+          ] as const,
+      ),
   );
 
-  const { data: existingProducts, error: existingProductsError } = await supabase
-    .from("products")
-    .select("barcode")
-    .eq("vendor_id", vendorAccess.vendorId)
-    .in("barcode", requestedBarcodes.length > 0 ? requestedBarcodes : ["__no_match__"]);
+  const { data: existingProducts, error: existingProductsError } =
+    await supabase
+      .from("products")
+      .select("barcode")
+      .eq("vendor_id", vendorAccess.vendorId)
+      .in(
+        "barcode",
+        requestedBarcodes.length > 0 ? requestedBarcodes : ["__no_match__"],
+      );
 
   if (existingProductsError) {
     return {
@@ -299,12 +330,11 @@ export async function vendorBulkCreateProductsAction(
   const existingBarcodes = new Set<string>(
     (existingProducts ?? [])
       .map((product) => (product.barcode ? String(product.barcode).trim() : ""))
-      .filter((barcode) => barcode.length > 0)
+      .filter((barcode) => barcode.length > 0),
   );
 
   const validation = validateProductImportRows(rows, {
     categoryIdBySlug,
-    existingBarcodes,
   });
 
   if (validation.totalRows === 0) {
@@ -321,65 +351,61 @@ export async function vendorBulkCreateProductsAction(
 
   const insertionErrors: ProductImportValidationError[] = [];
 
-let insertedCount = 0;
-let updatedCount = 0;
+  let insertedCount = 0;
+  let updatedCount = 0;
 
-for (const row of validation.validRows) {
-  const payload = {
-    vendor_id: vendorAccess.vendorId,
-    category_id: row.categoryId,
-    name: row.name,
-    description: row.description,
-    price: row.price,
-    stock_quantity: row.stockQuantity,
-    barcode: row.barcode,
-    image_url: row.imageUrl,
-    is_active: true,
-  };
+  for (const row of validation.validRows) {
+    const payload = {
+      vendor_id: vendorAccess.vendorId,
+      category_id: row.categoryId,
+      name: row.name,
+      description: row.description,
+      price: row.price,
+      stock_quantity: row.stockQuantity,
+      barcode: row.barcode,
+      image_url: row.imageUrl,
+      is_active: true,
+    };
 
-  if (row.barcode && existingBarcodes.has(row.barcode)) {
-    const { error } = await supabase
-      .from("products")
-      .update({
-        category_id: payload.category_id,
-        name: payload.name,
-        description: payload.description,
-        price: payload.price,
-        stock_quantity: payload.stock_quantity,
-        image_url: payload.image_url,
-        is_active: true,
-      })
-      .eq("vendor_id", vendorAccess.vendorId)
-      .eq("barcode", row.barcode);
+    if (row.barcode && existingBarcodes.has(row.barcode)) {
+      const { error } = await supabase
+        .from("products")
+        .update({
+          price: payload.price,
+          stock_quantity: payload.stock_quantity,
+          is_active: true,
+        })
+        .eq("vendor_id", vendorAccess.vendorId)
+        .eq("barcode", row.barcode);
+
+      if (error) {
+        insertionErrors.push({
+          rowNumber: row.rowNumber,
+          field: "row",
+          message: error.message ?? "تعذر تحديث هذا المنتج.",
+        });
+
+        continue;
+      }
+
+      updatedCount += 1;
+      continue;
+    }
+
+    const { error } = await supabase.from("products").insert(payload);
 
     if (error) {
       insertionErrors.push({
         rowNumber: row.rowNumber,
         field: "row",
-        message: error.message ?? "تعذر تحديث هذا المنتج.",
+        message: error.message ?? "تعذر إدراج هذا الصف.",
       });
 
       continue;
     }
 
-    updatedCount += 1;
-    continue;
+    insertedCount += 1;
   }
-
-  const { error } = await supabase.from("products").insert(payload);
-
-  if (error) {
-    insertionErrors.push({
-      rowNumber: row.rowNumber,
-      field: "row",
-      message: error.message ?? "تعذر إدراج هذا الصف.",
-    });
-
-    continue;
-  }
-
-  insertedCount += 1;
-}
 
   const allErrors = [...validation.errors, ...insertionErrors];
   const failedCount = validation.totalRows - insertedCount - updatedCount;
@@ -390,12 +416,12 @@ for (const row of validation.validRows) {
   }
 
   return {
-  success: true,
-  error: null,
-  totalRows: validation.totalRows,
-  insertedCount,
-  updatedCount,
-  failedCount,
-  errors: allErrors,
-};
+    success: true,
+    error: null,
+    totalRows: validation.totalRows,
+    insertedCount,
+    updatedCount,
+    failedCount,
+    errors: allErrors,
+  };
 }

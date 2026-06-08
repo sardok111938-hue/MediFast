@@ -9,7 +9,6 @@ import type {
 
 type ValidateProductImportOptions = {
   categoryIdBySlug?: ReadonlyMap<string, string>;
-  existingBarcodes?: ReadonlySet<string>;
 };
 
 const EMPTY_RAW_ROW: ProductImportRawRow = {
@@ -18,6 +17,9 @@ const EMPTY_RAW_ROW: ProductImportRawRow = {
   category_slug: "",
   price: "",
   stock_quantity: "",
+  stock: "",
+  quantity: "",
+  qty: "",
   barcode: "",
   image_url: "",
 };
@@ -31,7 +33,9 @@ export function normalizeProductImportCell(value: unknown) {
     return "";
   }
 
-  return String(value).replace(/\uFEFF/g, "").trim();
+  return String(value)
+    .replace(/\uFEFF/g, "")
+    .trim();
 }
 
 export function normalizeProductImportSlug(value: string) {
@@ -43,24 +47,51 @@ export function normalizeProductImportBarcode(value: string) {
 }
 
 export function isProductImportRowEmpty(row: ProductImportRawRow) {
-  return Object.values(row).every((value) => normalizeProductImportCell(value) === "");
+  return Object.values(row).every(
+    (value) => normalizeProductImportCell(value) === "",
+  );
 }
 
 function pushRowError(
   errors: ProductImportValidationError[],
   rowNumber: number,
   field: ProductImportColumn,
-  message: string
+  message: string,
 ) {
   errors.push({ rowNumber, field, message });
 }
 
+function resolveStockQuantity(row: ProductImportRawRow) {
+  const candidates: ProductImportColumn[] = [
+    "stock_quantity",
+    "stock",
+    "quantity",
+    "qty",
+  ];
+
+  for (const column of candidates) {
+    const value = normalizeProductImportCell(row[column]);
+
+    if (value) {
+      return {
+        field: column,
+        value,
+      };
+    }
+  }
+
+  return {
+    field: "stock_quantity" as const,
+    value: "",
+  };
+}
+
 export function validateProductImportRows(
   rows: ProductImportParsedRow[],
-  options: ValidateProductImportOptions = {}
+  options: ValidateProductImportOptions = {},
 ): ProductImportValidationResult {
-  const categoryIdBySlug = options.categoryIdBySlug ?? new Map<string, string>();
-  const existingBarcodes = options.existingBarcodes ?? new Set<string>();
+  const categoryIdBySlug =
+    options.categoryIdBySlug ?? new Map<string, string>();
   const errors: ProductImportValidationError[] = [];
   const validRows: ProductImportValidatedRow[] = [];
   const seenBarcodes = new Map<string, number>();
@@ -69,10 +100,17 @@ export function validateProductImportRows(
     const normalizedRow: ProductImportRawRow = {
       name: normalizeProductImportCell(row.values.name),
       description: normalizeProductImportCell(row.values.description),
-      category_slug: normalizeProductImportSlug(normalizeProductImportCell(row.values.category_slug)),
+      category_slug: normalizeProductImportSlug(
+        normalizeProductImportCell(row.values.category_slug),
+      ),
       price: normalizeProductImportCell(row.values.price),
       stock_quantity: normalizeProductImportCell(row.values.stock_quantity),
-      barcode: normalizeProductImportBarcode(normalizeProductImportCell(row.values.barcode)),
+      stock: normalizeProductImportCell(row.values.stock),
+      quantity: normalizeProductImportCell(row.values.quantity),
+      qty: normalizeProductImportCell(row.values.qty),
+      barcode: normalizeProductImportBarcode(
+        normalizeProductImportCell(row.values.barcode),
+      ),
       image_url: normalizeProductImportCell(row.values.image_url),
     };
 
@@ -81,50 +119,69 @@ export function validateProductImportRows(
     }
 
     const rowErrorsBefore = errors.length;
-    const name = normalizedRow.name;
-    const categorySlug = normalizedRow.category_slug;
-    const description = normalizedRow.description || null;
     const barcode = normalizedRow.barcode || null;
+    const name = normalizedRow.name || normalizedRow.barcode;
+    const categorySlug = normalizedRow.category_slug || null;
+    const description = normalizedRow.description || null;
     const imageUrl = normalizedRow.image_url || null;
     const price = Number(normalizedRow.price);
-    const stockQuantity = Number(normalizedRow.stock_quantity);
+    const stockQuantityValue = resolveStockQuantity(normalizedRow);
+    const stockQuantity = Number(stockQuantityValue.value);
 
-    if (!name) {
-      pushRowError(errors, row.rowNumber, "name", "اسم المنتج مطلوب.");
+    if (!barcode) {
+      pushRowError(errors, row.rowNumber, "barcode", "الباركود مطلوب.");
     }
 
     if (!normalizedRow.price) {
       pushRowError(errors, row.rowNumber, "price", "السعر مطلوب.");
     } else if (Number.isNaN(price) || !Number.isFinite(price) || price < 0) {
-      pushRowError(errors, row.rowNumber, "price", "السعر يجب أن يكون رقمًا صالحًا يساوي 0 أو أكثر.");
+      pushRowError(
+        errors,
+        row.rowNumber,
+        "price",
+        "السعر يجب أن يكون رقمًا صالحًا يساوي 0 أو أكثر.",
+      );
     }
 
-    if (!normalizedRow.stock_quantity) {
-      pushRowError(errors, row.rowNumber, "stock_quantity", "الكمية مطلوبة.");
+    if (!stockQuantityValue.value) {
+      pushRowError(
+        errors,
+        row.rowNumber,
+        stockQuantityValue.field,
+        "الكمية مطلوبة.",
+      );
     } else if (!Number.isInteger(stockQuantity) || stockQuantity < 0) {
-      pushRowError(errors, row.rowNumber, "stock_quantity", "الكمية يجب أن تكون عددًا صحيحًا يساوي 0 أو أكثر.");
+      pushRowError(
+        errors,
+        row.rowNumber,
+        stockQuantityValue.field,
+        "الكمية يجب أن تكون عددًا صحيحًا يساوي 0 أو أكثر.",
+      );
     }
 
-    if (!categorySlug) {
-      pushRowError(errors, row.rowNumber, "category_slug", "رمز الفئة `category_slug` مطلوب.");
-    } else if (!categoryIdBySlug.has(categorySlug)) {
-      pushRowError(errors, row.rowNumber, "category_slug", "تعذر العثور على فئة نشطة تطابق هذا الرمز.");
+    if (categorySlug && !categoryIdBySlug.has(categorySlug)) {
+      pushRowError(
+        errors,
+        row.rowNumber,
+        "category_slug",
+        "تعذر العثور على فئة نشطة تطابق هذا الرمز.",
+      );
     }
 
     if (barcode) {
-  if (seenBarcodes.has(barcode)) {
-    pushRowError(
-      errors,
-      row.rowNumber,
-      "barcode",
-      `هذا الباركود مكرر داخل الملف نفسه، وقد ظهر أولًا في الصف ${seenBarcodes.get(barcode)}.`
-    );
-  } else {
-    seenBarcodes.set(barcode, row.rowNumber);
-  }
-}
+      if (seenBarcodes.has(barcode)) {
+        pushRowError(
+          errors,
+          row.rowNumber,
+          "barcode",
+          `هذا الباركود مكرر داخل الملف نفسه، وقد ظهر أولًا في الصف ${seenBarcodes.get(barcode)}.`,
+        );
+      } else {
+        seenBarcodes.set(barcode, row.rowNumber);
+      }
+    }
 
-    if (errors.length > rowErrorsBefore) {
+    if (errors.length > rowErrorsBefore || !barcode) {
       continue;
     }
 
@@ -133,7 +190,9 @@ export function validateProductImportRows(
       name,
       description,
       categorySlug,
-      categoryId: categoryIdBySlug.get(categorySlug) ?? null,
+      categoryId: categorySlug
+        ? (categoryIdBySlug.get(categorySlug) ?? null)
+        : null,
       price,
       stockQuantity,
       barcode,
@@ -142,7 +201,8 @@ export function validateProductImportRows(
   }
 
   return {
-    totalRows: rows.filter((row) => !isProductImportRowEmpty(row.values)).length,
+    totalRows: rows.filter((row) => !isProductImportRowEmpty(row.values))
+      .length,
     validRows,
     errors,
   };

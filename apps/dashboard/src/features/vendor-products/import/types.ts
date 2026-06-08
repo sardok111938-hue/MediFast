@@ -4,19 +4,18 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "category_slug",
   "price",
   "stock_quantity",
+  "stock",
+  "quantity",
+  "qty",
   "barcode",
   "image_url",
 ] as const;
 
-export const REQUIRED_PRODUCT_IMPORT_COLUMNS = [
-  "name",
-  "category_slug",
-  "price",
-  "stock_quantity",
-] as const;
+export const REQUIRED_PRODUCT_IMPORT_COLUMNS = ["barcode", "price"] as const;
 
 export type ProductImportColumn = (typeof PRODUCT_IMPORT_COLUMNS)[number];
-export type ProductImportRequiredColumn = (typeof REQUIRED_PRODUCT_IMPORT_COLUMNS)[number];
+export type ProductImportRequiredColumn =
+  (typeof REQUIRED_PRODUCT_IMPORT_COLUMNS)[number];
 export type ProductImportErrorField = ProductImportColumn | "row";
 
 export type ProductImportRawRow = Record<ProductImportColumn, string>;
@@ -36,11 +35,11 @@ export type ProductImportValidatedRow = {
   rowNumber: number;
   name: string;
   description: string | null;
-  categorySlug: string;
+  categorySlug: string | null;
   categoryId: string | null;
   price: number;
   stockQuantity: number;
-  barcode: string | null;
+  barcode: string;
   imageUrl: string | null;
 };
 
