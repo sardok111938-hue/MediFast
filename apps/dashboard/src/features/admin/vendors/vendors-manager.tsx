@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { formatCategoryLabel } from "@medifast/i18n";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
@@ -11,6 +12,8 @@ import { LoadingState } from "../../../components/ui/loading-state";
 import { Table } from "../../../components/ui/table";
 import { getSupabaseBrowserClient } from "../../../lib/supabase/browser";
 import { useLocale } from "../../../lib/i18n/locale-context";
+import type { ProductCategoryOption } from "../../../types/dashboard";
+import { BulkProductImportCard } from "../../vendor-products/import/bulk-product-import-card";
 
 type ApprovalStatus = "pending" | "approved" | "rejected";
 type RoleFilter = "" | "admin" | "vendor" | "customer" | "driver";
@@ -69,7 +72,7 @@ type VendorRpcRow = {
   profile_id: string | null;
   auth_user_id: string | null;
   email: string | null;
-  contact_email: string | null;  
+  contact_email: string | null;
   profile_full_name: string | null;
   profile_role: string | null;
   vendor_name: string;
@@ -135,7 +138,9 @@ const initialVendorFormValues: VendorFormValues = {
 };
 
 function normalizeError(error: unknown) {
-  return error instanceof Error ? error.message : "تعذر إكمال إدارة المتاجر الآن.";
+  return error instanceof Error
+    ? error.message
+    : "تعذر إكمال إدارة المتاجر الآن.";
 }
 
 function parseOptionalNumber(value: string) {
@@ -146,7 +151,11 @@ function parseOptionalNumber(value: string) {
 
   const parsed = Number(trimmed);
   if (Number.isNaN(parsed)) {
-    return { value: null, provided: true, error: "يجب أن تكون قيم خط العرض والطول أرقامًا صحيحة." };
+    return {
+      value: null,
+      provided: true,
+      error: "يجب أن تكون قيم خط العرض والطول أرقامًا صحيحة.",
+    };
   }
 
   return { value: parsed, provided: true };
@@ -184,17 +193,32 @@ function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
     area: vendor.area ?? "",
     lat: vendor.lat == null ? "" : String(vendor.lat),
     lng: vendor.lng == null ? "" : String(vendor.lng),
-    deliveryRadiusKm: vendor.deliveryRadiusKm == null ? "15" : String(vendor.deliveryRadiusKm),
+    deliveryRadiusKm:
+      vendor.deliveryRadiusKm == null ? "15" : String(vendor.deliveryRadiusKm),
     approvalStatus: vendor.approvalStatus,
   };
 }
 
 function validateVendorForm(values: VendorFormValues) {
-  if (values.profileId.trim() === "" && values.approvalStatus === "approved" && !values.contactEmail.trim()) {
-  return { error: "أدخل بريدًا إلكترونيًا للتواصل عند إنشاء متجر غير مرتبط بحساب دخول." };
-}
+  if (
+    values.profileId.trim() === "" &&
+    values.approvalStatus === "approved" &&
+    !values.contactEmail.trim()
+  ) {
+    return {
+      error:
+        "أدخل بريدًا إلكترونيًا للتواصل عند إنشاء متجر غير مرتبط بحساب دخول.",
+    };
+  }
 
-  if (!values.name.trim() || !values.slug.trim() || !values.phone.trim() || !values.addressLine1.trim() || !values.city.trim() || !values.area.trim()) {
+  if (
+    !values.name.trim() ||
+    !values.slug.trim() ||
+    !values.phone.trim() ||
+    !values.addressLine1.trim() ||
+    !values.city.trim() ||
+    !values.area.trim()
+  ) {
     return { error: "يرجى إكمال جميع الحقول المطلوبة للمتجر." };
   }
 
@@ -208,9 +232,9 @@ function validateVendorForm(values: VendorFormValues) {
     return { error: lng.error };
   }
   const deliveryRadius = parseOptionalNumber(values.deliveryRadiusKm);
-if (deliveryRadius.error) {
-  return { error: "قيمة نطاق التوصيل غير صحيحة." };
-}
+  if (deliveryRadius.error) {
+    return { error: "قيمة نطاق التوصيل غير صحيحة." };
+  }
 
   return {
     error: null,
@@ -257,7 +281,8 @@ function mapVendorRow(row: VendorRpcRow): VendorRow {
     area: row.area ?? null,
     lat: row.lat == null ? null : Number(row.lat),
     lng: row.lng == null ? null : Number(row.lng),
-    deliveryRadiusKm: row.delivery_radius_km == null ? null : Number(row.delivery_radius_km),
+    deliveryRadiusKm:
+      row.delivery_radius_km == null ? null : Number(row.delivery_radius_km),
     approvalStatus: row.approval_status,
     isActive: row.is_active,
   };
@@ -271,7 +296,9 @@ function mapProfileSearchRow(row: ProfileSearchRpcRow): ProfileSearchResult {
     fullName: String(row.full_name),
     role: String(row.role),
     phone: row.phone ?? null,
-    existingVendorId: row.existing_vendor_id ? String(row.existing_vendor_id) : null,
+    existingVendorId: row.existing_vendor_id
+      ? String(row.existing_vendor_id)
+      : null,
   };
 }
 
@@ -284,6 +311,38 @@ async function loadAdminVendors() {
   }
 
   return ((data ?? []) as VendorRpcRow[]).map(mapVendorRow);
+}
+
+async function loadAdminProductCategories(): Promise<ProductCategoryOption[]> {
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .select(
+      "id, name, name_ar, slug, icon, image_url, sort_order, is_active, parent_id",
+    )
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map((category) => ({
+    id: String(category.id),
+    name: String(category.name),
+    name_ar: category.name_ar ? String(category.name_ar) : null,
+    slug: category.slug ? String(category.slug) : null,
+    icon: category.icon ? String(category.icon) : null,
+    image_url: category.image_url ? String(category.image_url) : null,
+    sort_order: Number(category.sort_order ?? 0),
+    is_active: Boolean(category.is_active),
+    parent_id: category.parent_id ? String(category.parent_id) : null,
+    display_name: formatCategoryLabel({
+      name: String(category.name),
+      name_ar: category.name_ar ? String(category.name_ar) : null,
+    }),
+  }));
 }
 
 async function searchAdminProfiles(query: string, role: RoleFilter) {
@@ -310,10 +369,16 @@ function SelectedProfileSummary({
   const { t } = useLocale();
 
   if (!profile) {
-    return <p className="muted">{t("يمكن ربط المتجر بحساب موجود أو تركه كمتجر مبدئي بدون تسجيل دخول.")}</p>;
+    return (
+      <p className="muted">
+        {t("يمكن ربط المتجر بحساب موجود أو تركه كمتجر مبدئي بدون تسجيل دخول.")}
+      </p>
+    );
   }
 
-  const linkedElsewhere = Boolean(profile.existingVendorId && profile.existingVendorId !== editingVendorId);
+  const linkedElsewhere = Boolean(
+    profile.existingVendorId && profile.existingVendorId !== editingVendorId,
+  );
 
   return (
     <div className="stack">
@@ -333,7 +398,11 @@ function SelectedProfileSummary({
       <p className="muted">
         {t("Phone")}: {profile.phone ?? "-"}
       </p>
-      {linkedElsewhere ? <p className="danger">{t("This profile is already linked to another vendor.")}</p> : null}
+      {linkedElsewhere ? (
+        <p className="danger">
+          {t("This profile is already linked to another vendor.")}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -345,22 +414,51 @@ export function AdminVendorsManager() {
     error: null,
     loading: true,
   });
-  const [profilesState, setProfilesState] = useState<AsyncState<ProfileSearchResult[]>>({
+  const [categoriesState, setCategoriesState] = useState<
+    AsyncState<ProductCategoryOption[]>
+  >({
+    data: null,
+    error: null,
+    loading: true,
+  });
+  const [profilesState, setProfilesState] = useState<
+    AsyncState<ProfileSearchResult[]>
+  >({
     data: null,
     error: null,
     loading: true,
   });
   const [profileQuery, setProfileQuery] = useState("");
   const [profileRoleFilter, setProfileRoleFilter] = useState<RoleFilter>("");
-  const [formValues, setFormValues] = useState<VendorFormValues>(initialVendorFormValues);
-  const [selectedProfile, setSelectedProfile] = useState<ProfileSearchResult | null>(null);
+  const [formValues, setFormValues] = useState<VendorFormValues>(
+    initialVendorFormValues,
+  );
+  const [selectedProfile, setSelectedProfile] =
+    useState<ProfileSearchResult | null>(null);
   const [editingVendorId, setEditingVendorId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingVendorImage, setUploadingVendorImage] = useState(false);
   const [actingVendorId, setActingVendorId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [selectedImportVendorId, setSelectedImportVendorId] = useState("");
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const vendors = vendorsState.data ?? [];
+  const categories = categoriesState.data ?? [];
+  const importVendorOptions = useMemo(
+    () =>
+      vendors
+        .filter(
+          (vendor) => vendor.approvalStatus === "approved" && vendor.isActive,
+        )
+        .map((vendor) => ({
+          id: vendor.vendorId,
+          name: vendor.vendorName,
+        })),
+    [vendors],
+  );
 
   async function loadVendors() {
     setVendorsState({
@@ -378,6 +476,29 @@ export function AdminVendorsManager() {
       });
     } catch (error) {
       setVendorsState({
+        data: null,
+        error: normalizeError(error),
+        loading: false,
+      });
+    }
+  }
+
+  async function loadCategories() {
+    setCategoriesState({
+      data: null,
+      error: null,
+      loading: true,
+    });
+
+    try {
+      const data = await loadAdminProductCategories();
+      setCategoriesState({
+        data,
+        error: null,
+        loading: false,
+      });
+    } catch (error) {
+      setCategoriesState({
         data: null,
         error: normalizeError(error),
         loading: false,
@@ -410,6 +531,7 @@ export function AdminVendorsManager() {
 
   useEffect(() => {
     void loadVendors();
+    void loadCategories();
     void loadProfiles("", "");
   }, []);
 
@@ -423,15 +545,15 @@ export function AdminVendorsManager() {
   function startEditingVendor(vendor: VendorRow) {
     setEditingVendorId(vendor.vendorId);
     setFormValues(buildVendorFormValues(vendor));
-      setSelectedProfile({
-        profileId: vendor.profileId ?? "",
-        authUserId: vendor.authUserId,
-        email: vendor.email,
-        fullName: vendor.profileFullName,
-        role: vendor.profileRole ?? "vendor",
-        phone: vendor.phone,
-        existingVendorId: vendor.vendorId,
-      });
+    setSelectedProfile({
+      profileId: vendor.profileId ?? "",
+      authUserId: vendor.authUserId,
+      email: vendor.email,
+      fullName: vendor.profileFullName,
+      role: vendor.profileRole ?? "vendor",
+      phone: vendor.phone,
+      existingVendorId: vendor.vendorId,
+    });
     setFeedback(null);
   }
 
@@ -448,69 +570,71 @@ export function AdminVendorsManager() {
       phone: current.phone || profile.phone || "",
     }));
   }
-async function handleVendorImageUpload(file: File | null) {
-  if (!file) {
-    return;
-  }
-
-  setFeedback(null);
-
-  if (!file.type.startsWith("image/")) {
-    setFeedback({
-      type: "error",
-      message: "يرجى اختيار ملف صورة صالح.",
-    });
-    return;
-  }
-
-  const maxSizeMb = 5;
-  if (file.size > maxSizeMb * 1024 * 1024) {
-    setFeedback({
-      type: "error",
-      message: "حجم الصورة يجب ألا يتجاوز 5MB.",
-    });
-    return;
-  }
-
-  const supabase = getSupabaseBrowserClient();
-  setUploadingVendorImage(true);
-
-  try {
-    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const safeName = crypto.randomUUID();
-    const path = `vendors/${safeName}.${extension}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("vendor-images")
-      .upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      throw uploadError;
+  async function handleVendorImageUpload(file: File | null) {
+    if (!file) {
+      return;
     }
 
-    const { data } = supabase.storage.from("vendor-images").getPublicUrl(path);
+    setFeedback(null);
 
-    setFormValues((current) => ({
-      ...current,
-      imageUrl: data.publicUrl,
-    }));
+    if (!file.type.startsWith("image/")) {
+      setFeedback({
+        type: "error",
+        message: "يرجى اختيار ملف صورة صالح.",
+      });
+      return;
+    }
 
-    setFeedback({
-      type: "success",
-      message: "تم رفع صورة المتجر بنجاح.",
-    });
-  } catch (error) {
-    setFeedback({
-      type: "error",
-      message: normalizeError(error),
-    });
-  } finally {
-    setUploadingVendorImage(false);
+    const maxSizeMb = 5;
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      setFeedback({
+        type: "error",
+        message: "حجم الصورة يجب ألا يتجاوز 5MB.",
+      });
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    setUploadingVendorImage(true);
+
+    try {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const safeName = crypto.randomUUID();
+      const path = `vendors/${safeName}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("vendor-images")
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from("vendor-images")
+        .getPublicUrl(path);
+
+      setFormValues((current) => ({
+        ...current,
+        imageUrl: data.publicUrl,
+      }));
+
+      setFeedback({
+        type: "success",
+        message: "تم رفع صورة المتجر بنجاح.",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: normalizeError(error),
+      });
+    } finally {
+      setUploadingVendorImage(false);
+    }
   }
-}
   async function handleSaveVendor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback(null);
@@ -519,12 +643,16 @@ async function handleVendorImageUpload(file: File | null) {
     if (validation.error || !validation.payload) {
       setFeedback({
         type: "error",
-        message: validation.error ?? "يرجى مراجعة نموذج المتجر والمحاولة مرة أخرى.",
+        message:
+          validation.error ?? "يرجى مراجعة نموذج المتجر والمحاولة مرة أخرى.",
       });
       return;
     }
 
-    if (selectedProfile?.existingVendorId && selectedProfile.existingVendorId !== editingVendorId) {
+    if (
+      selectedProfile?.existingVendorId &&
+      selectedProfile.existingVendorId !== editingVendorId
+    ) {
       setFeedback({
         type: "error",
         message: "هذا الملف مرتبط بالفعل بمتجر آخر.",
@@ -615,15 +743,23 @@ async function handleVendorImageUpload(file: File | null) {
     }
   }
 
-  async function handleQuickVendorAction(vendor: VendorRow, approvalStatus: ApprovalStatus, successMessage: string) {
+  async function handleQuickVendorAction(
+    vendor: VendorRow,
+    approvalStatus: ApprovalStatus,
+    successMessage: string,
+  ) {
     const supabase = getSupabaseBrowserClient();
-setActingVendorId(vendor.vendorId);
-setFeedback(null);
+    setActingVendorId(vendor.vendorId);
+    setFeedback(null);
 
-try {
-  if (!vendor.profileId && approvalStatus === "approved" && !vendor.contactEmail) {
-    throw new Error("لا يمكن اعتماد متجر غير مرتبط بدون بريد تواصل.");
-  }
+    try {
+      if (
+        !vendor.profileId &&
+        approvalStatus === "approved" &&
+        !vendor.contactEmail
+      ) {
+        throw new Error("لا يمكن اعتماد متجر غير مرتبط بدون بريد تواصل.");
+      }
 
       const payload = {
         p_vendor_id: vendor.vendorId,
@@ -638,14 +774,9 @@ try {
 
       if (error) {
         throw new Error(
-          [
-            error.message,
-            error.details,
-            error.hint,
-            error.code,
-          ]
+          [error.message, error.details, error.hint, error.code]
             .filter(Boolean)
-            .join(" | ") || "admin_update_vendor failed"
+            .join(" | ") || "admin_update_vendor failed",
         );
       }
 
@@ -659,7 +790,11 @@ try {
         throw verifyError;
       }
 
-      if (updatedVendor?.approval_status !== approvalStatus || Boolean(updatedVendor?.is_active) !== getVendorActivationForApproval(approvalStatus)) {
+      if (
+        updatedVendor?.approval_status !== approvalStatus ||
+        Boolean(updatedVendor?.is_active) !==
+          getVendorActivationForApproval(approvalStatus)
+      ) {
         throw new Error("لم يتم حفظ حالة اعتماد المتجر في قاعدة البيانات.");
       }
 
@@ -689,22 +824,50 @@ try {
   if (vendorsState.error) {
     return (
       <Card className="medical-panel">
-        <ErrorState message={vendorsState.error} onRetry={() => void loadVendors()} />
+        <ErrorState
+          message={vendorsState.error}
+          onRetry={() => void loadVendors()}
+        />
       </Card>
     );
   }
 
-  const selectedProfileLinkedElsewhere = Boolean(selectedProfile?.existingVendorId && selectedProfile.existingVendorId !== editingVendorId);
+  const selectedProfileLinkedElsewhere = Boolean(
+    selectedProfile?.existingVendorId &&
+    selectedProfile.existingVendorId !== editingVendorId,
+  );
 
   return (
     <div className="stack">
+      {categoriesState.loading ? (
+        <Card className="medical-panel">
+          <LoadingState message="جارٍ تحميل فئات المنتجات للاستيراد..." />
+        </Card>
+      ) : categoriesState.error ? (
+        <Card className="medical-panel">
+          <ErrorState
+            message={categoriesState.error}
+            onRetry={() => void loadCategories()}
+          />
+        </Card>
+      ) : (
+        <BulkProductImportCard
+          mode="admin"
+          categories={categories}
+          vendors={importVendorOptions}
+          selectedVendorId={selectedImportVendorId}
+          onVendorChange={setSelectedImportVendorId}
+          onImportComplete={loadVendors}
+        />
+      )}
+
       <Card className="medical-panel">
         <h3>{t(editingVendorId ? "Edit Vendor" : "Create Vendor")}</h3>
         <p className="muted">
           {t(
             editingVendorId
               ? "Update vendor details, relink the profile if needed, and control approval state."
-              : "أنشئ متجرًا مرتبطًا بحساب أو متجرًا مبدئيًا بدون تسجيل دخول للصيدليات الجديدة."
+              : "أنشئ متجرًا مرتبطًا بحساب أو متجرًا مبدئيًا بدون تسجيل دخول للصيدليات الجديدة.",
           )}
         </p>
         <form className="form-grid" onSubmit={handleProfileSearch}>
@@ -723,7 +886,9 @@ try {
               id="profile-role"
               className="input"
               value={profileRoleFilter}
-              onChange={(event) => setProfileRoleFilter(event.target.value as RoleFilter)}
+              onChange={(event) =>
+                setProfileRoleFilter(event.target.value as RoleFilter)
+              }
             >
               <option value="">{t("All roles")}</option>
               <option value="admin">{t("admin")}</option>
@@ -739,28 +904,48 @@ try {
           </div>
         </form>
 
-        {profilesState.error ? <p className="danger">{profilesState.error}</p> : null}
-        {profilesState.loading && !profilesState.data ? <LoadingState message="جارٍ تحميل الملفات..." /> : null}
+        {profilesState.error ? (
+          <p className="danger">{profilesState.error}</p>
+        ) : null}
+        {profilesState.loading && !profilesState.data ? (
+          <LoadingState message="جارٍ تحميل الملفات..." />
+        ) : null}
         {!profilesState.loading && (profilesState.data?.length ?? 0) === 0 ? (
-          <EmptyState title="لم يتم العثور على ملفات" message="جرّب بحثًا مختلفًا أو أزل فلتر الدور." />
+          <EmptyState
+            title="لم يتم العثور على ملفات"
+            message="جرّب بحثًا مختلفًا أو أزل فلتر الدور."
+          />
         ) : null}
         {(profilesState.data?.length ?? 0) > 0 ? (
           <Table
             title="نتائج الملفات"
-            headers={["الاسم", "البريد الإلكتروني", "الدور", "ربط الملف", "الإجراءات"]}
+            headers={[
+              "الاسم",
+              "البريد الإلكتروني",
+              "الدور",
+              "ربط الملف",
+              "الإجراءات",
+            ]}
             rows={(profilesState.data ?? []).map((profile) => [
               `${profile.fullName}${profile.phone ? ` • ${profile.phone}` : ""}`,
               profile.email ?? "-",
               profile.role,
-              profile.existingVendorId ? `${t("Linked Vendor")}: ${profile.existingVendorId}` : profile.authUserId ?? "-",
-              <div key={`${profile.profileId}-select`} className="table-actions">
+              profile.existingVendorId
+                ? `${t("Linked Vendor")}: ${profile.existingVendorId}`
+                : (profile.authUserId ?? "-"),
+              <div
+                key={`${profile.profileId}-select`}
+                className="table-actions"
+              >
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={() => chooseProfile(profile)}
                   disabled={saving}
                 >
-                  {profile.profileId === selectedProfile?.profileId ? "محدد" : "استخدام الملف"}
+                  {profile.profileId === selectedProfile?.profileId
+                    ? "محدد"
+                    : "استخدام الملف"}
                 </Button>
               </div>,
             ])}
@@ -771,7 +956,10 @@ try {
 
       <Card className="medical-panel">
         <h3>{t("Linked Profile")}</h3>
-        <SelectedProfileSummary profile={selectedProfile} editingVendorId={editingVendorId} />
+        <SelectedProfileSummary
+          profile={selectedProfile}
+          editingVendorId={editingVendorId}
+        />
       </Card>
 
       <Card className="medical-panel">
@@ -782,20 +970,20 @@ try {
               id="vendor-name"
               value={formValues.name}
               onChange={(event) =>
-  setFormValues((current) => {
-    const nextName = event.target.value;
+                setFormValues((current) => {
+                  const nextName = event.target.value;
 
-    return {
-      ...current,
-      name: nextName,
-      slug:
-        current.slug === "" ||
-        current.slug === slugifyVendorName(current.name)
-          ? slugifyVendorName(nextName)
-          : current.slug,
-    };
-  })
-}
+                  return {
+                    ...current,
+                    name: nextName,
+                    slug:
+                      current.slug === "" ||
+                      current.slug === slugifyVendorName(current.name)
+                        ? slugifyVendorName(nextName)
+                        : current.slug,
+                  };
+                })
+              }
               placeholder="صيدلية جرين كير"
               required
             />
@@ -805,113 +993,122 @@ try {
             <Input
               id="vendor-slug"
               value={formValues.slug}
-              onChange={(event) => setFormValues((current) => ({ ...current, slug: event.target.value }))}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  slug: event.target.value,
+                }))
+              }
               placeholder="greencare-pharmacy"
               required
             />
           </div>
           <div className="field">
-  <label htmlFor="vendor-description">{t("Description")}</label>
-  <textarea
-    id="vendor-description"
-    className="textarea"
-    rows={4}
-    value={formValues.description}
-    onChange={(event) =>
-      setFormValues((current) => ({
-        ...current,
-        description: event.target.value,
-      }))
-    }
-    placeholder={t("Short vendor description")}
-  />
-</div>
-
-
-<div className="field">
-  <label htmlFor="vendor-image-upload">صورة المتجر</label>
-  <Input
-    id="vendor-image-upload"
-    type="file"
-    accept="image/*"
-    disabled={uploadingVendorImage || saving}
-    onChange={(event) => {
-      const file = event.target.files?.[0] ?? null;
-      void handleVendorImageUpload(file);
-      event.target.value = "";
-    }}
-  />
-  <p className="muted">
-    {uploadingVendorImage ? "جارٍ رفع الصورة..." : "ارفع صورة للمتجر، وسيتم حفظ الرابط تلقائيًا."}
-  </p>
-</div>
-
-<div className="field">
-  <label htmlFor="vendor-image-url">رابط صورة المتجر</label>
-  <Input
-    id="vendor-image-url"
-    value={formValues.imageUrl}
-    onChange={(event) =>
-      setFormValues((current) => ({
-        ...current,
-        imageUrl: event.target.value,
-      }))
-    }
-    placeholder="سيظهر الرابط تلقائيًا بعد رفع الصورة"
-  />
-</div>
-
-{formValues.imageUrl ? (
-  <div className="vendor-image-preview">
-    <img
-      src={formValues.imageUrl}
-      alt="Vendor preview"
-      style={{
-        width: "100%",
-        maxWidth: 220,
-        height: 140,
-        objectFit: "cover",
-        borderRadius: 16,
-        border: "1px solid var(--border)",
-      }}
-    />
-  </div>
-) : null}
-<div className="field">
-  <label htmlFor="vendor-license-number">رقم الترخيص</label>
-  <Input
-    id="vendor-license-number"
-    value={formValues.licenseNumber}
-    onChange={(event) =>
-      setFormValues((current) => ({
-        ...current,
-        licenseNumber: event.target.value,
-      }))
-    }
-    placeholder="اختياري"
-  />
-</div>
-<div className="field">
-  <label htmlFor="vendor-contact-email">البريد الإلكتروني للتواصل</label>
-  <Input
-    id="vendor-contact-email"
-    value={formValues.contactEmail}
-    onChange={(event) =>
-      setFormValues((current) => ({
-        ...current,
-        contactEmail: event.target.value,
-      }))
-    }
-    placeholder="pharmacy@example.com"
-  />
-</div>
-
-<div className="field">
+            <label htmlFor="vendor-description">{t("Description")}</label>
+            <textarea
+              id="vendor-description"
+              className="textarea"
+              rows={4}
+              value={formValues.description}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+              placeholder={t("Short vendor description")}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="vendor-image-upload">صورة المتجر</label>
+            <Input
+              id="vendor-image-upload"
+              type="file"
+              accept="image/*"
+              disabled={uploadingVendorImage || saving}
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                void handleVendorImageUpload(file);
+                event.target.value = "";
+              }}
+            />
+            <p className="muted">
+              {uploadingVendorImage
+                ? "جارٍ رفع الصورة..."
+                : "ارفع صورة للمتجر، وسيتم حفظ الرابط تلقائيًا."}
+            </p>
+          </div>
+          <div className="field">
+            <label htmlFor="vendor-image-url">رابط صورة المتجر</label>
+            <Input
+              id="vendor-image-url"
+              value={formValues.imageUrl}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  imageUrl: event.target.value,
+                }))
+              }
+              placeholder="سيظهر الرابط تلقائيًا بعد رفع الصورة"
+            />
+          </div>
+          {formValues.imageUrl ? (
+            <div className="vendor-image-preview">
+              <img
+                src={formValues.imageUrl}
+                alt="Vendor preview"
+                style={{
+                  width: "100%",
+                  maxWidth: 220,
+                  height: 140,
+                  objectFit: "cover",
+                  borderRadius: 16,
+                  border: "1px solid var(--border)",
+                }}
+              />
+            </div>
+          ) : null}
+          <div className="field">
+            <label htmlFor="vendor-license-number">رقم الترخيص</label>
+            <Input
+              id="vendor-license-number"
+              value={formValues.licenseNumber}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  licenseNumber: event.target.value,
+                }))
+              }
+              placeholder="اختياري"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="vendor-contact-email">
+              البريد الإلكتروني للتواصل
+            </label>
+            <Input
+              id="vendor-contact-email"
+              value={formValues.contactEmail}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  contactEmail: event.target.value,
+                }))
+              }
+              placeholder="pharmacy@example.com"
+            />
+          </div>
+          <div className="field">
             <label htmlFor="vendor-phone">{t("Phone")}</label>
             <Input
               id="vendor-phone"
               value={formValues.phone}
-              onChange={(event) => setFormValues((current) => ({ ...current, phone: event.target.value }))}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  phone: event.target.value,
+                }))
+              }
               placeholder="+9665..."
               required
             />
@@ -921,7 +1118,12 @@ try {
             <Input
               id="vendor-address"
               value={formValues.addressLine1}
-              onChange={(event) => setFormValues((current) => ({ ...current, addressLine1: event.target.value }))}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  addressLine1: event.target.value,
+                }))
+              }
               placeholder="14 King Street"
               required
             />
@@ -931,7 +1133,12 @@ try {
             <Input
               id="vendor-city"
               value={formValues.city}
-              onChange={(event) => setFormValues((current) => ({ ...current, city: event.target.value }))}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  city: event.target.value,
+                }))
+              }
               placeholder="الرياض"
               required
             />
@@ -941,7 +1148,12 @@ try {
             <Input
               id="vendor-area"
               value={formValues.area}
-              onChange={(event) => setFormValues((current) => ({ ...current, area: event.target.value }))}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  area: event.target.value,
+                }))
+              }
               placeholder="الحي المركزي"
               required
             />
@@ -951,7 +1163,12 @@ try {
             <Input
               id="vendor-lat"
               value={formValues.lat}
-              onChange={(event) => setFormValues((current) => ({ ...current, lat: event.target.value }))}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  lat: event.target.value,
+                }))
+              }
               placeholder="24.7136"
             />
           </div>
@@ -960,29 +1177,31 @@ try {
             <Input
               id="vendor-lng"
               value={formValues.lng}
-              onChange={(event) => setFormValues((current) => ({ ...current, lng: event.target.value }))}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  lng: event.target.value,
+                }))
+              }
               placeholder="46.6753"
             />
           </div>
-          <p className="muted">
-  يمكن نسخ الإحداثيات مباشرة من Google Maps.
-</p>
-
-<div className="field">
-  <label htmlFor="vendor-delivery-radius">نطاق التوصيل (كم)</label>
-  <Input
-    id="vendor-delivery-radius"
-    value={formValues.deliveryRadiusKm}
-    onChange={(event) =>
-      setFormValues((current) => ({
-        ...current,
-        deliveryRadiusKm: event.target.value,
-      }))
-    }
-    placeholder="15"
-  />
-  <p className="muted">الحد الأقصى لمسافة التوصيل بالكيلومتر.</p>
-</div>
+          <p className="muted">يمكن نسخ الإحداثيات مباشرة من Google Maps.</p>
+          <div className="field">
+            <label htmlFor="vendor-delivery-radius">نطاق التوصيل (كم)</label>
+            <Input
+              id="vendor-delivery-radius"
+              value={formValues.deliveryRadiusKm}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  deliveryRadiusKm: event.target.value,
+                }))
+              }
+              placeholder="15"
+            />
+            <p className="muted">الحد الأقصى لمسافة التوصيل بالكيلومتر.</p>
+          </div>
           <div className="field">
             <label htmlFor="vendor-approval">{t("Approval Status")}</label>
             <select
@@ -990,7 +1209,10 @@ try {
               className="input"
               value={formValues.approvalStatus}
               onChange={(event) =>
-                setFormValues((current) => ({ ...current, approvalStatus: event.target.value as ApprovalStatus }))
+                setFormValues((current) => ({
+                  ...current,
+                  approvalStatus: event.target.value as ApprovalStatus,
+                }))
               }
             >
               <option value="pending">{t("pending")}</option>
@@ -998,110 +1220,124 @@ try {
               <option value="rejected">{t("rejected")}</option>
             </select>
           </div>
-          {feedback ? <p className={feedback.type === "error" ? "danger" : "success"}>{t(feedback.message)}</p> : null}
-          {selectedProfileLinkedElsewhere ? <p className="danger">{t("This profile is already linked to another vendor.")}</p> : null}
+          {feedback ? (
+            <p className={feedback.type === "error" ? "danger" : "success"}>
+              {t(feedback.message)}
+            </p>
+          ) : null}
+          {selectedProfileLinkedElsewhere ? (
+            <p className="danger">
+              {t("This profile is already linked to another vendor.")}
+            </p>
+          ) : null}
+          <div className="actions">
+            <Button
+              type="submit"
+              disabled={selectedProfileLinkedElsewhere || uploadingVendorImage}
+              loading={saving || uploadingVendorImage}
+            >
+              {saving || uploadingVendorImage
+                ? "جارٍ الحفظ..."
+                : editingVendorId
+                  ? "حفظ تعديلات المتجر"
+                  : "حفظ المتجر"}
+            </Button>
 
-<div className="actions">
-  <Button
-    type="submit"
-    disabled={selectedProfileLinkedElsewhere || uploadingVendorImage}
-    loading={saving || uploadingVendorImage}
-  >
-    {saving || uploadingVendorImage
-      ? "جارٍ الحفظ..."
-      : editingVendorId
-        ? "حفظ تعديلات المتجر"
-        : "حفظ المتجر"}
-  </Button>
-
-  {editingVendorId ? (
-    <Button
-      type="button"
-      variant="secondary"
-      onClick={resetForm}
-      disabled={saving || uploadingVendorImage}
-    >
-      إلغاء التعديل
-    </Button>
-  ) : null}
-</div>        </form>
+            {editingVendorId ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={resetForm}
+                disabled={saving || uploadingVendorImage}
+              >
+                إلغاء التعديل
+              </Button>
+            ) : null}
+          </div>{" "}
+        </form>
       </Card>
 
       {vendors.length === 0 ? (
         <Card className="medical-panel">
-          <EmptyState title="لا توجد متاجر بعد" message="أنشئ أول متجر لتفعيل إدارة الصيدليات داخل لوحة التحكم." />
+          <EmptyState
+            title="لا توجد متاجر بعد"
+            message="أنشئ أول متجر لتفعيل إدارة الصيدليات داخل لوحة التحكم."
+          />
         </Card>
       ) : (
         <Table
           title="المتاجر"
           headers={[
-  "المتجر",
-  "المالك",
-  "الهاتف",
-  "العنوان",
-  "الترخيص",
-  "الحالة",
-  "الإجراءات",
-]}
+            "المتجر",
+            "المالك",
+            "الهاتف",
+            "العنوان",
+            "الترخيص",
+            "الحالة",
+            "الإجراءات",
+          ]}
           rows={vendors.map((vendor) => [
-  `${vendor.vendorName}${vendor.slug ? ` • ${vendor.slug}` : ""}`,
+            `${vendor.vendorName}${vendor.slug ? ` • ${vendor.slug}` : ""}`,
 
-  [
-  vendor.profileFullName,
-  vendor.email,
-  vendor.contactEmail,
-]
-  .filter(Boolean)
-  .join(" • "),
+            [vendor.profileFullName, vendor.email, vendor.contactEmail]
+              .filter(Boolean)
+              .join(" • "),
 
-  vendor.phone ?? "-",
+            vendor.phone ?? "-",
 
-[
-  vendor.addressLine1,
-  vendor.city,
-  vendor.area,
-  vendor.deliveryRadiusKm
-    ? `${vendor.deliveryRadiusKm} كم`
-    : null,
-]
-  .filter(Boolean)
-  .join(" • ") || "-",
+            [
+              vendor.addressLine1,
+              vendor.city,
+              vendor.area,
+              vendor.deliveryRadiusKm ? `${vendor.deliveryRadiusKm} كم` : null,
+            ]
+              .filter(Boolean)
+              .join(" • ") || "-",
 
-  vendor.licenseNumber || "-",
+            vendor.licenseNumber || "-",
 
-  <div className="table-actions">
-  <Badge
-    className={
-      vendor.approvalStatus === "approved"
-        ? "success"
-        : vendor.approvalStatus === "rejected"
-          ? "danger"
-          : "warning"
-    }
-  >
-    {vendor.approvalStatus === "approved"
-      ? "معتمد"
-      : vendor.approvalStatus === "rejected"
-        ? "مرفوض"
-        : "قيد المراجعة"}
-  </Badge>
+            <div className="table-actions">
+              <Badge
+                className={
+                  vendor.approvalStatus === "approved"
+                    ? "success"
+                    : vendor.approvalStatus === "rejected"
+                      ? "danger"
+                      : "warning"
+                }
+              >
+                {vendor.approvalStatus === "approved"
+                  ? "معتمد"
+                  : vendor.approvalStatus === "rejected"
+                    ? "مرفوض"
+                    : "قيد المراجعة"}
+              </Badge>
 
-  {vendor.isActive ? (
-    <Badge className="success">نشط</Badge>
-  ) : (
-    <Badge className="muted">غير نشط</Badge>
-  )}
-</div>,
+              {vendor.isActive ? (
+                <Badge className="success">نشط</Badge>
+              ) : (
+                <Badge className="muted">غير نشط</Badge>
+              )}
+            </div>,
 
             <div key={`${vendor.vendorId}-actions`} className="table-actions">
-              <Button type="button" variant="secondary" onClick={() => startEditingVendor(vendor)} disabled={saving || actingVendorId === vendor.vendorId}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => startEditingVendor(vendor)}
+                disabled={saving || actingVendorId === vendor.vendorId}
+              >
                 تعديل
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() =>
-                  void handleQuickVendorAction(vendor, "approved", "تم اعتماد المتجر وتفعيله بنجاح.")
+                  void handleQuickVendorAction(
+                    vendor,
+                    "approved",
+                    "تم اعتماد المتجر وتفعيله بنجاح.",
+                  )
                 }
                 disabled={saving || actingVendorId === vendor.vendorId}
               >
@@ -1111,7 +1347,11 @@ try {
                 type="button"
                 variant="danger"
                 onClick={() =>
-                  void handleQuickVendorAction(vendor, "rejected", "تم رفض المتجر وتعطيله بنجاح.")
+                  void handleQuickVendorAction(
+                    vendor,
+                    "rejected",
+                    "تم رفض المتجر وتعطيله بنجاح.",
+                  )
                 }
                 disabled={saving || actingVendorId === vendor.vendorId}
               >

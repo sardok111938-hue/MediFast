@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "../../lib/supabase/server";
 import type {
+  ProductImportParsedRow,
   ProductImportValidationError,
   VendorBulkCreateProductsInput,
   VendorBulkCreateProductsResult,
@@ -23,6 +24,20 @@ type VendorImportAccessResult =
       success: false;
       error: string;
     };
+
+function createBulkImportFailure(
+  error: string,
+): VendorBulkCreateProductsResult {
+  return {
+    success: false,
+    error,
+    totalRows: 0,
+    insertedCount: 0,
+    updatedCount: 0,
+    failedCount: 0,
+    errors: [],
+  };
+}
 
 async function callProductRpc<TParams extends Record<string, unknown>>(
   fn: string,
@@ -108,6 +123,177 @@ async function getApprovedActiveVendorId(): Promise<VendorImportAccessResult> {
   return {
     success: true,
     vendorId: String(vendor.id),
+  };
+}
+
+async function bulkImportProductsForVendor(input: {
+  vendorId: string;
+  rows: ProductImportParsedRow[];
+  revalidatePaths: string[];
+}): Promise<VendorBulkCreateProductsResult> {
+  const supabase = await getSupabaseServerClient();
+  const rows = input.rows ?? [];
+
+  if (rows.length === 0) {
+    return createBulkImportFailure("لا توجد صفوف صالحة لإرسالها إلى الخادم.");
+  }
+
+  const requestedCategorySlugs = Array.from(
+    new Set(
+      rows
+        .map((row) =>
+          String(row.values.category_slug ?? "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter((slug) => slug.length > 0),
+    ),
+  );
+
+  const requestedBarcodes = Array.from(
+    new Set(
+      rows
+        .map((row) => String(row.values.barcode ?? "").trim())
+        .filter((barcode) => barcode.length > 0),
+    ),
+  );
+
+  const { data: categoriesData, error: categoriesError } = await supabase
+    .from("categories")
+    .select("id, slug")
+    .eq("is_active", true)
+    .in(
+      "slug",
+      requestedCategorySlugs.length > 0
+        ? requestedCategorySlugs
+        : ["__no_match__"],
+    );
+
+  if (categoriesError) {
+    return createBulkImportFailure(
+      "تعذر تحميل الفئات النشطة المطلوبة للتحقق من الملف.",
+    );
+  }
+
+  const categoryIdBySlug = new Map<string, string>(
+    (categoriesData ?? [])
+      .filter((category) => category.slug)
+      .map(
+        (category) =>
+          [
+            String(category.slug).trim().toLowerCase(),
+            String(category.id),
+          ] as const,
+      ),
+  );
+
+  const { data: existingProducts, error: existingProductsError } =
+    await supabase
+      .from("products")
+      .select("barcode")
+      .eq("vendor_id", input.vendorId)
+      .in(
+        "barcode",
+        requestedBarcodes.length > 0 ? requestedBarcodes : ["__no_match__"],
+      );
+
+  if (existingProductsError) {
+    return createBulkImportFailure(
+      "تعذر التحقق من الباركودات الحالية داخل كتالوج الصيدلية.",
+    );
+  }
+
+  const existingBarcodes = new Set<string>(
+    (existingProducts ?? [])
+      .map((product) => (product.barcode ? String(product.barcode).trim() : ""))
+      .filter((barcode) => barcode.length > 0),
+  );
+
+  const validation = validateProductImportRows(rows, {
+    categoryIdBySlug,
+  });
+
+  if (validation.totalRows === 0) {
+    return createBulkImportFailure(
+      "الملف لا يحتوي على صفوف بيانات قابلة للاستيراد.",
+    );
+  }
+
+  const insertionErrors: ProductImportValidationError[] = [];
+
+  let insertedCount = 0;
+  let updatedCount = 0;
+
+  for (const row of validation.validRows) {
+    const payload = {
+      vendor_id: input.vendorId,
+      category_id: row.categoryId,
+      name: row.name,
+      description: row.description,
+      price: row.price,
+      stock_quantity: row.stockQuantity,
+      barcode: row.barcode,
+      image_url: row.imageUrl,
+      is_active: true,
+    };
+
+    if (row.barcode && existingBarcodes.has(row.barcode)) {
+      const { error } = await supabase
+        .from("products")
+        .update({
+          price: payload.price,
+          stock_quantity: payload.stock_quantity,
+          is_active: true,
+        })
+        .eq("vendor_id", input.vendorId)
+        .eq("barcode", row.barcode);
+
+      if (error) {
+        insertionErrors.push({
+          rowNumber: row.rowNumber,
+          field: "row",
+          message: error.message ?? "تعذر تحديث هذا المنتج.",
+        });
+
+        continue;
+      }
+
+      updatedCount += 1;
+      continue;
+    }
+
+    const { error } = await supabase.from("products").insert(payload);
+
+    if (error) {
+      insertionErrors.push({
+        rowNumber: row.rowNumber,
+        field: "row",
+        message: error.message ?? "تعذر إدراج هذا الصف.",
+      });
+
+      continue;
+    }
+
+    insertedCount += 1;
+  }
+
+  const allErrors = [...validation.errors, ...insertionErrors];
+  const failedCount = validation.totalRows - insertedCount - updatedCount;
+
+  if (insertedCount > 0 || updatedCount > 0) {
+    for (const path of input.revalidatePaths) {
+      revalidatePath(path);
+    }
+  }
+
+  return {
+    success: true,
+    error: null,
+    totalRows: validation.totalRows,
+    insertedCount,
+    updatedCount,
+    failedCount,
+    errors: allErrors,
   };
 }
 
@@ -224,204 +410,64 @@ export async function vendorBulkCreateProductsAction(
   const vendorAccess = await getApprovedActiveVendorId();
 
   if (!vendorAccess.success) {
-    return {
-      success: false,
-      error: vendorAccess.error,
-      totalRows: 0,
-      insertedCount: 0,
-      updatedCount: 0,
-      failedCount: 0,
-      errors: [],
-    };
+    return createBulkImportFailure(vendorAccess.error);
   }
 
-  const supabase = await getSupabaseServerClient();
-  const rows = input.rows ?? [];
-
-  if (rows.length === 0) {
-    return {
-      success: false,
-      error: "لا توجد صفوف صالحة لإرسالها إلى الخادم.",
-      totalRows: 0,
-      insertedCount: 0,
-      updatedCount: 0,
-      failedCount: 0,
-      errors: [],
-    };
-  }
-
-  const requestedCategorySlugs = Array.from(
-    new Set(
-      rows
-        .map((row) =>
-          String(row.values.category_slug ?? "")
-            .trim()
-            .toLowerCase(),
-        )
-        .filter((slug) => slug.length > 0),
-    ),
-  );
-
-  const requestedBarcodes = Array.from(
-    new Set(
-      rows
-        .map((row) => String(row.values.barcode ?? "").trim())
-        .filter((barcode) => barcode.length > 0),
-    ),
-  );
-
-  const { data: categoriesData, error: categoriesError } = await supabase
-    .from("categories")
-    .select("id, slug")
-    .eq("is_active", true)
-    .in(
-      "slug",
-      requestedCategorySlugs.length > 0
-        ? requestedCategorySlugs
-        : ["__no_match__"],
-    );
-
-  if (categoriesError) {
-    return {
-      success: false,
-      error: "تعذر تحميل الفئات النشطة المطلوبة للتحقق من الملف.",
-      totalRows: 0,
-      insertedCount: 0,
-      updatedCount: 0,
-      failedCount: 0,
-      errors: [],
-    };
-  }
-
-  const categoryIdBySlug = new Map<string, string>(
-    (categoriesData ?? [])
-      .filter((category) => category.slug)
-      .map(
-        (category) =>
-          [
-            String(category.slug).trim().toLowerCase(),
-            String(category.id),
-          ] as const,
-      ),
-  );
-
-  const { data: existingProducts, error: existingProductsError } =
-    await supabase
-      .from("products")
-      .select("barcode")
-      .eq("vendor_id", vendorAccess.vendorId)
-      .in(
-        "barcode",
-        requestedBarcodes.length > 0 ? requestedBarcodes : ["__no_match__"],
-      );
-
-  if (existingProductsError) {
-    return {
-      success: false,
-      error: "تعذر التحقق من الباركودات الحالية داخل كتالوج الصيدلية.",
-      totalRows: 0,
-      insertedCount: 0,
-      updatedCount: 0,
-      failedCount: 0,
-      errors: [],
-    };
-  }
-
-  const existingBarcodes = new Set<string>(
-    (existingProducts ?? [])
-      .map((product) => (product.barcode ? String(product.barcode).trim() : ""))
-      .filter((barcode) => barcode.length > 0),
-  );
-
-  const validation = validateProductImportRows(rows, {
-    categoryIdBySlug,
+  return bulkImportProductsForVendor({
+    vendorId: vendorAccess.vendorId,
+    rows: input.rows,
+    revalidatePaths: ["/vendor/products", "/vendor/inventory"],
   });
+}
 
-  if (validation.totalRows === 0) {
-    return {
-      success: false,
-      error: "الملف لا يحتوي على صفوف بيانات قابلة للاستيراد.",
-      totalRows: 0,
-      insertedCount: 0,
-      updatedCount: 0,
-      failedCount: 0,
-      errors: [],
-    };
+export async function adminBulkImportProductsForVendorAction(input: {
+  vendorId: string;
+  rows: ProductImportParsedRow[];
+}): Promise<VendorBulkCreateProductsResult> {
+  const supabase = await getSupabaseServerClient();
+  const { data: isAdmin, error: adminError } = await supabase.rpc("is_admin");
+
+  if (adminError || !isAdmin) {
+    return createBulkImportFailure(
+      "هذا الإجراء متاح للإدارة فقط، ولا يمكن للمتاجر استخدامه.",
+    );
   }
 
-  const insertionErrors: ProductImportValidationError[] = [];
+  const vendorId = String(input.vendorId ?? "").trim();
 
-  let insertedCount = 0;
-  let updatedCount = 0;
-
-  for (const row of validation.validRows) {
-    const payload = {
-      vendor_id: vendorAccess.vendorId,
-      category_id: row.categoryId,
-      name: row.name,
-      description: row.description,
-      price: row.price,
-      stock_quantity: row.stockQuantity,
-      barcode: row.barcode,
-      image_url: row.imageUrl,
-      is_active: true,
-    };
-
-    if (row.barcode && existingBarcodes.has(row.barcode)) {
-      const { error } = await supabase
-        .from("products")
-        .update({
-          price: payload.price,
-          stock_quantity: payload.stock_quantity,
-          is_active: true,
-        })
-        .eq("vendor_id", vendorAccess.vendorId)
-        .eq("barcode", row.barcode);
-
-      if (error) {
-        insertionErrors.push({
-          rowNumber: row.rowNumber,
-          field: "row",
-          message: error.message ?? "تعذر تحديث هذا المنتج.",
-        });
-
-        continue;
-      }
-
-      updatedCount += 1;
-      continue;
-    }
-
-    const { error } = await supabase.from("products").insert(payload);
-
-    if (error) {
-      insertionErrors.push({
-        rowNumber: row.rowNumber,
-        field: "row",
-        message: error.message ?? "تعذر إدراج هذا الصف.",
-      });
-
-      continue;
-    }
-
-    insertedCount += 1;
+  if (!vendorId) {
+    return createBulkImportFailure(
+      "يرجى اختيار الصيدلية المستهدفة قبل رفع المنتجات.",
+    );
   }
 
-  const allErrors = [...validation.errors, ...insertionErrors];
-  const failedCount = validation.totalRows - insertedCount - updatedCount;
+  const { data: vendor, error: vendorError } = await supabase
+    .from("vendors")
+    .select("id, approval_status, is_active")
+    .eq("id", vendorId)
+    .maybeSingle();
 
-  if (insertedCount > 0 || updatedCount > 0) {
-    revalidatePath("/vendor/products");
-    revalidatePath("/vendor/inventory");
+  if (vendorError || !vendor) {
+    return createBulkImportFailure("تعذر العثور على الصيدلية المحددة.");
   }
 
-  return {
-    success: true,
-    error: null,
-    totalRows: validation.totalRows,
-    insertedCount,
-    updatedCount,
-    failedCount,
-    errors: allErrors,
-  };
+  if (
+    String(vendor.approval_status ?? "") !== "approved" ||
+    !vendor.is_active
+  ) {
+    return createBulkImportFailure(
+      "يمكن إضافة المنتجات فقط إلى صيدلية نشطة ومعتمدة.",
+    );
+  }
+
+  return bulkImportProductsForVendor({
+    vendorId,
+    rows: input.rows,
+    revalidatePaths: [
+      "/admin/vendors",
+      "/admin/products",
+      "/vendor/products",
+      "/vendor/inventory",
+    ],
+  });
 }
