@@ -47,9 +47,7 @@ async function loadAdminDriversData(): Promise<AdminDriversData> {
       current_lat,
       current_lng,
       profile_image_url,
-      passport_image_url,
       passport_image_path,
-      vehicle_image_url,
       vehicle_image_path,
       emergency_contact_name,
       emergency_contact_phone,
@@ -109,15 +107,13 @@ async function loadAdminDriversData(): Promise<AdminDriversData> {
           driver.current_lng == null ? null : Number(driver.current_lng),
         profileImageUrl: driver.profile_image_url ?? null,
         passportImagePath: driver.passport_image_path ?? null,
-        passportImageUrl:
-          (await createDriverDocumentSignedUrl(driver.passport_image_path)) ??
-          driver.passport_image_url ??
-          null,
+        passportImageUrl: await createDriverDocumentSignedUrl(
+          driver.passport_image_path,
+        ),
         vehicleImagePath: driver.vehicle_image_path ?? null,
-        vehicleImageUrl:
-          (await createDriverDocumentSignedUrl(driver.vehicle_image_path)) ??
-          driver.vehicle_image_url ??
-          null,
+        vehicleImageUrl: await createDriverDocumentSignedUrl(
+          driver.vehicle_image_path,
+        ),
         emergencyContactName: driver.emergency_contact_name ?? null,
         emergencyContactPhone: driver.emergency_contact_phone ?? null,
         vehicleType: driver.vehicle_type ?? null,

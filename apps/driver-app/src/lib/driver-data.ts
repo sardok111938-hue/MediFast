@@ -17,9 +17,7 @@ export type DriverProfile = {
   isAvailable: boolean;
   approvalStatus: string;
   profileImageUrl: string | null;
-  passportImageUrl: string | null;
   passportImagePath: string | null;
-  vehicleImageUrl: string | null;
   vehicleImagePath: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
@@ -380,10 +378,8 @@ export async function getCurrentDriverProfile(): Promise<DriverProfile> {
   total_deliveries,
 profile_image_url,
 
-passport_image_url,
 passport_image_path,
 
-vehicle_image_url,
 vehicle_image_path,
 
 emergency_contact_name,
@@ -430,10 +426,8 @@ emergency_contact_name,
     approvalStatus: String(data.approval_status ?? ""),
     profileImageUrl: readOptionalText(data.profile_image_url),
 
-    passportImageUrl: readOptionalText(data.passport_image_url),
     passportImagePath: readOptionalText(data.passport_image_path),
 
-    vehicleImageUrl: readOptionalText(data.vehicle_image_url),
     vehicleImagePath: readOptionalText(data.vehicle_image_path),
 
     emergencyContactName: readOptionalText(data.emergency_contact_name),
