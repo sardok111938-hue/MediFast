@@ -4,9 +4,11 @@
 
 ### Customer Delivery Fee
 
-* Fixed delivery fee: 10 LYD
-* Applied to all eligible orders
-* Calculated server-side through `calculate_delivery_fee()`
+Fixed delivery fee:
+
+```text
+7 LYD
+
 
 ### Delivery Radius
 

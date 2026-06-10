@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
-import type { ProductCategoryOption, ProductRow } from "../../../../types/dashboard";
+import type {
+  ProductCategoryOption,
+  ProductRow,
+} from "../../../../types/dashboard";
 
 export type TableModel = {
   title: string;
@@ -83,7 +86,9 @@ export type AdminDriverRow = {
   currentLng: number | null;
   profileImageUrl: string | null;
   passportImageUrl: string | null;
+  passportImagePath: string | null;
   vehicleImageUrl: string | null;
+  vehicleImagePath: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
   vehicleType: string | null;

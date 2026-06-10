@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@medifast/ui";
 import { useCallback, useEffect, useState } from "react";
-import { markCustomerNotificationsViewed } from "../src/lib/notification-read-state";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { EmptyCard, Screen } from "../src/components/CustomerUI";
+import { markCustomerNotificationsViewed } from "../src/lib/notification-read-state";
 import {
   subscribeToCustomerNotifications,
   supabase,
@@ -49,6 +50,54 @@ export default function NotificationsScreen() {
 
     setLoading(false);
   }, []);
+
+  async function handleDeleteNotification(notificationId: string) {
+    const { error } = await supabase.rpc("delete_customer_notification", {
+      p_notification_id: notificationId,
+    });
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setNotifications((current) =>
+      current.filter((item) => item.id !== notificationId),
+    );
+  }
+
+  function confirmDeleteNotification(notificationId: string) {
+    Alert.alert("حذف الإشعار؟", "سيتم حذف هذا الإشعار من هذه الشاشة.", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف",
+        style: "destructive",
+        onPress: () => void handleDeleteNotification(notificationId),
+      },
+    ]);
+  }
+
+  async function handleClearNotifications() {
+    const { error } = await supabase.rpc("delete_customer_notifications");
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setNotifications([]);
+  }
+
+  function confirmClearNotifications() {
+    Alert.alert("مسح الإشعارات؟", "سيتم حذف جميع الإشعارات من هذه الشاشة.", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "مسح الكل",
+        style: "destructive",
+        onPress: () => void handleClearNotifications(),
+      },
+    ]);
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -129,6 +178,17 @@ export default function NotificationsScreen() {
         />
       ) : (
         <View style={styles.list}>
+          <View style={styles.listHeader}>
+            <Text style={styles.listHeaderTitle}>الإشعارات الأخيرة</Text>
+
+            <Pressable
+              style={styles.clearButton}
+              onPress={confirmClearNotifications}
+            >
+              <Text style={styles.clearButtonText}>مسح الكل</Text>
+            </Pressable>
+          </View>
+
           {notifications.map((notification) => (
             <View key={notification.id} style={styles.notificationCard}>
               <View style={styles.notificationIcon}>
@@ -140,9 +200,20 @@ export default function NotificationsScreen() {
               </View>
 
               <View style={styles.notificationContent}>
-                <Text style={styles.notificationTitle}>
-                  {notification.title}
-                </Text>
+                <View style={styles.notificationHeader}>
+                  <Pressable
+                    style={styles.deleteButton}
+                    hitSlop={10}
+                    onPress={() => confirmDeleteNotification(notification.id)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                  </Pressable>
+
+                  <Text style={styles.notificationTitle}>
+                    {notification.title}
+                  </Text>
+                </View>
+
                 <Text style={styles.notificationBody}>{notification.body}</Text>
                 <Text style={styles.notificationDate}>
                   {formatNotificationDate(notification.created_at)}
@@ -194,6 +265,28 @@ const styles = StyleSheet.create({
   list: {
     gap: theme.spacing[12],
   },
+  listHeader: {
+    alignItems: "center",
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+  },
+  listHeaderTitle: {
+    color: theme.colors.text,
+    fontSize: theme.typography.body.md,
+    fontWeight: "900",
+  },
+  clearButton: {
+    borderColor: "#FCA5A5",
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    paddingHorizontal: theme.spacing[12],
+    paddingVertical: 6,
+  },
+  clearButtonText: {
+    color: "#DC2626",
+    fontSize: theme.typography.caption.md,
+    fontWeight: "800",
+  },
   notificationCard: {
     borderColor: theme.colors.border,
     borderRadius: theme.radius.lg,
@@ -211,11 +304,22 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: theme.spacing[8],
   },
+  notificationHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: theme.spacing[8],
+    justifyContent: "space-between",
+  },
   notificationTitle: {
     color: theme.colors.primaryDark,
+    flex: 1,
     fontSize: theme.typography.body.md,
     fontWeight: "800",
     textAlign: "right",
+  },
+  deleteButton: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   notificationBody: {
     color: theme.colors.text,

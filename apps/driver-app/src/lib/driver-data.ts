@@ -9,13 +9,18 @@ export type DriverProfile = {
   driverId: string;
   fullName: string;
   phone: string | null;
+  rating: number;
+  ratingCount: number;
+  totalDeliveries: number;
   vehicleType: string | null;
   vehiclePlate: string | null;
   isAvailable: boolean;
   approvalStatus: string;
   profileImageUrl: string | null;
   passportImageUrl: string | null;
+  passportImagePath: string | null;
   vehicleImageUrl: string | null;
+  vehicleImagePath: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
 };
@@ -370,10 +375,18 @@ export async function getCurrentDriverProfile(): Promise<DriverProfile> {
   id,
   is_available,
   approval_status,
-  profile_image_url,
-  passport_image_url,
-  vehicle_image_url,
-  emergency_contact_name,
+  rating,
+  rating_count,
+  total_deliveries,
+profile_image_url,
+
+passport_image_url,
+passport_image_path,
+
+vehicle_image_url,
+vehicle_image_path,
+
+emergency_contact_name,
   emergency_contact_phone,
   vehicle_type,
   vehicle_plate,
@@ -416,10 +429,18 @@ export async function getCurrentDriverProfile(): Promise<DriverProfile> {
     isAvailable: Boolean(data.is_available),
     approvalStatus: String(data.approval_status ?? ""),
     profileImageUrl: readOptionalText(data.profile_image_url),
+
     passportImageUrl: readOptionalText(data.passport_image_url),
+    passportImagePath: readOptionalText(data.passport_image_path),
+
     vehicleImageUrl: readOptionalText(data.vehicle_image_url),
+    vehicleImagePath: readOptionalText(data.vehicle_image_path),
+
     emergencyContactName: readOptionalText(data.emergency_contact_name),
     emergencyContactPhone: readOptionalText(data.emergency_contact_phone),
+    rating: Number(Number(data.rating ?? 0).toFixed(1)),
+    ratingCount: Number(data.rating_count ?? 0),
+    totalDeliveries: Number(data.total_deliveries ?? 0),
   };
 }
 

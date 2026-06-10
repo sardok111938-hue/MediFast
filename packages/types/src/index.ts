@@ -97,6 +97,7 @@ export interface Vendor {
   address: string;
   rating: number;
   eta_minutes: number;
+  completed_orders: number;
   is_open: boolean;
   image_url?: string | null;
   operating_hours?: VendorOperatingHour[];

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
+import { DEFAULT_DELIVERY_FEE_ESTIMATE } from "../../src/features/checkout/cod-checkout";
 import {
   Image,
   Pressable,
@@ -241,6 +242,16 @@ export default function HomeScreen() {
     [groupedProducts],
   );
 
+  const productCountsByVendorId = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    catalog.products.forEach((product) => {
+      counts.set(product.vendor_id, (counts.get(product.vendor_id) ?? 0) + 1);
+    });
+
+    return counts;
+  }, [catalog.products]);
+
   return (
     <Screen title="" subtitle="" contentContainerStyle={styles.screenContent}>
       <View style={styles.topToolbar}>
@@ -284,6 +295,11 @@ export default function HomeScreen() {
           style={styles.heroBannerImage}
           resizeMode="cover"
         />
+
+        <View style={styles.heroOverlay}>
+          <Text style={styles.heroBrand}>صيدليتي</Text>
+          <Text style={styles.heroTagline}>دواؤك لباب منزلك</Text>
+        </View>
       </Pressable>
 
       <View style={styles.searchBox}>
@@ -394,11 +410,8 @@ export default function HomeScreen() {
             ) : (
               <View style={styles.pharmacyList}>
                 {sortedVendors.map((vendor) => {
-                  const summary = {
-                    productCount: 0,
-                    ratingLabel:
-                      vendor.rating > 0 ? vendor.rating.toFixed(1) : "جديد",
-                  };
+                  const productCount =
+                    productCountsByVendorId.get(vendor.id) ?? 0;
                   const vendorImage = vendor.image_url ?? null;
                   const isFavoriteVendor = favoriteVendorIds.includes(
                     vendor.id,
@@ -500,15 +513,13 @@ export default function HomeScreen() {
                           </Text>
 
                           <View style={styles.pharmacyInfoColumn}>
-                            <View style={styles.infoItem}>
-                              <Ionicons name="star" size={13} color="#F5A400" />
-                              <Text style={styles.infoText}>
-                                {summary.ratingLabel}
-                              </Text>
-                            </View>
+                            <Text style={styles.productCountText}>
+                              {productCount.toLocaleString("en-GB")} منتج
+                            </Text>
 
                             <Text style={styles.productCountText}>
-                              {summary.productCount} منتجات
+                              {vendor.completed_orders.toLocaleString("en-GB")}{" "}
+                              طلب مكتمل
                             </Text>
                           </View>
                         </View>
@@ -556,13 +567,7 @@ export default function HomeScreen() {
                             >
                               {distanceKm === null
                                 ? "—"
-                                : distanceKm <= 3
-                                  ? "3 د.ل"
-                                  : distanceKm <= 8
-                                    ? "5 د.ل"
-                                    : distanceKm <= 15
-                                      ? "8 د.ل"
-                                      : "12 د.ل"}
+                                : `${DEFAULT_DELIVERY_FEE_ESTIMATE} د.ل`}
                             </Text>
 
                             <Ionicons
@@ -1030,7 +1035,32 @@ const styles = StyleSheet.create({
 
   notificationBadgeText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: 4,
     fontWeight: "900",
+  },
+  heroOverlay: {
+    position: "absolute",
+    left: 14,
+    top: 50,
+    alignItems: "flex-start",
+  },
+
+  heroBrand: {
+    color: "#010101",
+    fontSize: 22,
+    fontWeight: "900",
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+
+  heroTagline: {
+    marginTop: 4,
+    color: "#010101",
+    fontSize: 14,
+    fontWeight: "700",
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
 });

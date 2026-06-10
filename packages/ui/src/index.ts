@@ -131,6 +131,7 @@ export const vendors: Vendor[] = [
     address: "شارع الملك 14، المنطقة المركزية",
     rating: 4.8,
     eta_minutes: 18,
+    completed_orders: 0,
     is_open: true,
   },
   {
@@ -139,6 +140,7 @@ export const vendors: Vendor[] = [
     address: "جادة سيدار 22، الجهة الغربية",
     rating: 4.6,
     eta_minutes: 26,
+    completed_orders: 0,
     is_open: true,
   },
 ];

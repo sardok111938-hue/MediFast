@@ -1,12 +1,35 @@
 import { theme } from "@medifast/ui";
 import { StyleSheet, Text } from "react-native";
-import { formatCurrency, getPaymentStatusLabel, type DriverOrder } from "../../lib/driver-data";
 
-export function DriverOrderFooter({ order, showTotal = true }: { order: DriverOrder; showTotal?: boolean }) {
+import {
+  formatCurrency,
+  getPaymentStatusLabel,
+  type DriverOrder,
+} from "../../lib/driver-data";
+
+export function DriverOrderFooter({
+  order,
+  showTotal = true,
+}: {
+  order: DriverOrder;
+  showTotal?: boolean;
+}) {
+  if (!showTotal) {
+    return null;
+  }
+
   return (
     <>
-      {showTotal ? <Text style={styles.footerText}>{formatCurrency(order.total)}</Text> : null}
-      <Text style={styles.footerText}>{getPaymentStatusLabel(order.paymentStatus, order.paymentMethod)}</Text>
+      <Text style={styles.footerText}>
+        {formatCurrency(order.total)}
+      </Text>
+
+      <Text style={styles.footerText}>
+        {getPaymentStatusLabel(
+          order.paymentStatus,
+          order.paymentMethod,
+        )}
+      </Text>
     </>
   );
 }

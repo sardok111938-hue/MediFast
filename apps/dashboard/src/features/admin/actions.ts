@@ -516,7 +516,6 @@ export async function adminSeedProductsToVendorAction(input: {
 
   const validation = validateProductImportRows(rows, {
     categoryIdBySlug,
-    existingBarcodes: new Set(existingProductIdByBarcode.keys()),
   });
 
   if (validation.totalRows === 0) {

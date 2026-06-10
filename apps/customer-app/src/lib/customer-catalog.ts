@@ -59,6 +59,7 @@ type QueryVendor = {
   lat?: number | null;
   lng?: number | null;
   delivery_radius_km?: number | null;
+  completed_orders?: number | null;
   vendor_operating_hours?: QueryOperatingHour[] | null;
 };
 
@@ -372,6 +373,7 @@ function mapVendor(vendor: QueryVendor): Vendor {
       .join("، "),
     rating: 0,
     eta_minutes: 0,
+    completed_orders: Number(vendor.completed_orders ?? 0),
     is_open:
       Boolean(vendor.is_active) && isVendorOpen(vendor.vendor_operating_hours),
     image_url: vendor.image_url ?? null,
@@ -402,6 +404,28 @@ function mapProduct(product: QueryProduct): Product {
     stock_quantity: Number(product.stock_quantity ?? 0),
     is_active: Boolean(product.is_active),
   };
+}
+
+export async function fetchCustomerProductById(productId: string) {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("products_with_global_images")
+    .select(
+      "id, vendor_id, category_id, name, description, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+    )
+    .eq("id", productId)
+    .eq("is_active", true)
+    .gt("stock_quantity", 0)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapProduct(data as QueryProduct) : null;
 }
 
 function mapCategory(category: QueryCategory): Category {
@@ -609,6 +633,7 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
   id,
   name,
   phone,
+  completed_orders,
   address_line_1,
   address_line_2,
   city,
@@ -649,7 +674,7 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
     const { data: productsData, error: productsError } = await supabase
       .from("products_with_global_images")
       .select(
-        "id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+        "id, vendor_id, category_id, name, description, price, image_url, display_image_url, barcode, stock_quantity, is_active",
       )
       .eq("is_active", true)
       .gt("stock_quantity", 0)
@@ -687,7 +712,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
   const { data, error } = await supabase
     .from("products_with_global_images")
     .select(
-      "id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+      "id, vendor_id, category_id, name, description, price, image_url, display_image_url, barcode, stock_quantity, is_active",
     )
     .eq("is_active", true)
     .gt("stock_quantity", 0)
@@ -714,6 +739,7 @@ export async function loadActiveVendors() {
        lat,
        lng,
        delivery_radius_km,
+       completed_orders,
        vendor_operating_hours (
        day_of_week,
        opens_at,
@@ -774,7 +800,7 @@ export async function loadVendorProducts(vendorId: string): Promise<Product[]> {
   const { data, error } = await supabase
     .from("products_with_global_images")
     .select(
-      "id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+      "id, vendor_id, category_id, name, description, price, image_url, display_image_url, barcode, stock_quantity, is_active",
     )
     .eq("is_active", true)
     .gt("stock_quantity", 0)
@@ -799,7 +825,7 @@ export async function loadCategoryProducts(
   let query = supabase
     .from("products_with_global_images")
     .select(
-      "id, vendor_id, category_id, name, price, image_url, display_image_url, barcode, stock_quantity, is_active",
+      "id, vendor_id, category_id, name, description, price, image_url, display_image_url, barcode, stock_quantity, is_active",
     )
     .eq("is_active", true)
     .gt("stock_quantity", 0)

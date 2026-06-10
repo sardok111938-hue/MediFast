@@ -1,17 +1,18 @@
 import { theme } from "@medifast/ui";
 import { StyleSheet, Text, View } from "react-native";
+
 import {
   DriverButton,
   DriverEmptyCard,
   DriverSectionTitle,
   shortOrderRef,
 } from "../shared/DriverPrimitives";
-import { DriverOrderCard } from "./DriverOrderCard";
 import {
   getStatusLabel,
   statusTone,
   type DriverOrder,
 } from "../../lib/driver-data";
+import { DriverOrderCard } from "./DriverOrderCard";
 import { DriverOrderFooter } from "./DriverOrderFooter";
 import { DriverOrderUtilities } from "./DriverOrderUtilities";
 
@@ -61,12 +62,6 @@ export function DriverOrdersSection({
             key={mode === "available" ? `available-${order.id}` : order.id}
             style={styles.orderWrap}
           >
-            {showNearestBadge && mode === "current" && index === 0 ? (
-              <View style={styles.nearestBadge}>
-                <Text style={styles.nearestBadgeText}>الأقرب</Text>
-              </View>
-            ) : null}
-
             <DriverOrderCard
               vendorName={order.vendorName}
               customerName={
@@ -74,6 +69,7 @@ export function DriverOrdersSection({
                   ? "مخفية حتى قبول الطلب"
                   : order.customerName
               }
+              distanceKm={mode === "current" ? order.estimatedDistanceKm : null}
               orderRef={`طلب ${shortOrderRef(order.id)}`}
               statusLabel={getStatusLabel(order.orderStatus)}
               statusTone={statusTone(order.orderStatus)}
@@ -156,19 +152,5 @@ const styles = StyleSheet.create({
   },
   orderWrap: {
     gap: theme.spacing[8],
-  },
-  nearestBadge: {
-    alignSelf: "flex-end",
-    borderRadius: 999,
-    backgroundColor: "#FFF4E5",
-    borderWidth: 1,
-    borderColor: "#FED7AA",
-    paddingHorizontal: theme.spacing[12],
-    paddingVertical: 4,
-  },
-  nearestBadgeText: {
-    color: "#C2410C",
-    fontSize: theme.typography.caption.sm,
-    fontWeight: "900",
   },
 });

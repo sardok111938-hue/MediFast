@@ -139,65 +139,72 @@ export default function GroupedProductDetailScreen() {
           const inStock = stockQuantity > 0;
           const isAdded = addedProductId === offer.product.id;
 
-          return (
-            <View key={offer.product.id} style={styles.offerCard}>
-              <View style={styles.offerTopRow}>
-                <Text style={styles.vendorName} numberOfLines={1}>
-                  {vendor?.name ?? "صيدلية"}
-                </Text>
+return (
+  <View key={offer.product.id} style={styles.offerCard}>
+    <View style={styles.offerTopRow}>
+      <Pressable
+        style={styles.offerPressArea}
+        onPress={() =>
+          router.push({
+            pathname: "/product-detail",
+            params: { productId: offer.product.id },
+          })
+        }
+      >
+        <Text style={styles.vendorName} numberOfLines={1}>
+          {vendor?.name ?? "صيدلية"}
+        </Text>
 
-                <Pressable
-                  style={[
-                    styles.addButton,
-                    isAdded ? styles.addButtonAdded : null,
-                    !inStock ? styles.addButtonDisabled : null,
-                  ]}
-                  disabled={!inStock}
-                  onPress={() => {
-                    addProductToCart(offer.product, 1);
-                    setAddedProductId(offer.product.id);
-
-                    setTimeout(() => {
-                      setAddedProductId(null);
-                    }, 900);
-                  }}
-                >
-                  <Ionicons name={isAdded ? "checkmark" : "add"} size={16} color="#FFFFFF" />
-                </Pressable>
-              </View>
-
-              <View style={styles.offerMetaRow}>
-                <Text style={styles.metaText}>
-                  {formatCustomerCurrency(offer.product.price)}
-                </Text>
-                <Text style={styles.metaDot}>•</Text>
-                <Text style={[styles.metaText, !inStock ? styles.metaTextDanger : null]}>
-                  {inStock ? `${stockQuantity} متوفر` : "غير متوفر"}
-                </Text>
-                <Text style={styles.metaDot}>•</Text>
-                <Text style={styles.metaText}>{formatDistanceKm(distanceKm)}</Text>
-                <Text style={styles.metaDot}>•</Text>
-                <Text style={styles.metaText}>
-                  توصيل {formatCustomerCurrency(DEFAULT_DELIVERY_FEE_ESTIMATE)}
-                </Text>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      {offers.length > 3 && !showAllOffers ? (
-        <Pressable
-          style={styles.showMoreButton}
-          onPress={() => setShowAllOffers(true)}
-        >
-          <Text style={styles.showMoreText}>
-            عرض {offers.length - 3} صيدليات إضافية
+        <View style={styles.offerMetaRow}>
+          <Text style={styles.metaText}>
+            {formatCustomerCurrency(offer.product.price)}
           </Text>
-        </Pressable>
-      ) : null}
-    </Screen>
-  );
+          <Text style={styles.metaDot}>•</Text>
+          <Text style={[styles.metaText, !inStock ? styles.metaTextDanger : null]}>
+            {inStock ? `${stockQuantity} متوفر` : "غير متوفر"}
+          </Text>
+          <Text style={styles.metaDot}>•</Text>
+          <Text style={styles.metaText}>{formatDistanceKm(distanceKm)}</Text>
+          <Text style={styles.metaDot}>•</Text>
+          <Text style={styles.metaText}>
+            توصيل {formatCustomerCurrency(DEFAULT_DELIVERY_FEE_ESTIMATE)}
+          </Text>
+        </View>
+      </Pressable>
+
+      <Pressable
+        style={[
+          styles.addButton,
+          isAdded ? styles.addButtonAdded : null,
+          !inStock ? styles.addButtonDisabled : null,
+        ]}
+        disabled={!inStock}
+        onPress={() => {
+          addProductToCart(offer.product, 1);
+          setAddedProductId(offer.product.id);
+
+          setTimeout(() => {
+            setAddedProductId(null);
+          }, 900);
+        }}
+      >
+        <Ionicons name={isAdded ? "checkmark" : "add"} size={16} color="#FFFFFF" />
+      </Pressable>
+    </View>
+  </View>
+);
+})}
+</View>
+
+{offers.length > 3 && !showAllOffers ? (
+  <Pressable style={styles.showMoreButton} onPress={() => setShowAllOffers(true)}>
+    <Text style={styles.showMoreText}>
+      عرض {offers.length - 3} صيدليات إضافية
+    </Text>
+  </Pressable>
+) : null}
+</Screen>
+);
 }
 
 const styles = StyleSheet.create({
@@ -389,5 +396,9 @@ showMoreText: {
   color: theme.colors.primaryDark,
   fontSize: theme.typography.body.md,
   fontWeight: "900",
+},
+offerPressArea: {
+  flex: 1,
+  gap: 6,
 },
 });

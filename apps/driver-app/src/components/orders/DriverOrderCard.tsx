@@ -199,7 +199,7 @@ export function DriverRouteBlock({
 
         <View style={styles.routeText}>
           <Text style={[styles.routeLabel, isRTL ? styles.textRight : null]}>
-  منطقة الصيدلية
+  عنوان الصيدلية
 </Text>
           <Text style={[styles.routeValue, isRTL ? styles.textRight : null]} numberOfLines={compact ? 1 : 2}>
             {pickup}
@@ -214,7 +214,7 @@ export function DriverRouteBlock({
 
         <View style={styles.routeText}>
           <Text style={[styles.routeLabel, isRTL ? styles.textRight : null]}>
-  منطقة التسليم
+  عنوان التسليم
 </Text>
           <Text style={[styles.routeValue, isRTL ? styles.textRight : null]} numberOfLines={compact ? 1 : 2}>
             {dropoff}
@@ -243,6 +243,7 @@ export function DriverOrderCard({
   statusTone = "neutral",
   pickupAddress,
   dropoffAddress,
+  distanceKm,
   action,
   utilities,
   footer,
@@ -255,6 +256,7 @@ export function DriverOrderCard({
   statusTone?: "neutral" | "warning" | "success" | "danger" | "info";
   pickupAddress: string;
   dropoffAddress: string;
+  distanceKm?: number | null;
   action?: ReactNode;
   utilities?: ReactNode;
   footer?: ReactNode;
@@ -285,6 +287,11 @@ return (
         <Text style={[styles.listCardTitle, styles.textRight]} numberOfLines={2}>
           الزبون: {customerName}
         </Text>
+        {distanceKm != null ? (
+  <Text style={styles.distanceText}>
+    {distanceKm.toFixed(1)} كم من الصيدلية
+  </Text>
+) : null}
         <Text style={[styles.listCardSubtitle, styles.textRight]} numberOfLines={2}>
           {dropoffAddress}
         </Text>
@@ -589,5 +596,11 @@ identityLabel: {
   fontSize: theme.typography.caption.sm,
   fontWeight: "800",
   color: theme.colors.muted,
+},
+distanceText: {
+  color: theme.colors.primaryDark,
+  fontSize: theme.typography.caption.md,
+  fontWeight: "900",
+  textAlign: "right",
 },
 });

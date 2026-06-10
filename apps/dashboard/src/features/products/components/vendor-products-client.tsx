@@ -51,6 +51,7 @@ type ProductFormValues = {
   child_category_id: string;
   stock_quantity: string;
   low_stock_threshold: string;
+  barcode: string;
 };
 
 const PAGE_SIZE = 20;
@@ -63,6 +64,7 @@ const emptyFormValues: ProductFormValues = {
   child_category_id: "",
   stock_quantity: "",
   low_stock_threshold: String(DEFAULT_LOW_STOCK_THRESHOLD),
+  barcode: "",
 };
 
 function mapProductRow(product: Record<string, unknown>): ProductRow {
@@ -110,9 +112,10 @@ function buildFormValues(product: ProductRow | null | undefined, categories: Pro
     parent_category_id: selection.parentCategoryId,
     child_category_id: selection.childCategoryId,
     stock_quantity: String(product.stock_quantity),
+    barcode: product.barcode ?? "",
     low_stock_threshold: String(
     product.low_stock_threshold ??
-      DEFAULT_LOW_STOCK_THRESHOLD,
+    DEFAULT_LOW_STOCK_THRESHOLD,
   ),
   };
 }
@@ -120,6 +123,7 @@ function buildFormValues(product: ProductRow | null | undefined, categories: Pro
 function validateProductForm(values: ProductFormValues, categories: ProductCategoryOption[]) {
   const name = values.name.trim();
   const description = values.description.trim();
+  const barcode = values.barcode.trim();
   const price = Number(values.price);
   const stockQuantity = values.stock_quantity.trim() ? Number(values.stock_quantity) : 0;
   const lowStockThreshold = Number(values.low_stock_threshold);
@@ -144,17 +148,18 @@ if (
     error: "حد التنبيه يجب أن يكون 0 أو أكثر.",
   };
 }
-  return {
-    error: null,
-    payload: {
-      name,
-      description,
-      price,
-      category_id: categoryId,
-      stock_quantity: stockQuantity,
-      low_stock_threshold: lowStockThreshold,
-    },
-  };
+return {
+  error: null,
+  payload: {
+    name,
+    description,
+    barcode,
+    price,
+    category_id: categoryId,
+    stock_quantity: stockQuantity,
+    low_stock_threshold: lowStockThreshold,
+  },
+};
 }
 
 async function resizeProductImage(file: File): Promise<Blob> {
@@ -399,9 +404,10 @@ function VendorProductForm({
       parent_category_id: String(formData.get("parent_category_id") ?? ""),
       child_category_id: String(formData.get("child_category_id") ?? ""),
       stock_quantity: String(formData.get("stock_quantity") ?? "0"),
+      barcode: String(formData.get("barcode") ?? ""),
       low_stock_threshold: String(
-  formData.get("low_stock_threshold") ??
-    DEFAULT_LOW_STOCK_THRESHOLD,
+        formData.get("low_stock_threshold") ??
+        DEFAULT_LOW_STOCK_THRESHOLD,
 ),
     };
 
@@ -537,6 +543,21 @@ return (
         </select>
       </div>
     ) : null}
+
+    <div className="field">
+  <Input
+    id={`${mode}-barcode`}
+    name="barcode"
+    value={values.barcode}
+    onChange={(event) =>
+      setValues((current) => ({
+        ...current,
+        barcode: event.target.value,
+      }))
+    }
+    placeholder="الباركود"
+  />
+</div>
 
     <div className="field">
       <Input
@@ -748,6 +769,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         parent_category_id: String(formData.get("parent_category_id") ?? ""),
         child_category_id: String(formData.get("child_category_id") ?? ""),
         stock_quantity: String(formData.get("stock_quantity") ?? "0"),
+        barcode: String(formData.get("barcode") ?? ""),
         low_stock_threshold: String(
   formData.get("low_stock_threshold") ?? DEFAULT_LOW_STOCK_THRESHOLD,
 ),
@@ -771,6 +793,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         categoryId: validation.payload.category_id,
         imageUrl,
         stockQuantity: validation.payload.stock_quantity,
+        barcode: validation.payload.barcode || null,
         lowStockThreshold: validation.payload.low_stock_threshold,
       });
 
@@ -809,6 +832,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         parent_category_id: String(formData.get("parent_category_id") ?? ""),
         child_category_id: String(formData.get("child_category_id") ?? ""),
         stock_quantity: String(formData.get("stock_quantity") ?? "0"),
+        barcode: String(formData.get("barcode") ?? ""),
         low_stock_threshold: String(
   formData.get("low_stock_threshold") ?? DEFAULT_LOW_STOCK_THRESHOLD,
 ),
@@ -838,6 +862,7 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
         categoryId: validation.payload.category_id,
         stockQuantity: validation.payload.stock_quantity,
         lowStockThreshold: validation.payload.low_stock_threshold,
+        barcode: validation.payload.barcode || null,
         imageUrl,
       });
 
@@ -1138,6 +1163,12 @@ export function VendorProductsClient({ initialEditingProductId }: { initialEditi
                 {product.description}
               </p>
             ) : null}
+
+            {product.barcode ? (
+              <p className="muted">
+    باركود: {product.barcode}
+  </p>
+) : null}
           </div>
 
           <div className="product-clean-image">

@@ -16,6 +16,24 @@ type AdminDriversData = {
   drivers: AdminDriverRow[];
 };
 
+async function createDriverDocumentSignedUrl(path: string | null | undefined) {
+  if (!path) {
+    return null;
+  }
+
+  const supabase = getSupabaseBrowserClient();
+
+  const { data, error } = await supabase.storage
+    .from("driver-documents")
+    .createSignedUrl(path, 60 * 10);
+
+  if (error) {
+    return null;
+  }
+
+  return data.signedUrl;
+}
+
 async function loadAdminDriversData(): Promise<AdminDriversData> {
   const supabase = getSupabaseBrowserClient();
 
@@ -30,7 +48,9 @@ async function loadAdminDriversData(): Promise<AdminDriversData> {
       current_lng,
       profile_image_url,
       passport_image_url,
+      passport_image_path,
       vehicle_image_url,
+      vehicle_image_path,
       emergency_contact_name,
       emergency_contact_phone,
       vehicle_type,
@@ -51,51 +71,64 @@ async function loadAdminDriversData(): Promise<AdminDriversData> {
     throw error;
   }
 
-  const drivers = (data ?? []).map((driver) => {
-    const profile = Array.isArray(driver.profile)
-      ? driver.profile[0]
-      : driver.profile;
+  const drivers = await Promise.all(
+    (data ?? []).map(async (driver) => {
+      const profile = Array.isArray(driver.profile)
+        ? driver.profile[0]
+        : driver.profile;
 
-    const currentOrders = Array.isArray(driver.current_orders)
-      ? driver.current_orders
-      : [];
+      const currentOrders = Array.isArray(driver.current_orders)
+        ? driver.current_orders
+        : [];
 
-    const currentOrder =
-      currentOrders.find((order) =>
-        ["assigned", "arrived_at_pharmacy", "picked_up", "on_the_way"].includes(
-          String(order.order_status),
+      const currentOrder =
+        currentOrders.find((order) =>
+          [
+            "assigned",
+            "arrived_at_pharmacy",
+            "picked_up",
+            "on_the_way",
+          ].includes(String(order.order_status)),
+        ) ?? null;
+
+      return {
+        id: String(driver.id),
+        fullName: readName(
+          driver.profile as
+            | { full_name?: string; phone?: string | null }
+            | { full_name?: string; phone?: string | null }[]
+            | null,
+          "السائق",
         ),
-      ) ?? null;
-
-    return {
-      id: String(driver.id),
-      fullName: readName(
-        driver.profile as
-          | { full_name?: string; phone?: string | null }
-          | { full_name?: string; phone?: string | null }[]
-          | null,
-        "السائق",
-      ),
-      phone: profile?.phone ?? null,
-      approvalStatus: String(driver.approval_status),
-      isAvailable: Boolean(driver.is_available),
-      currentLat:
-        driver.current_lat == null ? null : Number(driver.current_lat),
-      currentLng:
-        driver.current_lng == null ? null : Number(driver.current_lng),
-      profileImageUrl: driver.profile_image_url ?? null,
-      passportImageUrl: driver.passport_image_url ?? null,
-      vehicleImageUrl: driver.vehicle_image_url ?? null,
-      emergencyContactName: driver.emergency_contact_name ?? null,
-      emergencyContactPhone: driver.emergency_contact_phone ?? null,
-      vehicleType: driver.vehicle_type ?? null,
-      vehiclePlate: driver.vehicle_plate ?? null,
-      currentOrderId: currentOrder?.id ? String(currentOrder.id) : null,
-      currentOrderStatus: currentOrder?.order_status
-        ? String(currentOrder.order_status)
-        : null,
-    };
-  });
+        phone: profile?.phone ?? null,
+        approvalStatus: String(driver.approval_status),
+        isAvailable: Boolean(driver.is_available),
+        currentLat:
+          driver.current_lat == null ? null : Number(driver.current_lat),
+        currentLng:
+          driver.current_lng == null ? null : Number(driver.current_lng),
+        profileImageUrl: driver.profile_image_url ?? null,
+        passportImagePath: driver.passport_image_path ?? null,
+        passportImageUrl:
+          (await createDriverDocumentSignedUrl(driver.passport_image_path)) ??
+          driver.passport_image_url ??
+          null,
+        vehicleImagePath: driver.vehicle_image_path ?? null,
+        vehicleImageUrl:
+          (await createDriverDocumentSignedUrl(driver.vehicle_image_path)) ??
+          driver.vehicle_image_url ??
+          null,
+        emergencyContactName: driver.emergency_contact_name ?? null,
+        emergencyContactPhone: driver.emergency_contact_phone ?? null,
+        vehicleType: driver.vehicle_type ?? null,
+        vehiclePlate: driver.vehicle_plate ?? null,
+        currentOrderId: currentOrder?.id ? String(currentOrder.id) : null,
+        currentOrderStatus: currentOrder?.order_status
+          ? String(currentOrder.order_status)
+          : null,
+      };
+    }),
+  );
 
   return {
     drivers,

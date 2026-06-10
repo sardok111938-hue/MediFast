@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
+import { theme } from "@medifast/ui";
 
 import {
   DriverButton,
@@ -44,6 +45,9 @@ export default function DriverOrdersListScreen() {
       (a.estimatedDistanceKm ?? Number.POSITIVE_INFINITY) -
       (b.estimatedDistanceKm ?? Number.POSITIVE_INFINITY),
   );
+  const hasAvailableOrders = availableOrders.length > 0;
+  const hasCurrentOrders = sortedCurrentOrders.length > 0;
+  const hasNoOrders = !hasAvailableOrders && !hasCurrentOrders;
 
   const loadOrders = useCallback(
     async (mode: "initial" | "refresh" = "initial") => {
@@ -189,41 +193,49 @@ export default function DriverOrdersListScreen() {
           )
         ) : (
           <>
-            <DriverOrdersSection
-              title="الطلبات المتاحة"
-              hint="طلبات جاهزة للاستلام من الصيدليات."
-              emptyMessage="لا توجد طلبات متاحة حالياً."
-              count={availableOrders.length}
-              emptyTitle="لا توجد طلبات متاحة"
-              orders={availableOrders}
-              mode="available"
-              claimingOrderId={claimingOrderId}
-              onClaimOrder={(orderId) => void handleClaimOrder(orderId)}
-            />
+            {hasNoOrders ? (
+              <DriverCard>
+                <Text style={styles.emptyStateTitle}>لا توجد طلبات حالياً</Text>
+                <Text style={styles.emptyStateText}>
+                  لا توجد طلبات متاحة أو توصيلات نشطة في الوقت الحالي.
+                </Text>
+              </DriverCard>
+            ) : (
+              <>
+                {hasAvailableOrders ? (
+                  <DriverOrdersSection
+                    title="الطلبات المتاحة"
+                    hint="طلبات جاهزة للاستلام من الصيدليات."
+                    emptyMessage="لا توجد طلبات متاحة حالياً."
+                    count={availableOrders.length}
+                    emptyTitle="لا توجد طلبات متاحة"
+                    orders={availableOrders}
+                    mode="available"
+                    claimingOrderId={claimingOrderId}
+                    onClaimOrder={(orderId) => void handleClaimOrder(orderId)}
+                  />
+                ) : null}
 
-            <DriverOrdersSection
-              title={`التوصيلات النشطة (${sortedCurrentOrders.length})`}
-              hint="مرتبة حسب أقرب وجهة توصيل."
-              emptyMessage="لا توجد طلبات حالية."
-              count={sortedCurrentOrders.length}
-              emptyTitle="لا توجد توصيلات"
-              orders={sortedCurrentOrders}
-              mode="current"
-              showNearestBadge={sortedCurrentOrders.length > 1}
-              onOpenOrder={(orderId) =>
-                router.push({
-                  pathname: "/(tabs)/orders/[orderId]",
-                  params: { orderId },
-                })
-              }
-            />
+                {hasCurrentOrders ? (
+                  <DriverOrdersSection
+                    title={`التوصيلات النشطة (${sortedCurrentOrders.length})`}
+                    hint="مرتبة حسب أقرب وجهة توصيل."
+                    emptyMessage="لا توجد طلبات حالية."
+                    count={sortedCurrentOrders.length}
+                    emptyTitle="لا توجد توصيلات"
+                    orders={sortedCurrentOrders}
+                    mode="current"
+                    onOpenOrder={(orderId) =>
+                      router.push({
+                        pathname: "/(tabs)/orders/[orderId]",
+                        params: { orderId },
+                      })
+                    }
+                  />
+                ) : null}
+              </>
+            )}
 
-            <DriverCard>
-              <DriverButton
-                label="سجل التوصيلات"
-                onPress={() => router.push("/(tabs)/orders/history" as never)}
-              />
-            </DriverCard>
           </>
         )}
       </ScrollView>
@@ -242,5 +254,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#B23A48",
     marginBottom: 12,
+  },
+  emptyStateTitle: {
+    textAlign: "center",
+    fontWeight: "900",
+    fontSize: 16,
+    color: theme.colors.text,
+    marginBottom: 6,
+  },
+  emptyStateText: {
+    textAlign: "center",
+    fontWeight: "700",
+    fontSize: 13,
+    color: theme.colors.muted,
+    lineHeight: 20,
   },
 });

@@ -1,10 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
-import { EmptyCard, ErrorCard, LoadingCard, PrimaryButton, SearchInput } from "../../src/components/CustomerUI";
+import {
+  EmptyCard,
+  ErrorCard,
+  LoadingCard,
+  PrimaryButton,
+  SearchInput,
+} from "../../src/components/CustomerUI";
 import {
   groupProductsByMarketplaceListing,
   searchProducts,
@@ -21,17 +34,38 @@ type QuickSearchItem = {
 };
 
 const quickSearches: QuickSearchItem[] = [
+  { label: "الكل", icon: "grid-outline", categorySlug: "__all__" },
   { label: "مسكنات", icon: "medkit-outline", categorySlug: "pain-relief" },
-  { label: "فيتامينات", icon: "nutrition-outline", categorySlug: "daily-vitamins" },
-  { label: "أدوية البرد", icon: "thermometer-outline", categorySlug: "cold-flu" },
+  {
+    label: "فيتامينات",
+    icon: "nutrition-outline",
+    categorySlug: "daily-vitamins",
+  },
+  {
+    label: "أدوية البرد",
+    icon: "thermometer-outline",
+    categorySlug: "cold-flu",
+  },
   { label: "الحساسية", icon: "leaf-outline", categorySlug: "allergy" },
   { label: "السكري", icon: "fitness-outline", categorySlug: "diabetes" },
   { label: "الضغط", icon: "heart-outline", categorySlug: "blood-pressure" },
-  { label: "العناية بالبشرة", icon: "sparkles-outline", categorySlug: "skin-care" },
+  {
+    label: "العناية بالبشرة",
+    icon: "sparkles-outline",
+    categorySlug: "skin-care",
+  },
   { label: "العناية بالشعر", icon: "cut-outline", categorySlug: "hair-care" },
-  { label: "أدوية الأطفال", icon: "happy-outline", categorySlug: "baby-medicine" },
+  {
+    label: "أدوية الأطفال",
+    icon: "happy-outline",
+    categorySlug: "baby-medicine",
+  },
   { label: "العطور", icon: "rose-outline", categorySlug: "perfumes" },
-  { label: "الجروح", icon: "bandage-outline", categorySlug: "wounds-dressings" },
+  {
+    label: "الجروح",
+    icon: "bandage-outline",
+    categorySlug: "wounds-dressings",
+  },
   { label: "المعدة", icon: "body-outline", categorySlug: "digestive-health" },
 ];
 
@@ -42,12 +76,19 @@ function formatPrice(value: number) {
 export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ query?: string | string[] }>();
-  const initialQuery = Array.isArray(params.query) ? params.query[0] : params.query;
+  const initialQuery = Array.isArray(params.query)
+    ? params.query[0]
+    : params.query;
 
   const [query, setQuery] = useState(initialQuery ?? "");
   const [filters, setFilters] = useState<SearchFilter[]>(["relevant"]);
 
-  const { data, loading: catalogLoading, error: catalogError, reload } = useCustomerCatalogData();
+  const {
+    data,
+    loading: catalogLoading,
+    error: catalogError,
+    reload,
+  } = useCustomerCatalogData();
   const [results, setResults] = useState<GroupedProduct[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -66,69 +107,73 @@ export default function SearchScreen() {
     });
   }
 
-useEffect(() => {
-  const trimmedQuery = query.trim();
+  useEffect(() => {
+    const trimmedQuery = query.trim();
 
-  if (!trimmedQuery) {
-    setResults([]);
-    setSearchError(null);
-    setSearchLoading(false);
-    return;
-  }
+    if (!trimmedQuery) {
+      setResults([]);
+      setSearchError(null);
+      setSearchLoading(false);
+      return;
+    }
 
-  let cancelled = false;
+    let cancelled = false;
 
-  async function runSearch() {
-    setSearchLoading(true);
-    setSearchError(null);
+    async function runSearch() {
+      setSearchLoading(true);
+      setSearchError(null);
 
-    try {
-      let foundProducts = await searchProducts(trimmedQuery);
+      try {
+        let foundProducts = await searchProducts(trimmedQuery);
 
-      if (filters.includes("available")) {
-        foundProducts = foundProducts.filter((product) => (product.stock_quantity ?? 0) > 0);
-      }
+        if (filters.includes("available")) {
+          foundProducts = foundProducts.filter(
+            (product) => (product.stock_quantity ?? 0) > 0,
+          );
+        }
 
-      if (filters.includes("cheaper")) {
-        foundProducts = [...foundProducts].sort(
-          (a, b) => Number(a.price ?? 0) - Number(b.price ?? 0),
+        if (filters.includes("cheaper")) {
+          foundProducts = [...foundProducts].sort(
+            (a, b) => Number(a.price ?? 0) - Number(b.price ?? 0),
+          );
+        }
+
+        let groupedResults = groupProductsByMarketplaceListing(
+          foundProducts,
+          data.vendors,
         );
-      }
 
-      let groupedResults = groupProductsByMarketplaceListing(
-        foundProducts,
-        data.vendors,
-      );
+        if (filters.includes("cheaper")) {
+          groupedResults = [...groupedResults].sort(
+            (a, b) => a.lowestPrice - b.lowestPrice,
+          );
+        }
 
-      if (filters.includes("cheaper")) {
-        groupedResults = [...groupedResults].sort(
-          (a, b) => a.lowestPrice - b.lowestPrice,
-        );
-      }
-
-      if (!cancelled) {
-        setResults(groupedResults);
-      }
-    } catch (error) {
-      if (!cancelled) {
-        setSearchError(error instanceof Error ? error.message : "تعذر تحميل نتائج البحث.");
-      }
-    } finally {
-      if (!cancelled) {
-        setSearchLoading(false);
+        if (!cancelled) {
+          setResults(groupedResults);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSearchError(
+            error instanceof Error ? error.message : "تعذر تحميل نتائج البحث.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
       }
     }
-  }
 
-  const timeout = setTimeout(() => {
-    void runSearch();
-  }, 250);
+    const timeout = setTimeout(() => {
+      void runSearch();
+    }, 250);
 
-  return () => {
-    cancelled = true;
-    clearTimeout(timeout);
-  };
-}, [query, filters, data.vendors]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [query, filters, data.vendors]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -136,98 +181,132 @@ useEffect(() => {
         style={styles.container}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.searchInputWrap}>
-  <SearchInput
-    placeholder="ابحث عن دواء أو منتج"
-    value={query}
-    onChangeText={setQuery}
-  />
+      >
+        <View style={styles.searchInputWrap}>
+          <SearchInput
+            placeholder="ابحث عن دواء أو منتج"
+            value={query}
+            onChangeText={setQuery}
+          />
 
-  {query.trim().length > 0 ? (
-    <Pressable
-      style={styles.clearSearchButton}
-      onPress={() => setQuery("")}
-    >
-      <Ionicons
-        name="close-circle"
-        size={18}
-        color={theme.colors.muted}
-      />
-    </Pressable>
-  ) : null}
-</View>
+          {query.trim().length > 0 ? (
+            <Pressable
+              style={styles.clearSearchButton}
+              onPress={() => setQuery("")}
+            >
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={theme.colors.muted}
+              />
+            </Pressable>
+          ) : null}
+        </View>
 
-{query.trim().length > 0 ? (
-  <View style={styles.toolbarRow}>
-    <View style={styles.chipsRow}>
-      <FilterChip label="الأكثر صلة" active={filters.includes("relevant")} onPress={() => toggleFilter("relevant")} />
-      <FilterChip label="المتوفر" active={filters.includes("available")} onPress={() => toggleFilter("available")} />
-      <FilterChip label="الأرخص" active={filters.includes("cheaper")} onPress={() => toggleFilter("cheaper")} />
-    </View>
+        {query.trim().length > 0 ? (
+          <View style={styles.toolbarRow}>
+            <View style={styles.chipsRow}>
+              <FilterChip
+                label="الأكثر صلة"
+                active={filters.includes("relevant")}
+                onPress={() => toggleFilter("relevant")}
+              />
+              <FilterChip
+                label="المتوفر"
+                active={filters.includes("available")}
+                onPress={() => toggleFilter("available")}
+              />
+              <FilterChip
+                label="الأرخص"
+                active={filters.includes("cheaper")}
+                onPress={() => toggleFilter("cheaper")}
+              />
+            </View>
 
-    <Text style={styles.resultsCount}>
-      {results.length} منتج
-    </Text>
-  </View>
-) : null}
+            <Text style={styles.resultsCount}>{results.length} منتج</Text>
+          </View>
+        ) : null}
 
-{searchLoading || catalogLoading ? <LoadingCard message="جارٍ تحميل نتائج البحث..." /> : null}
-{!searchLoading && (searchError || catalogError) ? (
-  <ErrorCard message={searchError ?? catalogError ?? ""} onRetry={() => void reload()} />
-) : null}
-{!searchLoading && !catalogLoading && !searchError && !catalogError ? (
+        {searchLoading || catalogLoading ? (
+          <LoadingCard message="جارٍ تحميل نتائج البحث..." />
+        ) : null}
+        {!searchLoading && (searchError || catalogError) ? (
+          <ErrorCard
+            message={searchError ?? catalogError ?? ""}
+            onRetry={() => void reload()}
+          />
+        ) : null}
+        {!searchLoading && !catalogLoading && !searchError && !catalogError ? (
           <>
-{query.trim().length === 0 ? (
-  <View style={styles.searchGuideCard}>
-    <View style={styles.searchGuideIcon}>
-      <Ionicons name="search-outline" size={24} color={theme.colors.primaryDark} />
-    </View>
+            {query.trim().length === 0 ? (
+              <View style={styles.searchGuideCard}>
+                <View style={styles.searchGuideIcon}>
+                  <Ionicons
+                    name="search-outline"
+                    size={24}
+                    color={theme.colors.primaryDark}
+                  />
+                </View>
 
-    <Text style={styles.suggestedTitle}>عمّا تبحث اليوم؟</Text>
+                <Text style={styles.suggestedTitle}>عمّا تبحث اليوم؟</Text>
 
-    <Text style={styles.suggestedSubtitle}>
-      اختر من الاقتراحات السريعة أو اكتب اسم الدواء في الأعلى
-    </Text>
-<View style={styles.quickSearchGrid}>
-  {quickSearches.map((item) => (
-    <Pressable
-      key={item.label}
-      style={({ pressed }) => [
-        styles.quickSearchChip,
-        pressed ? styles.quickSearchChipPressed : null,
-      ]}
-      onPress={() => {
-        const matchedCategory = data.categories.find(
-          (category) => category.slug === item.categorySlug,
-        );
+                <Text style={styles.suggestedSubtitle}>
+                  اختر من الاقتراحات السريعة أو اكتب اسم الدواء في الأعلى
+                </Text>
 
-        if (matchedCategory) {
-          router.push({
-            pathname: "/categories/[categoryId]",
-            params: { categoryId: matchedCategory.id },
-          });
+                <View style={styles.quickSearchGrid}>
+                  {quickSearches.map((item) => (
+                    <Pressable
+                      key={item.label}
+                      style={({ pressed }) => [
+                        styles.quickSearchChip,
+                        pressed ? styles.quickSearchChipPressed : null,
+                      ]}
+                      onPress={() => {
+                        if (item.categorySlug === "__all__") {
+                          router.push("/products");
+                          return;
+                        }
+                        const matchedCategory = data.categories.find(
+                          (category) => category.slug === item.categorySlug,
+                        );
 
-          return;
-        }
+                        if (matchedCategory) {
+                          router.push({
+                            pathname: "/categories/[categoryId]",
+                            params: { categoryId: matchedCategory.id },
+                          });
 
-        setQuery(item.label);
-      }}
-    >
-      <Ionicons name={item.icon} size={17} color={theme.colors.primaryDark} />
-      <Text style={styles.quickSearchText}>{item.label}</Text>
-    </Pressable>
-  ))}
-</View>
-  </View>
-) : results.length === 0 ? (              <EmptyCard
-              title="لا توجد نتائج"
-              message="جرّب كلمة مختلفة أو امسح البحث."
-              action={<PrimaryButton label="مسح البحث" onPress={() => setQuery("")} />}
-            />
-          ) : (
-            <View style={styles.resultList}>
-              {results.map((product) => (
+                          return;
+                        }
+
+                        setQuery(item.label);
+                      }}
+                    >
+                      <Ionicons
+                        name={item.icon}
+                        size={17}
+                        color={theme.colors.primaryDark}
+                      />
+                      <Text style={styles.quickSearchText}>{item.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : results.length === 0 ? (
+              <EmptyCard
+                title="لا توجد نتائج"
+                message="جرّب كلمة مختلفة أو امسح البحث."
+                action={
+                  <PrimaryButton
+                    label="مسح البحث"
+                    onPress={() => setQuery("")}
+                  />
+                }
+              />
+            ) : (
+              <View style={styles.resultList}>
+                {results.map((product) => (
                   <Pressable
                     key={product.id}
                     style={styles.resultCard}
@@ -259,26 +338,44 @@ useEffect(() => {
                       </Text>
 
                       <View style={styles.productBottomRow}>
-  <Text style={styles.price}>
-    يبدأ من {formatPrice(product.lowestPrice)} د.ل
-    </Text>
-  </View>
-</View>
-</Pressable>
-              ))}
-            </View>
-          )}
-        </>
-      ) : null}
-    </ScrollView>
+                        <Text style={styles.price}>
+                          يبدأ من {formatPrice(product.lowestPrice)} د.ل
+                        </Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </>
+        ) : null}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function FilterChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
   return (
-    <Pressable style={[styles.filterChip, active ? styles.filterChipActive : null]} onPress={onPress}>
-      <Text style={[styles.filterChipText, active ? styles.filterChipTextActive : null]}>{label}</Text>
+    <Pressable
+      style={[styles.filterChip, active ? styles.filterChipActive : null]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.filterChipText,
+          active ? styles.filterChipTextActive : null,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -289,12 +386,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   toolbarRow: {
-  marginTop: theme.spacing[20],
-  marginBottom: theme.spacing[24],
-  flexDirection: "row-reverse",
-  alignItems: "center",
-  justifyContent: "space-between",
-},
+    marginTop: theme.spacing[20],
+    marginBottom: theme.spacing[24],
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   chipsRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -325,12 +422,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   resultsCount: {
-  color: theme.colors.muted,
-  fontSize: theme.typography.caption.md,
-  fontWeight: "800",
-  textAlign: "left",
-  marginLeft: theme.spacing[12],
-},
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "800",
+    textAlign: "left",
+    marginLeft: theme.spacing[12],
+  },
   resultList: {
     gap: theme.spacing[16],
   },
@@ -387,11 +484,11 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   productBottomRow: {
-  flexDirection: "row-reverse",
-  alignItems: "center",
-  justifyContent: "space-between",
-  marginTop: theme.spacing[8],
-},
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: theme.spacing[8],
+  },
   price: {
     color: theme.colors.primaryDark,
     fontSize: theme.typography.body.md,
@@ -420,117 +517,117 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
   },
   safeArea: {
-  flex: 1,
-  backgroundColor: theme.colors.background,
-},
-content: {
-  paddingHorizontal: theme.spacing[16],
-  paddingTop: theme.spacing[16],
-  paddingBottom: 120,
-},
-addButton: {
-  width: 28,
-  height: 28,
-  borderRadius: 14,
-  backgroundColor: theme.colors.primary,
-  alignItems: "center",
-  justifyContent: "center",
-},
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  content: {
+    paddingHorizontal: theme.spacing[16],
+    paddingTop: theme.spacing[16],
+    paddingBottom: 120,
+  },
+  addButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-addButtonDisabled: {
-  opacity: 0.4,
-},
-addButtonAdded: {
-  backgroundColor: "#15803D",
-},
-searchInputWrap: {
-  position: "relative",
-  justifyContent: "center",
-},
+  addButtonDisabled: {
+    opacity: 0.4,
+  },
+  addButtonAdded: {
+    backgroundColor: "#15803D",
+  },
+  searchInputWrap: {
+    position: "relative",
+    justifyContent: "center",
+  },
 
-clearSearchButton: {
-  position: "absolute",
-  left: 14,
-  height: 32,
-  width: 32,
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 10,
-},
-searchGuideCard: {
-  marginTop: theme.spacing[24],
-  borderRadius: 28,
-  borderWidth: 1,
-  borderColor: "#DDEBE2",
-  backgroundColor: "#F7FBF8",
-  paddingHorizontal: theme.spacing[20],
-  paddingVertical: theme.spacing[24],
-  alignItems: "center",
-  shadowColor: theme.shadows.card.shadowColor,
-  shadowOpacity: 0.05,
-  shadowRadius: 14,
-  shadowOffset: { width: 0, height: 7 },
-  elevation: 1,
-},
+  clearSearchButton: {
+    position: "absolute",
+    left: 14,
+    height: 32,
+    width: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  searchGuideCard: {
+    marginTop: theme.spacing[24],
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#DDEBE2",
+    backgroundColor: "#F7FBF8",
+    paddingHorizontal: theme.spacing[20],
+    paddingVertical: theme.spacing[24],
+    alignItems: "center",
+    shadowColor: theme.shadows.card.shadowColor,
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 1,
+  },
 
-searchGuideIcon: {
-  width: 52,
-  height: 52,
-  borderRadius: 26,
-  backgroundColor: theme.colors.accent,
-  alignItems: "center",
-  justifyContent: "center",
-  marginBottom: theme.spacing[12],
-},
+  searchGuideIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: theme.colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: theme.spacing[12],
+  },
 
-suggestedTitle: {
-  color: theme.colors.text,
-  fontSize: theme.typography.heading.md,
-  fontWeight: "900",
-  textAlign: "center",
-},
+  suggestedTitle: {
+    color: theme.colors.text,
+    fontSize: theme.typography.heading.md,
+    fontWeight: "900",
+    textAlign: "center",
+  },
 
-suggestedSubtitle: {
-  marginTop: 6,
-  marginBottom: theme.spacing[20],
-  color: theme.colors.muted,
-  fontSize: theme.typography.caption.md,
-  lineHeight: 20,
-  fontWeight: "700",
-  textAlign: "center",
-},
+  suggestedSubtitle: {
+    marginTop: 6,
+    marginBottom: theme.spacing[20],
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    lineHeight: 20,
+    fontWeight: "700",
+    textAlign: "center",
+  },
 
-quickSearchGrid: {
-  width: "100%",
-  marginTop: theme.spacing[8],
-  flexDirection: "row-reverse",
-  flexWrap: "wrap",
-  justifyContent: "center",
-  gap: theme.spacing[12],
-},
+  quickSearchGrid: {
+    width: "100%",
+    marginTop: theme.spacing[8],
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: theme.spacing[12],
+  },
 
-quickSearchChip: {
-  minHeight: 42,
-  borderRadius: 999,
-  borderWidth: 1,
-  borderColor: "#D7ECDD",
-  backgroundColor: theme.colors.surface,
-  paddingHorizontal: theme.spacing[12],
-  paddingVertical: theme.spacing[8],
-  flexDirection: "row-reverse",
-  alignItems: "center",
-  gap: 6,
-},
+  quickSearchChip: {
+    minHeight: 42,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D7ECDD",
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing[12],
+    paddingVertical: theme.spacing[8],
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+  },
 
-quickSearchChipPressed: {
-  opacity: 0.82,
-  transform: [{ scale: 0.98 }],
-},
+  quickSearchChipPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.98 }],
+  },
 
-quickSearchText: {
-  color: theme.colors.primaryDark,
-  fontSize: theme.typography.caption.md,
-  fontWeight: "900",
-  textAlign: "center",
-},
+  quickSearchText: {
+    color: theme.colors.primaryDark,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "900",
+    textAlign: "center",
+  },
 });
