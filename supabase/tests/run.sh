@@ -17,4 +17,5 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
   -f supabase/tests/013_product_rpc_execute_privileges.sql \
   -f supabase/tests/014_products_table_privilege_baseline.sql \
   -f supabase/tests/015_identity_rls_helper_security.sql \
-  -f supabase/tests/016_obsolete_vendor_product_overloads.sql
+  -f supabase/tests/016_obsolete_vendor_product_overloads.sql \
+  -f supabase/tests/017_customer_assigned_driver_read_policy.sql
