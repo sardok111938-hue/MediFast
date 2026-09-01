@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assignDriver, updateDriverOrderStatus, updateVendorOrderStatus } from "./api";
+import {
+  assignDriver,
+  cancelAdminOrder,
+  updateDriverOrderStatus,
+  updateVendorOrderStatus,
+} from "./api";
 
 type OrderActionResult = {
   success: boolean;
@@ -95,6 +100,36 @@ export async function assignDriverAction(input: {
 
   revalidatePath("/admin/assignments");
   revalidatePath("/admin/orders");
+  revalidatePath("/driver");
+  revalidatePath("/driver/orders");
+
+  return {
+    success: true,
+    error: null,
+  };
+}
+
+export async function cancelAdminOrderAction(input: {
+  orderId: string;
+}): Promise<OrderActionResult> {
+  if (!input.orderId) {
+    return {
+      success: false,
+      error: "معرّف الطلب غير صالح.",
+    };
+  }
+
+  const result = await cancelAdminOrder(input.orderId);
+
+  if (result.error) {
+    return {
+      success: false,
+      error: result.error.message,
+    };
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/assignments");
   revalidatePath("/driver");
   revalidatePath("/driver/orders");
 

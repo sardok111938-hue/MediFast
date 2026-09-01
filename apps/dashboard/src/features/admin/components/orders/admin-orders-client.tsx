@@ -5,6 +5,7 @@ import {
   formatOrderNumber,
   formatPaymentStatusLabel,
 } from "@medifast/types";
+import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";
 import { ErrorState } from "../../../../components/ui/error-state";
 import { LoadingState } from "../../../../components/ui/loading-state";
@@ -14,12 +15,23 @@ import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type Pagin
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { formatCurrency } from "../../../../lib/utils/format-currency";
 import { formatDate } from "../../../../lib/utils/format-date";
-import { assignDriverAction } from "../../../orders/actions";
+import {
+  assignDriverAction,
+  cancelAdminOrderAction,
+} from "../../../orders/actions";
 import { OrderStatusBadge } from "../../../orders/components/order-status-badge";
 import type { AdminOrderControlProps, AdminOrderManagerRow, AsyncState, DriverOption } from "../shared/admin-types";
 import { normalizeError, readCategoryName, readName, readSingle } from "../shared/admin-utils";
 
 type AdminOrdersData = PaginatedResult<AdminOrderManagerRow>;
+
+const adminCancellableOrderStatuses = new Set([
+  "placed",
+  "accepted",
+  "preparing",
+  "ready_for_pickup",
+  "assigned",
+]);
 
 async function loadAdminOrdersData(page: number): Promise<AdminOrdersData> {
   const supabase = getSupabaseBrowserClient();
@@ -142,6 +154,47 @@ function AdminOrdersManager() {
   useEffect(() => {
     void load();
   }, [page]);
+
+  async function handleCancelOrder(orderId: string) {
+    const order = state.data?.rows.find((item) => item.id === orderId);
+
+    if (!order || !adminCancellableOrderStatuses.has(order.orderStatus)) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `هل أنت متأكد من إلغاء الطلب ${formatOrderNumber(orderId)}؟`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setUpdatingOrderId(orderId);
+    setFeedback(null);
+
+    try {
+      const result = await cancelAdminOrderAction({ orderId });
+
+      if (!result.success) {
+        throw new Error(result.error ?? "تعذر إلغاء الطلب.");
+      }
+
+      setFeedback({
+        type: "success",
+        message: `تم إلغاء الطلب ${formatOrderNumber(orderId)}.`,
+      });
+
+      await load();
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: normalizeError(error),
+      });
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  }
 
   async function handleDriverAssign(orderId: string, selectedDriverId: string) {
     const previousOrders = state.data?.rows ?? [];
@@ -282,7 +335,17 @@ function AdminOrdersManager() {
       />
       <Table
         title="مراقبة الطلبات"
-        headers={["معرّف الطلب", "الزبون", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء"]}
+        headers={[
+          "معرّف الطلب",
+          "الزبون",
+          "المتجر",
+          "الإجمالي",
+          "حالة الدفع",
+          "حالة الطلب",
+          "السائق",
+          "الإجراءات",
+          "تاريخ الإنشاء",
+        ]}
         rows={orders.map((order) => [
           formatOrderNumber(order.id),
           order.customerName,
@@ -298,6 +361,19 @@ function AdminOrdersManager() {
             selectLabel={t("Select driver")}
             onAssign={handleDriverAssign}
           />,
+          adminCancellableOrderStatuses.has(order.orderStatus) ? (
+            <Button
+              key={`${order.id}-cancel`}
+              type="button"
+              variant="danger"
+              disabled={updatingOrderId === order.id}
+              onClick={() => void handleCancelOrder(order.id)}
+            >
+              {updatingOrderId === order.id ? "جارٍ الإلغاء..." : "إلغاء الطلب"}
+            </Button>
+          ) : (
+            "-"
+          ),
           order.createdAt ? formatDate(order.createdAt) : "-",
         ])}
         emptyMessage="لا توجد طلبات متاحة بعد."

@@ -77,6 +77,26 @@ export async function assignDriver(orderId: string, driverId: string) {
   };
 }
 
+export async function cancelAdminOrder(orderId: string) {
+  const supabase = await getSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .rpc("admin_cancel_order", {
+      p_order_id: orderId,
+    })
+    .single();
+
+  return {
+    data: data
+      ? {
+          id: String((data as { order_id: string }).order_id),
+          order_status: String((data as { order_status: string }).order_status),
+        }
+      : null,
+    error: error ?? (!data ? new Error("Order could not be cancelled.") : null),
+  };
+}
+
 export type VendorPrescriptionRequestRow = {
   id: string;
   customer_id: string;
