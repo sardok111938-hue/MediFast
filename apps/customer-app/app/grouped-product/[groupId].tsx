@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import type { Vendor } from "@medifast/types";
 import { CatalogImage } from "../../src/components/CatalogImage";
@@ -220,7 +220,16 @@ return (
         ]}
         disabled={!inStock}
         onPress={() => {
-          addProductToCart(offer.product, 1);
+          const added = addProductToCart(offer.product, 1);
+
+          if (!added) {
+            Alert.alert(
+              "السلة تحتوي على منتجات من متجر آخر",
+              "يمكنك الطلب من متجر واحد فقط في كل طلب. أفرغ السلة الحالية أولاً لإضافة منتج من متجر آخر.",
+            );
+            return;
+          }
+
           setAddedProductId(offer.product.id);
 
           setTimeout(() => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
 import {
   Card,
@@ -241,7 +241,16 @@ export default function ProductDetailScreen() {
                 label={outOfStock ? "غير متوفر حاليًا" : "أضف إلى السلة الآن"}
                 disabled={outOfStock}
                 onPress={() => {
-                  addProductToCart(product, quantity);
+                  const added = addProductToCart(product, quantity);
+
+                  if (!added) {
+                    Alert.alert(
+                      "السلة تحتوي على منتجات من متجر آخر",
+                      "يمكنك الطلب من متجر واحد فقط في كل طلب. أفرغ السلة الحالية أولاً لإضافة منتج من متجر آخر.",
+                    );
+                    return;
+                  }
+
                   router.push("/(tabs)/cart");
                 }}
               />

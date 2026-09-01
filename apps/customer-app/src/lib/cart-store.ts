@@ -142,6 +142,14 @@ export function useCustomerCart() {
 export function addProductToCart(product: Product, quantity = 1) {
   const safeQuantity = Math.max(1, Math.trunc(quantity));
   const snapshot = buildProductSnapshot(product);
+  const hasDifferentVendor = cartState.some(
+    (item) => item.snapshot.vendor_id !== product.vendor_id,
+  );
+
+  if (hasDifferentVendor) {
+    return false;
+  }
+
   const existingItem = cartState.find((item) => item.product_id === product.id);
 
   if (existingItem) {
@@ -156,7 +164,7 @@ export function addProductToCart(product: Product, quantity = 1) {
           : item
       )
     );
-    return;
+    return true;
   }
 
   updateCart([
@@ -168,6 +176,8 @@ export function addProductToCart(product: Product, quantity = 1) {
       snapshot,
     },
   ]);
+
+  return true;
 }
 
 export function setCartItemQuantity(productId: string, quantity: number) {

@@ -4,6 +4,7 @@ import { theme } from "@medifast/ui";
 import { useRouter } from "expo-router";
 import { memo, useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -61,7 +62,16 @@ function CustomerProductCardComponent({
       return;
     }
 
-    addProductToCart(product, 1);
+    const addedToCart = addProductToCart(product, 1);
+
+    if (!addedToCart) {
+      Alert.alert(
+        "السلة تحتوي على منتجات من متجر آخر",
+        "يمكنك الطلب من متجر واحد فقط في كل طلب. أفرغ السلة الحالية أولاً لإضافة منتج من متجر آخر.",
+      );
+      return;
+    }
+
     setAdded(true);
 
     setTimeout(() => {
