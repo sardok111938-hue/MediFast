@@ -49,6 +49,10 @@ export function normalizeError(error: unknown) {
 
 export function getDriverNextActions(status: string) {
   if (status === "assigned") {
+    return [{ label: "تم الاستلام", nextStatus: "picked_up" }];
+  }
+
+  if (status === "picked_up") {
     return [{ label: "في الطريق", nextStatus: "on_the_way" }];
   }
 

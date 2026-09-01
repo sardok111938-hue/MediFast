@@ -15,12 +15,13 @@ const adminOrderStatuses = new Set([
   "rejected",
   "ready_for_pickup",
   "assigned",
+  "picked_up",
   "on_the_way",
   "delivered",
   "cancelled",
 ]);
 const vendorOrderStatuses = new Set(["accepted", "preparing", "ready_for_pickup", "rejected"]);
-const driverOrderStatuses = new Set(["on_the_way", "delivered"]);
+const driverOrderStatuses = new Set(["picked_up", "on_the_way", "delivered"]);
 
 function invalidStatusResult(): OrderActionResult {
   return {

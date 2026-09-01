@@ -8,7 +8,7 @@ MediFast is a `pnpm` monorepo for a pharmacy delivery marketplace MVP with three
 
 The current order lifecycle is:
 
-`placed -> accepted -> preparing -> ready_for_pickup -> assigned -> on_the_way -> delivered`
+`placed -> accepted -> preparing -> ready_for_pickup -> assigned -> picked_up -> on_the_way -> delivered`
 
 ## Monorepo Overview
 
@@ -292,7 +292,7 @@ Example seeded order to walk through:
 2. Confirm the assigned order appears only for that driver.
 3. Open the order detail.
 4. Move it through:
-   - `assigned -> on_the_way`
+   - `assigned -> picked_up -> on_the_way`
    - `on_the_way -> delivered`
 
 ### Step 5: Customer Tracking

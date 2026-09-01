@@ -42,6 +42,17 @@ select public.test_assert(
     from pg_type t
     join pg_enum e on e.enumtypid = t.oid
     where t.typname = 'order_status'
+      and e.enumlabel = 'picked_up'
+  ),
+  'picked_up status exists'
+);
+
+select public.test_assert(
+  exists (
+    select 1
+    from pg_type t
+    join pg_enum e on e.enumtypid = t.oid
+    where t.typname = 'order_status'
       and e.enumlabel = 'delivered'
   ),
   'delivered status exists'

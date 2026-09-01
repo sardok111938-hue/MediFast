@@ -20,6 +20,7 @@ Driver Fulfillment:
 
 ready_for_pickup
 → assigned
+→ picked_up
 → on_the_way
 → delivered
 

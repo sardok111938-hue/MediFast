@@ -99,7 +99,7 @@ Walk the lifecycle:
 3. Admin assigns a driver:
    - `ready_for_pickup -> assigned`
 4. Driver moves order:
-   - `assigned -> on_the_way -> delivered`
+   - `assigned -> picked_up -> on_the_way -> delivered`
 5. Customer tracking updates live through Realtime
 
 ## Final Release Sanity Checks
