@@ -16,6 +16,34 @@ import type { ProductCategoryOption } from "../../../types/dashboard";
 import { BulkProductImportCard } from "../../vendor-products/import/bulk-product-import-card";
 
 type ApprovalStatus = "pending" | "approved" | "rejected";
+
+type AdminVendorType =
+  | "pharmacy"
+  | "grocery"
+  | "restaurant"
+  | "shop"
+  | "home_business"
+  | "water_supplier";
+
+const vendorTypeOptions: Array<{
+  value: AdminVendorType;
+  label: string;
+}> = [
+  { value: "pharmacy", label: "صيدلية" },
+  { value: "grocery", label: "بقالة / مواد غذائية" },
+  { value: "restaurant", label: "مطعم" },
+  { value: "shop", label: "متجر" },
+  { value: "home_business", label: "مشروع منزلي" },
+  { value: "water_supplier", label: "مورد مياه" },
+];
+
+function normalizeVendorType(value: string): AdminVendorType {
+  const matched = vendorTypeOptions.find(
+    (option) => option.value === value,
+  );
+
+  return matched?.value ?? "pharmacy";
+}
 type RoleFilter = "" | "admin" | "vendor" | "customer" | "driver";
 
 type AsyncState<T> = {
@@ -36,7 +64,7 @@ type VendorRow = {
   profileRole: string | null;
 
   vendorName: string;
-  vendorType: string;
+  vendorType: AdminVendorType;
   slug: string | null;
 
   description: string | null;
@@ -106,6 +134,7 @@ type ProfileSearchRpcRow = {
 type VendorFormValues = {
   profileId: string;
   name: string;
+  vendorType: AdminVendorType;
   slug: string;
   description: string;
   imageUrl: string;
@@ -124,6 +153,7 @@ type VendorFormValues = {
 const initialVendorFormValues: VendorFormValues = {
   profileId: "",
   name: "",
+  vendorType: "pharmacy",
   slug: "",
   description: "",
   imageUrl: "",
@@ -184,6 +214,7 @@ function buildVendorFormValues(vendor?: VendorRow | null): VendorFormValues {
   return {
     profileId: vendor.profileId ?? "",
     name: vendor.vendorName,
+    vendorType: vendor.vendorType,
     slug: vendor.slug ?? "",
     description: vendor.description ?? "",
     imageUrl: vendor.imageUrl ?? "",
@@ -243,6 +274,7 @@ function validateVendorForm(values: VendorFormValues) {
     payload: {
       profileId: values.profileId.trim() || null,
       name: values.name.trim(),
+      vendorType: values.vendorType,
       slug: values.slug.trim(),
       description: values.description.trim(),
       imageUrl: values.imageUrl.trim(),
@@ -273,7 +305,7 @@ function mapVendorRow(row: VendorRpcRow): VendorRow {
     profileFullName: row.profile_full_name ?? "ملف غير مرتبط",
     profileRole: row.profile_role ?? null,
     vendorName: String(row.vendor_name),
-    vendorType: String(row.vendor_type),
+    vendorType: normalizeVendorType(String(row.vendor_type)),
     slug: row.slug ?? null,
     description: row.description ?? null,
     imageUrl: row.image_url ?? null,
@@ -687,6 +719,7 @@ export function AdminVendorsManager() {
           p_set_lng: validation.payload.setLng,
           p_approval_status: validation.payload.approvalStatus,
           p_is_active: validation.payload.isActive,
+          p_vendor_type: validation.payload.vendorType,
         });
 
         if (error) {
@@ -714,6 +747,7 @@ export function AdminVendorsManager() {
           p_lng: validation.payload.lng,
           p_approval_status: validation.payload.approvalStatus,
           p_is_active: validation.payload.isActive,
+          p_vendor_type: validation.payload.vendorType,
         });
 
         if (error) {
@@ -870,7 +904,7 @@ export function AdminVendorsManager() {
           {t(
             editingVendorId
               ? "Update vendor details, relink the profile if needed, and control approval state."
-              : "أنشئ متجرًا مرتبطًا بحساب أو متجرًا مبدئيًا بدون تسجيل دخول للصيدليات الجديدة.",
+              : "أنشئ متجرًا مرتبطًا بحساب أو متجرًا مبدئيًا بدون تسجيل دخول للمتاجر الجديدة.",
           )}
         </p>
         <form className="form-grid" onSubmit={handleProfileSearch}>
@@ -991,6 +1025,28 @@ export function AdminVendorsManager() {
               required
             />
           </div>
+          <div className="field">
+            <label htmlFor="vendor-type">نوع المتجر</label>
+            <select
+              id="vendor-type"
+              className="input"
+              value={formValues.vendorType}
+              onChange={(event) =>
+                setFormValues((current) => ({
+                  ...current,
+                  vendorType: event.target.value as AdminVendorType,
+                }))
+              }
+              required
+            >
+              {vendorTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="field">
             <label htmlFor="vendor-slug">{t("Slug")}</label>
             <Input
