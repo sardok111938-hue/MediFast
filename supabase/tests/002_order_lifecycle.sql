@@ -58,6 +58,51 @@ select public.test_assert(
   'delivered status exists'
 );
 
+select public.test_assert(
+  position(
+    'old.order_status = ''assigned'' and new.order_status = ''picked_up'''
+    in regexp_replace(
+      pg_get_functiondef(
+        'public.enforce_order_lifecycle_update()'::regprocedure
+      ),
+      '[[:space:]]+',
+      ' ',
+      'g'
+    )
+  ) > 0,
+  'lifecycle trigger allows assigned -> picked_up'
+);
+
+select public.test_assert(
+  position(
+    'old.order_status = ''picked_up'' and new.order_status = ''on_the_way'''
+    in regexp_replace(
+      pg_get_functiondef(
+        'public.enforce_order_lifecycle_update()'::regprocedure
+      ),
+      '[[:space:]]+',
+      ' ',
+      'g'
+    )
+  ) > 0,
+  'lifecycle trigger allows picked_up -> on_the_way'
+);
+
+select public.test_assert(
+  position(
+    'old.order_status = ''assigned'' and new.order_status = ''on_the_way'''
+    in regexp_replace(
+      pg_get_functiondef(
+        'public.enforce_order_lifecycle_update()'::regprocedure
+      ),
+      '[[:space:]]+',
+      ' ',
+      'g'
+    )
+  ) = 0,
+  'lifecycle trigger rejects obsolete assigned -> on_the_way shortcut'
+);
+
 select public.test_pass('order lifecycle contract');
 
 rollback;
