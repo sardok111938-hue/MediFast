@@ -41,10 +41,26 @@ import {
   isVendorWithinDeliveryRadius,
 } from "../../src/lib/customer-catalog";
 import type { ComponentProps } from "react";
+import type { Vendor } from "@medifast/types";
 import type { GroupedProduct } from "../../src/lib/customer-catalog";
 import { getCustomerNotificationsLastViewedAt } from "../../src/lib/notification-read-state";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
+
+type HomeVendorFilter = "all" | Vendor["vendor_type"];
+
+const vendorTypeFilters: Array<{
+  value: HomeVendorFilter;
+  label: string;
+}> = [
+  { value: "all", label: "الكل" },
+  { value: "pharmacy", label: "صيدليات" },
+  { value: "grocery", label: "بقالات" },
+  { value: "restaurant", label: "مطاعم" },
+  { value: "shop", label: "متاجر" },
+  { value: "home_business", label: "مشاريع منزلية" },
+  { value: "water_supplier", label: "مياه" },
+];
 
 function formatPrice(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
@@ -95,6 +111,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const productsScrollRef = useRef<ScrollView>(null);
   const [search, setSearch] = useState("");
+  const [vendorTypeFilter, setVendorTypeFilter] = useState<HomeVendorFilter>("all");
   const [favoriteVendorIds, setFavoriteVendorIds] = useState<string[]>([]);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [notificationCount, setNotificationCount] = useState(0);
@@ -112,7 +129,14 @@ export default function HomeScreen() {
   );
 
   const sortedVendors = useMemo(() => {
-    return [...catalog.vendors].sort((a, b) => {
+    const filteredVendors =
+      vendorTypeFilter === "all"
+        ? catalog.vendors
+        : catalog.vendors.filter(
+            (vendor) => vendor.vendor_type === vendorTypeFilter,
+          );
+
+    return [...filteredVendors].sort((a, b) => {
       const distanceA = calculateDistanceKm(primaryAddress, a);
       const distanceB = calculateDistanceKm(primaryAddress, b);
 
@@ -139,7 +163,12 @@ export default function HomeScreen() {
 
       return distanceA - distanceB;
     });
-  }, [catalog.vendors, favoriteVendorIds, primaryAddress]);
+  }, [
+    catalog.vendors,
+    favoriteVendorIds,
+    primaryAddress,
+    vendorTypeFilter,
+  ]);
 
   useEffect(() => {
     if (loading || error) {
@@ -397,10 +426,44 @@ export default function HomeScreen() {
           <View style={styles.sectionBlock}>
             <SectionTitle label="متاجر قريبة منك" />
 
-            {catalog.vendors.length === 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.vendorTypeFilters}
+            >
+              {vendorTypeFilters.map((filter) => {
+                const active = vendorTypeFilter === filter.value;
+
+                return (
+                  <Pressable
+                    key={filter.value}
+                    style={[
+                      styles.vendorTypeFilterChip,
+                      active ? styles.vendorTypeFilterChipActive : null,
+                    ]}
+                    onPress={() => setVendorTypeFilter(filter.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.vendorTypeFilterText,
+                        active ? styles.vendorTypeFilterTextActive : null,
+                      ]}
+                    >
+                      {filter.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {sortedVendors.length === 0 ? (
               <EmptyCard
                 title="لا توجد متاجر متاحة الآن"
-                message="ستظهر المتاجر هنا بمجرد توفر متاجر معتمدة ونشطة."
+                message={
+                  vendorTypeFilter === "all"
+                    ? "ستظهر المتاجر هنا بمجرد توفر متاجر معتمدة ونشطة."
+                    : "لا توجد متاجر متاحة من هذا النوع حالياً."
+                }
                 action={
                   <PrimaryButton
                     label="إعادة المحاولة"
@@ -683,6 +746,34 @@ const styles = StyleSheet.create({
   sectionBlock: {
     marginTop: theme.spacing[16],
     gap: theme.spacing[12],
+  },
+  vendorTypeFilters: {
+    flexDirection: "row-reverse",
+    gap: theme.spacing[8],
+    paddingHorizontal: 2,
+    paddingBottom: 2,
+  },
+  vendorTypeFilterChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing[12],
+    paddingVertical: theme.spacing[8],
+  },
+  vendorTypeFilterChipActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.accent,
+  },
+  vendorTypeFilterText: {
+    color: theme.colors.muted,
+    fontSize: theme.typography.caption.md,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  vendorTypeFilterTextActive: {
+    color: theme.colors.primaryDark,
+    fontWeight: "900",
   },
   categoryGrid: {
     flexDirection: "row-reverse",
