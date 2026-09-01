@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import type { Product } from "@medifast/types";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import type { Product, Vendor } from "@medifast/types";
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, Screen, SectionTitle } from "../../src/components/CustomerUI";
@@ -30,6 +30,21 @@ type CategoryProductCardModel = {
   lowestPrice: number;
   pharmaciesCount: number;
 };
+
+type CategoryVendorFilter = "all" | Vendor["vendor_type"];
+
+const vendorTypeFilters: Array<{
+  value: CategoryVendorFilter;
+  label: string;
+}> = [
+  { value: "all", label: "الكل" },
+  { value: "pharmacy", label: "صيدليات" },
+  { value: "grocery", label: "بقالات" },
+  { value: "restaurant", label: "مطاعم" },
+  { value: "shop", label: "متاجر" },
+  { value: "home_business", label: "مشاريع منزلية" },
+  { value: "water_supplier", label: "مياه" },
+];
 
 function GroupedCategoryProductCard({
   product,
@@ -87,6 +102,7 @@ const pharmacyId = Array.isArray(params.pharmacyId)
   const { data, loading, error, reload } = useCustomerCatalogData();
   const [activeSubcategoryId, setActiveSubcategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [vendorTypeFilter, setVendorTypeFilter] = useState<CategoryVendorFilter>("all");
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
@@ -115,9 +131,30 @@ const pharmacyId = Array.isArray(params.pharmacyId)
     : products;
 }, [products, query]);
 
+const marketplaceFilteredRawProducts = useMemo(() => {
+  if (pharmacyId || vendorTypeFilter === "all") {
+    return filteredRawProducts;
+  }
+
+  const matchingVendorIds = new Set(
+    data.vendors
+      .filter((vendor) => vendor.vendor_type === vendorTypeFilter)
+      .map((vendor) => vendor.id),
+  );
+
+  return filteredRawProducts.filter((product) =>
+    matchingVendorIds.has(product.vendor_id),
+  );
+}, [
+  data.vendors,
+  filteredRawProducts,
+  pharmacyId,
+  vendorTypeFilter,
+]);
+
 const filteredGroupedProducts = useMemo(
-  () => groupProductsByMarketplaceListing(filteredRawProducts, data.vendors),
-  [data.vendors, filteredRawProducts],
+  () => groupProductsByMarketplaceListing(marketplaceFilteredRawProducts, data.vendors),
+  [data.vendors, marketplaceFilteredRawProducts],
 );
 
   useEffect(() => {
@@ -219,6 +256,63 @@ const filteredGroupedProducts = useMemo(
         />
       </View>
 
+      {!pharmacyId ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            flexDirection: "row-reverse",
+            gap: theme.spacing[8],
+            paddingBottom: theme.spacing[12],
+          }}
+        >
+          {vendorTypeFilters.map((filter) => {
+            const active = vendorTypeFilter === filter.value;
+
+            return (
+              <Pressable
+                key={filter.value}
+                style={[
+                  {
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.surface,
+                    paddingHorizontal: theme.spacing[12],
+                    paddingVertical: theme.spacing[8],
+                  },
+                  active
+                    ? {
+                        borderColor: theme.colors.primary,
+                        backgroundColor: theme.colors.accent,
+                      }
+                    : null,
+                ]}
+                onPress={() => setVendorTypeFilter(filter.value)}
+              >
+                <Text
+                  style={[
+                    {
+                      color: theme.colors.muted,
+                      fontSize: theme.typography.caption.md,
+                      fontWeight: "800",
+                    },
+                    active
+                      ? {
+                          color: theme.colors.primaryDark,
+                          fontWeight: "900",
+                        }
+                      : null,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+
       <View style={styles.subcategoryGrid}>
         <Pressable
           style={[styles.subcategoryCard, !activeSubcategoryId ? styles.subcategoryCardActive : null]}
@@ -278,7 +372,12 @@ const filteredGroupedProducts = useMemo(
                   onPress={() =>
                     router.push({
                       pathname: "/grouped-product/[groupId]",
-                      params: { groupId: product.id },
+                      params: {
+                        groupId: product.id,
+                        ...(vendorTypeFilter === "all"
+                          ? {}
+                          : { vendorType: vendorTypeFilter }),
+                      },
                     })
                   }
                 />

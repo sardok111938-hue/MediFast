@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { theme } from "@medifast/ui";
+import type { Vendor } from "@medifast/types";
 import { CatalogImage } from "../src/components/CatalogImage";
 import {
   EmptyCard,
@@ -24,6 +25,21 @@ import {
 
 const PAGE_SIZE = 8;
 
+type ProductsVendorFilter = "all" | Vendor["vendor_type"];
+
+const vendorTypeFilters: Array<{
+  value: ProductsVendorFilter;
+  label: string;
+}> = [
+  { value: "all", label: "الكل" },
+  { value: "pharmacy", label: "صيدليات" },
+  { value: "grocery", label: "بقالات" },
+  { value: "restaurant", label: "مطاعم" },
+  { value: "shop", label: "متاجر" },
+  { value: "home_business", label: "مشاريع منزلية" },
+  { value: "water_supplier", label: "مياه" },
+];
+
 function formatPrice(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
@@ -34,6 +50,7 @@ export default function ProductsScreen() {
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [vendorTypeFilter, setVendorTypeFilter] = useState<ProductsVendorFilter>("all");
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<
     string | null
@@ -108,9 +125,25 @@ export default function ProductsScreen() {
     return ids;
   }, [data.categories, selectedParentId, selectedSubcategoryId]);
 
+  const vendorFilteredProducts = useMemo(() => {
+    if (vendorTypeFilter === "all") {
+      return data.products;
+    }
+
+    const matchingVendorIds = new Set(
+      data.vendors
+        .filter((vendor) => vendor.vendor_type === vendorTypeFilter)
+        .map((vendor) => vendor.id),
+    );
+
+    return data.products.filter((product) =>
+      matchingVendorIds.has(product.vendor_id),
+    );
+  }, [data.products, data.vendors, vendorTypeFilter]);
+
   const filteredProducts = useMemo(
     () =>
-      groupProductsByMarketplaceListing(data.products, data.vendors)
+      groupProductsByMarketplaceListing(vendorFilteredProducts, data.vendors)
         .filter((product) => {
           if (!selectedCategoryIds) {
             return true;
@@ -132,7 +165,7 @@ export default function ProductsScreen() {
 
           return left.name.localeCompare(right.name, "ar");
         }),
-    [data.products, data.vendors, selectedCategoryIds],
+    [data.vendors, selectedCategoryIds, vendorFilteredProducts],
   );
 
   const products = useMemo(
@@ -179,6 +212,64 @@ export default function ProductsScreen() {
           </Pressable>
         </View>
 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            flexDirection: "row-reverse",
+            gap: theme.spacing[8],
+            paddingBottom: theme.spacing[12],
+          }}
+        >
+          {vendorTypeFilters.map((filter) => {
+            const active = vendorTypeFilter === filter.value;
+
+            return (
+              <Pressable
+                key={filter.value}
+                style={[
+                  {
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.surface,
+                    paddingHorizontal: theme.spacing[12],
+                    paddingVertical: theme.spacing[8],
+                  },
+                  active
+                    ? {
+                        borderColor: theme.colors.primary,
+                        backgroundColor: theme.colors.accent,
+                      }
+                    : null,
+                ]}
+                onPress={() => {
+                  setVendorTypeFilter(filter.value);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+              >
+                <Text
+                  style={[
+                    {
+                      color: theme.colors.muted,
+                      fontSize: theme.typography.caption.md,
+                      fontWeight: "800",
+                    },
+                    active
+                      ? {
+                          color: theme.colors.primaryDark,
+                          fontWeight: "900",
+                        }
+                      : null,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
         {loading ? <LoadingCard message="جارٍ تحميل المنتجات..." /> : null}
 
         {!loading && error ? (
@@ -202,7 +293,12 @@ export default function ProductsScreen() {
                   onPress={() =>
                     router.push({
                       pathname: "/grouped-product/[groupId]",
-                      params: { groupId: product.id },
+                      params: {
+                        groupId: product.id,
+                        ...(vendorTypeFilter === "all"
+                          ? {}
+                          : { vendorType: vendorTypeFilter }),
+                      },
                     })
                   }
                 >
