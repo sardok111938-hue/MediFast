@@ -128,6 +128,7 @@ export const vendors: Vendor[] = [
   {
     id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
     name: "صيدلية جرين كير",
+    vendor_type: "pharmacy",
     address: "شارع الملك 14، المنطقة المركزية",
     rating: 4.8,
     eta_minutes: 18,
@@ -137,6 +138,7 @@ export const vendors: Vendor[] = [
   {
     id: "ddddcccc-cccc-cccc-cccc-cccccccccccc",
     name: "صيدلية ويل سبرينغ",
+    vendor_type: "pharmacy",
     address: "جادة سيدار 22، الجهة الغربية",
     rating: 4.6,
     eta_minutes: 26,

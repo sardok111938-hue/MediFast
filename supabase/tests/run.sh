@@ -24,4 +24,5 @@ psql -X -v ON_ERROR_STOP=1 \
   -f supabase/tests/018_vendors_table_privilege_baseline.sql \
   -f supabase/tests/019_vendor_rpc_execute_privileges.sql \
   -f supabase/tests/020_obsolete_vendor_account_overloads.sql \
-  -f supabase/tests/021_vendor_type.sql
+  -f supabase/tests/021_vendor_type.sql \
+  -f supabase/tests/022_vendor_type_read_contract.sql

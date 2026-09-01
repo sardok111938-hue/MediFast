@@ -36,6 +36,7 @@ type VendorRow = {
   profileRole: string | null;
 
   vendorName: string;
+  vendorType: string;
   slug: string | null;
 
   description: string | null;
@@ -76,6 +77,7 @@ type VendorRpcRow = {
   profile_full_name: string | null;
   profile_role: string | null;
   vendor_name: string;
+  vendor_type: string;
   slug: string | null;
   description: string | null;
   image_url: string | null;
@@ -271,6 +273,7 @@ function mapVendorRow(row: VendorRpcRow): VendorRow {
     profileFullName: row.profile_full_name ?? "ملف غير مرتبط",
     profileRole: row.profile_role ?? null,
     vendorName: String(row.vendor_name),
+    vendorType: String(row.vendor_type),
     slug: row.slug ?? null,
     description: row.description ?? null,
     imageUrl: row.image_url ?? null,

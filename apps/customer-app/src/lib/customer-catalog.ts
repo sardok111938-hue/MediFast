@@ -48,6 +48,7 @@ type QueryCategory = {
 type QueryVendor = {
   id: string;
   name: string;
+  vendor_type?: Vendor["vendor_type"] | null;
   phone?: string | null;
   address_line_1?: string | null;
   address_line_2?: string | null;
@@ -362,6 +363,7 @@ function mapVendor(vendor: QueryVendor): Vendor {
   return {
     id: vendor.id,
     name: vendor.name,
+    vendor_type: vendor.vendor_type ?? "pharmacy",
     phone: vendor.phone ?? null,
     address: [
       vendor.address_line_1,
@@ -632,6 +634,7 @@ export async function loadCustomerCatalogData(): Promise<CustomerCatalogData> {
         `
   id,
   name,
+  vendor_type,
   phone,
   completed_orders,
   address_line_1,
@@ -734,6 +737,7 @@ export async function loadActiveVendors() {
       `
       id,
       name,
+      vendor_type,
        is_active,
        approval_status,
        lat,

@@ -67,6 +67,7 @@ export type AdminOrderControlProps = {
 export type AdminVendorRow = {
   id: string;
   name: string;
+  vendorType: string;
   approvalStatus: string;
   address: string;
 };

@@ -16,6 +16,14 @@ export type PaymentMethod = "cash_on_delivery";
 export type PaymentStatus = "pending" | "collected";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
+export type VendorType =
+  | "pharmacy"
+  | "grocery"
+  | "restaurant"
+  | "shop"
+  | "home_business"
+  | "water_supplier";
+
 export type PrescriptionRequestStatus =
   | "pending"
   | "accepted"
@@ -93,6 +101,7 @@ export interface VendorOperatingHour {
 export interface Vendor {
   id: string;
   name: string;
+  vendor_type: VendorType;
   phone?: string | null;
   address: string;
   rating: number;

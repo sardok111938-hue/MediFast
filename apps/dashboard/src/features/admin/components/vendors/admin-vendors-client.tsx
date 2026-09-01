@@ -20,7 +20,7 @@ async function loadAdminVendorsData(page: number): Promise<AdminVendorsData> {
   const { from, to } = getPaginationRange(page, DEFAULT_PAGE_SIZE);
   const { data, error, count } = await supabase
     .from("vendors")
-    .select("id, name, approval_status, address_line_1, area, city", { count: "exact" })
+    .select("id, name, vendor_type, approval_status, address_line_1, area, city", { count: "exact" })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .range(from, to);
@@ -32,6 +32,7 @@ async function loadAdminVendorsData(page: number): Promise<AdminVendorsData> {
   const rows = (data ?? []).map((vendor) => ({
     id: String(vendor.id),
     name: String(vendor.name),
+    vendorType: String(vendor.vendor_type),
     approvalStatus: String(vendor.approval_status),
     address: [vendor.address_line_1, vendor.area, vendor.city].filter(Boolean).join("، ") || "-",
   }));
