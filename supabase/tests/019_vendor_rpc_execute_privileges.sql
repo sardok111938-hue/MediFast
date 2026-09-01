@@ -41,8 +41,8 @@ begin
   end loop;
 
   perform public.test_assert(
-    function_count = 8,
-    'expected eight current vendor RPC signatures before legacy overload cleanup'
+    function_count = 6,
+    'expected six current vendor RPC signatures after legacy overload cleanup'
   );
 end;
 $$;

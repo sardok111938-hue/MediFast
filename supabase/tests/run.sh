@@ -22,4 +22,5 @@ psql -X -v ON_ERROR_STOP=1 \
   -f supabase/tests/016_obsolete_vendor_product_overloads.sql \
   -f supabase/tests/017_customer_assigned_driver_read_policy.sql \
   -f supabase/tests/018_vendors_table_privilege_baseline.sql \
-  -f supabase/tests/019_vendor_rpc_execute_privileges.sql
+  -f supabase/tests/019_vendor_rpc_execute_privileges.sql \
+  -f supabase/tests/020_obsolete_vendor_account_overloads.sql
