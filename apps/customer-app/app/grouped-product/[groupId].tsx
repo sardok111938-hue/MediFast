@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
+import type { Vendor } from "@medifast/types";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, Screen } from "../../src/components/CustomerUI";
 import { addProductToCart } from "../../src/lib/cart-store";
@@ -21,10 +22,38 @@ function compareOffersByPrice(a: ProductOffer, b: ProductOffer) {
   return a.product.price - b.product.price;
 }
 
+function isVendorType(
+  value: string | undefined,
+): value is Vendor["vendor_type"] {
+  return (
+    value === "pharmacy" ||
+    value === "grocery" ||
+    value === "restaurant" ||
+    value === "shop" ||
+    value === "home_business" ||
+    value === "water_supplier"
+  );
+}
+
+
 export default function GroupedProductDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ groupId?: string | string[] }>();
-  const groupId = Array.isArray(params.groupId) ? params.groupId[0] : params.groupId;
+  const params = useLocalSearchParams<{
+    groupId?: string | string[];
+    vendorType?: string | string[];
+  }>();
+
+  const groupId = Array.isArray(params.groupId)
+    ? params.groupId[0]
+    : params.groupId;
+
+  const rawVendorType = Array.isArray(params.vendorType)
+    ? params.vendorType[0]
+    : params.vendorType;
+
+  const vendorTypeFilter = isVendorType(rawVendorType)
+    ? rawVendorType
+    : null;
   const { data, groupedProducts, loading, error, reload } = useGroupedCustomerProducts();
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
   const [showAllOffers, setShowAllOffers] = useState(false);
@@ -36,7 +65,13 @@ export default function GroupedProductDetailScreen() {
       return [];
     }
 
-    return [...product.offers].sort((a, b) => {
+    const matchingOffers = vendorTypeFilter
+      ? product.offers.filter(
+          (offer) => offer.vendor?.vendor_type === vendorTypeFilter,
+        )
+      : product.offers;
+
+    return [...matchingOffers].sort((a, b) => {
       const aDistance = calculateDistanceKm(primaryAddress, a.vendor);
       const bDistance = calculateDistanceKm(primaryAddress, b.vendor);
 
@@ -56,9 +91,14 @@ export default function GroupedProductDetailScreen() {
 
       return aDistance - bDistance;
     });
-  }, [product, primaryAddress]);
+  }, [product, primaryAddress, vendorTypeFilter]);
 
   const visibleOffers = showAllOffers ? offers : offers.slice(0, 3);
+
+  const filteredLowestPrice =
+    offers.length > 0
+      ? Math.min(...offers.map((offer) => offer.product.price))
+      : product?.lowestPrice ?? 0;
 
   if (loading) {
     return (
@@ -115,19 +155,19 @@ export default function GroupedProductDetailScreen() {
           <View style={styles.summaryRow}>
             <View style={styles.summaryPill}>
               <Text style={styles.summaryLabel}>يبدأ من</Text>
-              <Text style={styles.summaryValue}>{formatCustomerCurrency(product.lowestPrice)}</Text>
+              <Text style={styles.summaryValue}>{formatCustomerCurrency(filteredLowestPrice)}</Text>
             </View>
 
             <View style={styles.summaryPill}>
               <Text style={styles.summaryLabel}>متوفر في</Text>
-              <Text style={styles.summaryValue}>{product.pharmaciesCount} صيدليات</Text>
+              <Text style={styles.summaryValue}>{offers.length} متاجر</Text>
             </View>
           </View>
         </View>
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Available from</Text>
+        <Text style={styles.sectionTitle}>متوفر من</Text>
         <Text style={styles.sectionHint}>اختر المتجر المناسب وأضف المنتج إلى السلة</Text>
       </View>
 
@@ -152,7 +192,7 @@ return (
         }
       >
         <Text style={styles.vendorName} numberOfLines={1}>
-          {vendor?.name ?? "صيدلية"}
+          {vendor?.name ?? "متجر"}
         </Text>
 
         <View style={styles.offerMetaRow}>

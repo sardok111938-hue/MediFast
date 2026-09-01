@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { theme } from "@medifast/ui";
+import type { Vendor } from "@medifast/types";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import {
   EmptyCard,
@@ -26,6 +27,21 @@ import {
 import type { GroupedProduct } from "../../src/lib/customer-catalog";
 
 type SearchFilter = "relevant" | "available" | "cheaper";
+
+type SearchVendorFilter = "all" | Vendor["vendor_type"];
+
+const vendorTypeFilters: Array<{
+  value: SearchVendorFilter;
+  label: string;
+}> = [
+  { value: "all", label: "الكل" },
+  { value: "pharmacy", label: "صيدليات" },
+  { value: "grocery", label: "بقالات" },
+  { value: "restaurant", label: "مطاعم" },
+  { value: "shop", label: "متاجر" },
+  { value: "home_business", label: "مشاريع منزلية" },
+  { value: "water_supplier", label: "مياه" },
+];
 
 type QuickSearchItem = {
   label: string;
@@ -82,6 +98,7 @@ export default function SearchScreen() {
 
   const [query, setQuery] = useState(initialQuery ?? "");
   const [filters, setFilters] = useState<SearchFilter[]>(["relevant"]);
+  const [vendorTypeFilter, setVendorTypeFilter] = useState<SearchVendorFilter>("all");
 
   const {
     data,
@@ -125,6 +142,21 @@ export default function SearchScreen() {
 
       try {
         let foundProducts = await searchProducts(trimmedQuery);
+
+        if (vendorTypeFilter !== "all") {
+          const matchingVendorIds = new Set(
+            data.vendors
+              .filter(
+                (vendor) => vendor.vendor_type === vendorTypeFilter,
+              )
+              .map((vendor) => vendor.id),
+          );
+
+          foundProducts = foundProducts.filter((product) =>
+            matchingVendorIds.has(product.vendor_id),
+          );
+        }
+
 
         if (filters.includes("available")) {
           foundProducts = foundProducts.filter(
@@ -173,7 +205,7 @@ export default function SearchScreen() {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [query, filters, data.vendors]);
+  }, [query, filters, data.vendors, vendorTypeFilter]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -225,6 +257,24 @@ export default function SearchScreen() {
 
             <Text style={styles.resultsCount}>{results.length} منتج</Text>
           </View>
+        ) : null}
+
+        {query.trim().length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.vendorTypeFiltersRow}
+            style={styles.vendorTypeFiltersScroller}
+          >
+            {vendorTypeFilters.map((filter) => (
+              <FilterChip
+                key={filter.value}
+                label={filter.label}
+                active={vendorTypeFilter === filter.value}
+                onPress={() => setVendorTypeFilter(filter.value)}
+              />
+            ))}
+          </ScrollView>
         ) : null}
 
         {searchLoading || catalogLoading ? (
@@ -313,7 +363,12 @@ export default function SearchScreen() {
                     onPress={() =>
                       router.push({
                         pathname: "/grouped-product/[groupId]",
-                        params: { groupId: product.id },
+                        params: {
+                          groupId: product.id,
+                          ...(vendorTypeFilter === "all"
+                            ? {}
+                            : { vendorType: vendorTypeFilter }),
+                        },
                       })
                     }
                   >
@@ -397,6 +452,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     gap: theme.spacing[8],
+    paddingBottom: 2,
+  },
+  vendorTypeFiltersScroller: {
+    marginTop: -theme.spacing[12],
+    marginBottom: theme.spacing[20],
+  },
+  vendorTypeFiltersRow: {
+    flexDirection: "row-reverse",
+    gap: theme.spacing[8],
+    paddingHorizontal: 2,
     paddingBottom: 2,
   },
   filterChip: {
