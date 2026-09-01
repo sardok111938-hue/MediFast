@@ -10,4 +10,5 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
   -f supabase/tests/006_sensitive_rpc_privileges.sql \
   -f supabase/tests/007_vendor_rejection_stock_restoration.sql \
   -f supabase/tests/008_customer_order_cancellation.sql \
-  -f supabase/tests/009_admin_order_cancellation.sql
+  -f supabase/tests/009_admin_order_cancellation.sql \
+  -f supabase/tests/010_orders_direct_update_privileges.sql
