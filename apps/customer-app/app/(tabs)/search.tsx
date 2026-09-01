@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { theme } from "@medifast/ui";
-import type { Vendor } from "@medifast/types";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import {
   EmptyCard,
@@ -23,25 +22,11 @@ import {
   groupProductsByMarketplaceListing,
   searchProducts,
   useCustomerCatalogData,
+  vendorTypeFilters,
 } from "../../src/lib/customer-catalog";
-import type { GroupedProduct } from "../../src/lib/customer-catalog";
+import type { GroupedProduct, VendorTypeFilter } from "../../src/lib/customer-catalog";
 
 type SearchFilter = "relevant" | "available" | "cheaper";
-
-type SearchVendorFilter = "all" | Vendor["vendor_type"];
-
-const vendorTypeFilters: Array<{
-  value: SearchVendorFilter;
-  label: string;
-}> = [
-  { value: "all", label: "الكل" },
-  { value: "pharmacy", label: "صيدليات" },
-  { value: "grocery", label: "بقالات" },
-  { value: "restaurant", label: "مطاعم" },
-  { value: "shop", label: "متاجر" },
-  { value: "home_business", label: "مشاريع منزلية" },
-  { value: "water_supplier", label: "مياه" },
-];
 
 type QuickSearchItem = {
   label: string;
@@ -98,7 +83,7 @@ export default function SearchScreen() {
 
   const [query, setQuery] = useState(initialQuery ?? "");
   const [filters, setFilters] = useState<SearchFilter[]>(["relevant"]);
-  const [vendorTypeFilter, setVendorTypeFilter] = useState<SearchVendorFilter>("all");
+  const [vendorTypeFilter, setVendorTypeFilter] = useState<VendorTypeFilter>("all");
 
   const {
     data,

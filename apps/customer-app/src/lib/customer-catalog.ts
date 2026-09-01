@@ -23,6 +23,21 @@ export function getVendorTypeLabel(
   }
 }
 
+export type VendorTypeFilter = "all" | Vendor["vendor_type"];
+
+export const vendorTypeFilters: Array<{
+  value: VendorTypeFilter;
+  label: string;
+}> = [
+  { value: "all", label: "الكل" },
+  { value: "pharmacy", label: "صيدليات" },
+  { value: "grocery", label: "بقالات" },
+  { value: "restaurant", label: "مطاعم" },
+  { value: "shop", label: "متاجر" },
+  { value: "home_business", label: "مشاريع منزلية" },
+  { value: "water_supplier", label: "مياه" },
+];
+
 export type CustomerCatalogData = {
   addresses: Address[];
   categories: Category[];

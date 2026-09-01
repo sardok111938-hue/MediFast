@@ -39,28 +39,13 @@ import {
   getPrimaryAddress,
   getVendorTypeLabel,
   isVendorWithinDeliveryRadius,
+  vendorTypeFilters,
 } from "../../src/lib/customer-catalog";
 import type { ComponentProps } from "react";
-import type { Vendor } from "@medifast/types";
-import type { GroupedProduct } from "../../src/lib/customer-catalog";
+import type { GroupedProduct, VendorTypeFilter } from "../../src/lib/customer-catalog";
 import { getCustomerNotificationsLastViewedAt } from "../../src/lib/notification-read-state";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
-
-type HomeVendorFilter = "all" | Vendor["vendor_type"];
-
-const vendorTypeFilters: Array<{
-  value: HomeVendorFilter;
-  label: string;
-}> = [
-  { value: "all", label: "الكل" },
-  { value: "pharmacy", label: "صيدليات" },
-  { value: "grocery", label: "بقالات" },
-  { value: "restaurant", label: "مطاعم" },
-  { value: "shop", label: "متاجر" },
-  { value: "home_business", label: "مشاريع منزلية" },
-  { value: "water_supplier", label: "مياه" },
-];
 
 function formatPrice(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
@@ -111,7 +96,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const productsScrollRef = useRef<ScrollView>(null);
   const [search, setSearch] = useState("");
-  const [vendorTypeFilter, setVendorTypeFilter] = useState<HomeVendorFilter>("all");
+  const [vendorTypeFilter, setVendorTypeFilter] = useState<VendorTypeFilter>("all");
   const [favoriteVendorIds, setFavoriteVendorIds] = useState<string[]>([]);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [notificationCount, setNotificationCount] = useState(0);

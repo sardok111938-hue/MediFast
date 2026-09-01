@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import { theme } from "@medifast/ui";
-import type { Vendor } from "@medifast/types";
 import { CatalogImage } from "../src/components/CatalogImage";
 import {
   EmptyCard,
@@ -21,24 +20,11 @@ import {
 import {
   groupProductsByMarketplaceListing,
   useCustomerCatalogData,
+  vendorTypeFilters,
 } from "../src/lib/customer-catalog";
+import type { VendorTypeFilter } from "../src/lib/customer-catalog";
 
 const PAGE_SIZE = 8;
-
-type ProductsVendorFilter = "all" | Vendor["vendor_type"];
-
-const vendorTypeFilters: Array<{
-  value: ProductsVendorFilter;
-  label: string;
-}> = [
-  { value: "all", label: "الكل" },
-  { value: "pharmacy", label: "صيدليات" },
-  { value: "grocery", label: "بقالات" },
-  { value: "restaurant", label: "مطاعم" },
-  { value: "shop", label: "متاجر" },
-  { value: "home_business", label: "مشاريع منزلية" },
-  { value: "water_supplier", label: "مياه" },
-];
 
 function formatPrice(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
@@ -50,7 +36,7 @@ export default function ProductsScreen() {
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [vendorTypeFilter, setVendorTypeFilter] = useState<ProductsVendorFilter>("all");
+  const [vendorTypeFilter, setVendorTypeFilter] = useState<VendorTypeFilter>("all");
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<
     string | null

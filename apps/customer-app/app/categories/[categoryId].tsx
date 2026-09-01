@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import type { Product, Vendor } from "@medifast/types";
+import type { Product } from "@medifast/types";
 import { theme } from "@medifast/ui";
 import { CatalogImage } from "../../src/components/CatalogImage";
 import { EmptyCard, ErrorCard, LoadingCard, Screen, SectionTitle } from "../../src/components/CustomerUI";
@@ -13,7 +13,9 @@ import {
   loadCategoryProducts,
   buildPharmacyCategoryTree,
   groupProductsByMarketplaceListing,
+  vendorTypeFilters,
 } from "../../src/lib/customer-catalog";
+import type { VendorTypeFilter } from "../../src/lib/customer-catalog";
 
 function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
@@ -30,21 +32,6 @@ type CategoryProductCardModel = {
   lowestPrice: number;
   pharmaciesCount: number;
 };
-
-type CategoryVendorFilter = "all" | Vendor["vendor_type"];
-
-const vendorTypeFilters: Array<{
-  value: CategoryVendorFilter;
-  label: string;
-}> = [
-  { value: "all", label: "الكل" },
-  { value: "pharmacy", label: "صيدليات" },
-  { value: "grocery", label: "بقالات" },
-  { value: "restaurant", label: "مطاعم" },
-  { value: "shop", label: "متاجر" },
-  { value: "home_business", label: "مشاريع منزلية" },
-  { value: "water_supplier", label: "مياه" },
-];
 
 function GroupedCategoryProductCard({
   product,
@@ -102,7 +89,7 @@ const pharmacyId = Array.isArray(params.pharmacyId)
   const { data, loading, error, reload } = useCustomerCatalogData();
   const [activeSubcategoryId, setActiveSubcategoryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [vendorTypeFilter, setVendorTypeFilter] = useState<CategoryVendorFilter>("all");
+  const [vendorTypeFilter, setVendorTypeFilter] = useState<VendorTypeFilter>("all");
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
