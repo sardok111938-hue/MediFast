@@ -14,4 +14,5 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
   -f supabase/tests/010_orders_direct_update_privileges.sql \
   -f supabase/tests/011_orders_table_privilege_baseline.sql \
   -f supabase/tests/012_product_dashboard_write_rpc.sql \
-  -f supabase/tests/013_product_rpc_execute_privileges.sql
+  -f supabase/tests/013_product_rpc_execute_privileges.sql \
+  -f supabase/tests/014_products_table_privilege_baseline.sql
