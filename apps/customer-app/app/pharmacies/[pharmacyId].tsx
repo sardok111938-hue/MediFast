@@ -19,6 +19,7 @@ import {
   calculateDistanceKm,
   formatDistanceKm,
   getPrimaryAddress,
+  getVendorTypeLabel,
   loadVendorProducts,
 } from "../../src/lib/customer-catalog";
 
@@ -160,7 +161,7 @@ let cancelled = false;
         setProductsError(
           error instanceof Error
             ? error.message
-            : "تعذر تحميل منتجات الصيدلية.",
+            : "تعذر تحميل منتجات المتجر.",
         );
       }
     } finally {
@@ -221,15 +222,15 @@ distanceKm === null ? null : DEFAULT_DELIVERY_FEE_ESTIMATE;
 
   if (loading || productsLoading) {
     return (
-      <Screen title="الصيدلية" subtitle="جارٍ تجهيز بيانات الصيدلية." backHref="/home" backLabel="العودة">
-        <LoadingCard message="جارٍ تحميل الصيدلية..." />
+      <Screen title="المتجر" subtitle="جارٍ تجهيز بيانات المتجر." backHref="/home" backLabel="العودة">
+        <LoadingCard message="جارٍ تحميل المتجر..." />
       </Screen>
     );
   }
 
   if (error || productsError) {
     return (
-      <Screen title="الصيدلية" subtitle="تعذر تحميل بيانات الصيدلية." backHref="/home" backLabel="العودة">
+      <Screen title="المتجر" subtitle="تعذر تحميل بيانات المتجر." backHref="/home" backLabel="العودة">
         <ErrorCard message={error ?? productsError ?? ""} onRetry={() => void reload()} />
       </Screen>
     );
@@ -237,10 +238,10 @@ distanceKm === null ? null : DEFAULT_DELIVERY_FEE_ESTIMATE;
 
   if (!pharmacy) {
     return (
-      <Screen title="الصيدلية" subtitle="هذه الصيدلية غير متاحة حاليًا." backHref="/home" backLabel="العودة">
+      <Screen title="المتجر" subtitle="هذا المتجر غير متاح حاليًا." backHref="/home" backLabel="العودة">
         <EmptyCard
-          title="الصيدلية غير متاحة"
-          message="لم نتمكن من العثور على هذه الصيدلية ضمن المتاجر النشطة."
+          title="المتجر غير متاح"
+          message="لم نتمكن من العثور على هذا المتجر ضمن المتاجر النشطة."
           action={<PrimaryButton label="العودة للرئيسية" onPress={() => router.push("/home")} />}
         />
       </Screen>
@@ -253,7 +254,7 @@ distanceKm === null ? null : DEFAULT_DELIVERY_FEE_ESTIMATE;
         <CatalogImage
           uri={coverImage}
           alt={pharmacy.name}
-          fallbackLabel="صيدلية"
+          fallbackLabel={getVendorTypeLabel(pharmacy.vendor_type)}
           containerStyle={styles.coverImageWrap}
           imageStyle={styles.coverImage}
         />
@@ -293,7 +294,7 @@ distanceKm === null ? null : DEFAULT_DELIVERY_FEE_ESTIMATE;
     <Text style={styles.pharmacyName}>{pharmacy.name}</Text>
 
     <Text style={styles.pharmacyAddress} numberOfLines={2}>
-      {pharmacy.address || "صيدلية معتمدة"}
+      {getVendorTypeLabel(pharmacy.vendor_type)} · {pharmacy.address || "العنوان غير متوفر"}
     </Text>
   </View>
 
@@ -314,7 +315,7 @@ distanceKm === null ? null : DEFAULT_DELIVERY_FEE_ESTIMATE;
             : styles.statusTextClosed,
         ]}
       >
-        {pharmacy.is_open ? "مفتوحة الآن" : "مغلقة حالياً"}
+        {pharmacy.is_open ? "مفتوح الآن" : "مغلق حالياً"}
       </Text>
     </View>
 
@@ -331,7 +332,7 @@ distanceKm === null ? null : DEFAULT_DELIVERY_FEE_ESTIMATE;
       />
 
       <Text style={styles.hoursToggleText}>
-  عن الصيدلية
+  عن المتجر
 </Text>
 
       <Ionicons
@@ -441,11 +442,11 @@ distanceKm === null ? null : DEFAULT_DELIVERY_FEE_ESTIMATE;
 
 <View style={styles.sectionHeader}>
           <SectionTitle label="الفئات المتاحة" />
-        <Text style={styles.sectionHint}>اختر فئة لعرض منتجات هذه الصيدلية فقط</Text>
+        <Text style={styles.sectionHint}>اختر فئة لعرض منتجات هذا المتجر فقط</Text>
       </View>
 
       {categoryCards.length === 0 ? (
-        <EmptyCard title="لا توجد فئات" message="لا توجد فئات مرتبطة بمنتجات هذه الصيدلية بعد." />
+        <EmptyCard title="لا توجد فئات" message="لا توجد فئات مرتبطة بمنتجات هذا المتجر بعد." />
       ) : (
         <View style={styles.categoryGrid}>
   {categoryCards.map((category) => {

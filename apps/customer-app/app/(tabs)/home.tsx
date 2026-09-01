@@ -37,6 +37,7 @@ import {
   calculateDistanceKm,
   formatDistanceKm,
   getPrimaryAddress,
+  getVendorTypeLabel,
   isVendorWithinDeliveryRadius,
 } from "../../src/lib/customer-catalog";
 import type { ComponentProps } from "react";
@@ -83,7 +84,7 @@ function GroupedProductCard({
         </Text>
 
         <Text style={styles.groupedProductMeta} numberOfLines={1}>
-          متوفر في {product.pharmaciesCount} صيدليات
+          متوفر في {product.pharmaciesCount} متاجر
         </Text>
       </View>
     </Pressable>
@@ -394,12 +395,12 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.sectionBlock}>
-            <SectionTitle label="صيدليات قريبة منك" />
+            <SectionTitle label="متاجر قريبة منك" />
 
             {catalog.vendors.length === 0 ? (
               <EmptyCard
-                title="لا توجد صيدليات متاحة الآن"
-                message="ستظهر الصيدليات هنا بمجرد توفر متاجر معتمدة ونشطة."
+                title="لا توجد متاجر متاحة الآن"
+                message="ستظهر المتاجر هنا بمجرد توفر متاجر معتمدة ونشطة."
                 action={
                   <PrimaryButton
                     label="إعادة المحاولة"
@@ -480,7 +481,7 @@ export default function HomeScreen() {
                         <CatalogImage
                           uri={vendorImage}
                           alt={vendor.name}
-                          fallbackLabel="صيدلية"
+                          fallbackLabel="متجر"
                           containerStyle={[
                             styles.pharmacyImageWrap,
                             !withinRadius ? styles.pharmacyImageMuted : null,
@@ -511,6 +512,9 @@ export default function HomeScreen() {
                           <Text style={styles.pharmacyName} numberOfLines={1}>
                             {vendor.name}
                           </Text>
+                            <Text style={styles.productCountText}>
+                              {getVendorTypeLabel(vendor.vendor_type)}
+                            </Text>
 
                           <View style={styles.pharmacyInfoColumn}>
                             <Text style={styles.productCountText}>

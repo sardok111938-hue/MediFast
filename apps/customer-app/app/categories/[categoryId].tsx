@@ -65,7 +65,7 @@ function GroupedCategoryProductCard({
         </Text>
 
         <Text style={styles.groupedProductMeta} numberOfLines={1}>
-          متوفر في {product.pharmaciesCount} صيدليات
+          متوفر في {product.pharmaciesCount} متاجر
         </Text>
       </View>
     </Pressable>

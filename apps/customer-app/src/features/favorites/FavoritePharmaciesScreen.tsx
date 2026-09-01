@@ -16,6 +16,7 @@ import {
   calculateDistanceKm,
   formatDistanceKm,
   getPrimaryAddress,
+  getVendorTypeLabel,
   isVendorWithinDeliveryRadius,
   useCustomerCatalogData,
 } from "../../lib/customer-catalog";
@@ -99,23 +100,23 @@ export default function FavoritePharmaciesScreen() {
 
   return (
     <Screen
-      title="صيدلياتي المفضلة"
-      subtitle="الصيدليات التي تحفظها للطلب السريع."
+      title="متاجري المفضلة"
+      subtitle="المتاجر التي تحفظها للطلب السريع."
       backHref="/(tabs)/profile"
       backLabel="العودة إلى الحساب"
       contentContainerStyle={{ paddingBottom: 120 }}
     >
-      {loading || favoritesLoading ? <LoadingCard message="جارٍ تحميل الصيدليات المفضلة..." /> : null}
+      {loading || favoritesLoading ? <LoadingCard message="جارٍ تحميل المتاجر المفضلة..." /> : null}
 
       {!loading && error ? <ErrorCard message={error} onRetry={() => void reload()} /> : null}
 
       {!loading && !favoritesLoading && !error && favoriteVendors.length === 0 ? (
         <EmptyCard
-          title="لا توجد صيدليات مفضلة"
-          message="اضغط على رمز القلب في بطاقة الصيدلية لحفظها هنا."
+          title="لا توجد متاجر مفضلة"
+          message="اضغط على رمز القلب في بطاقة المتجر لحفظه هنا."
           action={
             <PrimaryButton
-              label="تصفح الصيدليات"
+              label="تصفح المتاجر"
               onPress={() => router.push("/(tabs)/home")}
             />
           }
@@ -124,7 +125,7 @@ export default function FavoritePharmaciesScreen() {
 
       {!loading && !favoritesLoading && !error && favoriteVendors.length > 0 ? (
         <View style={styles.sectionBlock}>
-          <SectionTitle label="الصيدليات المحفوظة" />
+          <SectionTitle label="المتاجر المحفوظة" />
 
           <View style={styles.list}>
             {favoriteVendors.map((vendor) => {
@@ -150,7 +151,7 @@ export default function FavoritePharmaciesScreen() {
                     <CatalogImage
                       uri={vendor.image_url}
                       alt={vendor.name}
-                      fallbackLabel="صيدلية"
+                      fallbackLabel="متجر"
                       containerStyle={[
                         styles.imageWrap,
                         !withinRadius || !vendor.is_open ? styles.imageMuted : null,
@@ -184,7 +185,7 @@ export default function FavoritePharmaciesScreen() {
                     </View>
 
                     <Text style={styles.address} numberOfLines={1}>
-                      {vendor.address || "صيدلية معتمدة"}
+                      {getVendorTypeLabel(vendor.vendor_type)} · {vendor.address || "العنوان غير متوفر"}
                     </Text>
 
                     <View style={styles.metaRow}>

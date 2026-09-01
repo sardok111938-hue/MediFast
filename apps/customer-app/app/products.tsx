@@ -221,7 +221,7 @@ export default function ProductsScreen() {
                     </Text>
 
                     <Text style={styles.vendorName} numberOfLines={1}>
-                      متوفر في {product.pharmaciesCount} صيدليات
+                      متوفر في {product.pharmaciesCount} متاجر
                     </Text>
 
                     <Text style={styles.price}>

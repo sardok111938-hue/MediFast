@@ -334,7 +334,7 @@ export default function SearchScreen() {
                       </View>
 
                       <Text style={styles.vendorName} numberOfLines={1}>
-                        متوفر في {product.pharmaciesCount} صيدليات
+                        متوفر في {product.pharmaciesCount} متاجر
                       </Text>
 
                       <View style={styles.productBottomRow}>

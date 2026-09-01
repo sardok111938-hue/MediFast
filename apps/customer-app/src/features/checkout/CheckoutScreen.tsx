@@ -188,7 +188,7 @@ export default function CheckoutScreen() {
         <DetailRow label="حالة الدفع" value={<StatusBadge label={formatCustomerPaymentStatusLabel("pending", "cash_on_delivery")} tone="warning" />} />
         
         <HelperText tone="info">
-  يتم احتساب رسوم التوصيل النهائية تلقائياً حسب المسافة بين عنوانك والصيدلية.
+  يتم احتساب رسوم التوصيل النهائية تلقائياً حسب المسافة بين عنوانك والمتجر.
 </HelperText>
         {!freshness.valid ? <HelperText tone="danger">عالج مشاكل صلاحية السلة قبل إرسال الطلب.</HelperText> : null}
         {validationError ? <HelperText tone="danger">{validationError}</HelperText> : null}
@@ -197,7 +197,7 @@ export default function CheckoutScreen() {
 
 {selectedVendor && !selectedVendor.is_open ? (
   <HelperText tone="danger">
-    الصيدلية مغلقة حالياً ولا يمكن إرسال الطلب الآن.
+    المتجر مغلق حالياً ولا يمكن إرسال الطلب الآن.
   </HelperText>
 ) : null}
 

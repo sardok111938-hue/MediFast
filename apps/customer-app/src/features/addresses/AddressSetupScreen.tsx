@@ -94,7 +94,7 @@ export default function AddressSetupScreen() {
         <Text style={styles.title}>أضف عنوان التوصيل</Text>
 
         <Text style={styles.subtitle}>
-          نحتاج موقعك لإظهار الصيدليات القريبة وحساب رسوم التوصيل بدقة.
+          نحتاج موقعك لإظهار المتاجر القريبة وحساب رسوم التوصيل بدقة.
         </Text>
 
         <View style={styles.actions}>

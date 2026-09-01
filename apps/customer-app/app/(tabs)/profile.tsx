@@ -370,8 +370,8 @@ export default function ProfileScreen() {
 
           <SettingRow
             icon="storefront-outline"
-            label="صيدلياتي المفضلة"
-            value="الصيدليات التي تحفظها للطلب السريع"
+            label="متاجري المفضلة"
+            value="المتاجر التي تحفظها للطلب السريع"
             onPress={() => router.push("/favorite-pharmacies")}
           />
 

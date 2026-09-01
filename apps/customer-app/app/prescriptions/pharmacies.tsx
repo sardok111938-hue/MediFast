@@ -34,6 +34,7 @@ export default function PrescriptionPharmaciesScreen() {
 
   const nearbyVendors = data.vendors
     .filter((vendor) => isVendorWithinDeliveryRadius(selectedAddress, vendor))
+    .filter((vendor) => vendor.vendor_type === "pharmacy")
     .map((vendor) => ({
       vendor,
       distanceKm: calculateDistanceKm(selectedAddress, vendor),

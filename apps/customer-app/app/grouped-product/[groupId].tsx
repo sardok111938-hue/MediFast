@@ -128,7 +128,7 @@ export default function GroupedProductDetailScreen() {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Available from</Text>
-        <Text style={styles.sectionHint}>اختر الصيدلية المناسبة وأضف المنتج إلى السلة</Text>
+        <Text style={styles.sectionHint}>اختر المتجر المناسب وأضف المنتج إلى السلة</Text>
       </View>
 
       <View style={styles.offerList}>
@@ -199,7 +199,7 @@ return (
 {offers.length > 3 && !showAllOffers ? (
   <Pressable style={styles.showMoreButton} onPress={() => setShowAllOffers(true)}>
     <Text style={styles.showMoreText}>
-      عرض {offers.length - 3} صيدليات إضافية
+      عرض {offers.length - 3} متاجر إضافية
     </Text>
   </Pressable>
 ) : null}

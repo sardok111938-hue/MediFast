@@ -2,6 +2,27 @@ import type { Address, Category, Product, Vendor } from "@medifast/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isSupabaseConfigured, supabase } from "./supabase";
 
+export function getVendorTypeLabel(
+  vendorType: Vendor["vendor_type"] | null | undefined,
+) {
+  switch (vendorType) {
+    case "pharmacy":
+      return "صيدلية";
+    case "grocery":
+      return "بقالة";
+    case "restaurant":
+      return "مطعم";
+    case "shop":
+      return "متجر";
+    case "home_business":
+      return "مشروع منزلي";
+    case "water_supplier":
+      return "مورد مياه";
+    default:
+      return "متجر";
+  }
+}
+
 export type CustomerCatalogData = {
   addresses: Address[];
   categories: Category[];
@@ -777,7 +798,7 @@ export function useCustomerVendors() {
       setError(
         nextError instanceof Error
           ? nextError.message
-          : "تعذر تحميل الصيدليات.",
+          : "تعذر تحميل المتاجر.",
       );
     } finally {
       setLoading(false);
