@@ -201,6 +201,29 @@ export function normalizeCustomerOrderError(error: unknown) {
   return error instanceof Error ? error.message : "تعذر تحميل الطلبات الآن.";
 }
 
+export async function cancelCurrentCustomerOrder(orderId: string) {
+  const { data, error } = await supabase
+    .rpc("customer_cancel_order", {
+      p_order_id: orderId,
+    })
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("تعذر إلغاء الطلب.");
+  }
+
+  return {
+    id: String((data as { order_id: string }).order_id),
+    orderStatus: String(
+      (data as { order_status: string }).order_status,
+    ),
+  };
+}
+
 export function formatCustomerCurrency(value: number) {
   return formatCurrencyLYD(value);
 }

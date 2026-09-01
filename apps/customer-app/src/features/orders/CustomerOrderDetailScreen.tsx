@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { formatOrderNumber } from "@medifast/types";
-import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { theme } from "@medifast/ui";
 import {
   Card,
@@ -15,6 +22,7 @@ import {
   StatusBadge,
 } from "../../components/CustomerUI";
 import {
+  cancelCurrentCustomerOrder,
   customerOrderTimeline,
   formatCustomerCurrency,
   formatCustomerDate,
@@ -36,6 +44,8 @@ export default function CustomerOrderDetailScreen() {
   const [order, setOrder] = useState<CustomerOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) {
@@ -94,6 +104,46 @@ export default function CustomerOrderDetailScreen() {
       // ignore for now
     }
   }, [order?.driverPhone]);
+
+  const handleCancelOrder = useCallback(async () => {
+    if (!orderId || order?.orderStatus !== "placed" || cancelling) {
+      return;
+    }
+
+    setCancelling(true);
+    setCancelError(null);
+
+    try {
+      await cancelCurrentCustomerOrder(orderId);
+      await loadOrder();
+    } catch (nextError) {
+      setCancelError(normalizeCustomerOrderError(nextError));
+    } finally {
+      setCancelling(false);
+    }
+  }, [cancelling, loadOrder, order?.orderStatus, orderId]);
+
+  const confirmCancelOrder = useCallback(() => {
+    if (order?.orderStatus !== "placed" || cancelling) {
+      return;
+    }
+
+    Alert.alert(
+      "إلغاء الطلب",
+      "هل تريد إلغاء هذا الطلب؟",
+      [
+        {
+          text: "رجوع",
+          style: "cancel",
+        },
+        {
+          text: "إلغاء الطلب",
+          style: "destructive",
+          onPress: () => void handleCancelOrder(),
+        },
+      ],
+    );
+  }, [cancelling, handleCancelOrder, order?.orderStatus]);
 
   return (
     <Screen
@@ -159,6 +209,22 @@ export default function CustomerOrderDetailScreen() {
                   label="اتصال بالسائق"
                   onPress={() => void handleCallDriver()}
                 />
+              ) : null}
+
+              {order.orderStatus === "placed" ? (
+                <>
+                  {cancelError ? (
+                    <Text style={styles.cancelError}>{cancelError}</Text>
+                  ) : null}
+
+                  <PrimaryButton
+                    label="إلغاء الطلب"
+                    variant="secondary"
+                    loading={cancelling}
+                    disabled={cancelling}
+                    onPress={confirmCancelOrder}
+                  />
+                </>
               ) : null}
             </Card>
 
@@ -393,6 +459,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     textAlign: "right",
     lineHeight: 20,
+  },
+  cancelError: {
+    color: theme.colors.danger,
+    textAlign: "right",
+    fontSize: theme.typography.body.sm,
+    fontWeight: "700",
   },
 
   itemHighlight: {
