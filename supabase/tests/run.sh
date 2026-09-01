@@ -1,6 +1,8 @@
 #!/bin/bash
+set -euo pipefail
 
-psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+psql -X -v ON_ERROR_STOP=1 \
+  "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
   -f supabase/tests/000_test_helpers.sql \
   -f supabase/tests/001_core_workflow_contract.sql \
   -f supabase/tests/002_order_lifecycle.sql \
