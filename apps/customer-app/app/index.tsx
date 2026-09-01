@@ -98,9 +98,9 @@ export default function SplashScreen() {
   }
 
   return (
-    <Screen title="ميدي فاست" subtitle="توصيل صيدلية سريع مع دفع نقدي عند الاستلام.">
+    <Screen title="ميدي فاست" subtitle="توصيل سريع للمنتجات مع دفع نقدي عند الاستلام.">
       <Card>
-        <Pill label="منصة صيدلية سريعة" />
+        <Pill label="منصة تسوق وتوصيل سريعة" />
         <PrimaryButton
           label={continueLoading || checkingSession ? "جارٍ التحميل..." : "متابعة"}
           onPress={() => void handleContinue()}

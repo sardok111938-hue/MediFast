@@ -216,7 +216,7 @@ export default function SearchScreen() {
       >
         <View style={styles.searchInputWrap}>
           <SearchInput
-            placeholder="ابحث عن دواء أو منتج"
+            placeholder="ابحث عن منتج"
             value={query}
             onChangeText={setQuery}
           />
@@ -301,7 +301,7 @@ export default function SearchScreen() {
                 <Text style={styles.suggestedTitle}>عمّا تبحث اليوم؟</Text>
 
                 <Text style={styles.suggestedSubtitle}>
-                  اختر من الاقتراحات السريعة أو اكتب اسم الدواء في الأعلى
+                  اختر من الاقتراحات السريعة أو اكتب اسم المنتج في الأعلى
                 </Text>
 
                 <View style={styles.quickSearchGrid}>

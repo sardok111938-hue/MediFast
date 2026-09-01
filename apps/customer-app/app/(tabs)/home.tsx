@@ -327,8 +327,8 @@ export default function HomeScreen() {
         />
 
         <View style={styles.heroOverlay}>
-          <Text style={styles.heroBrand}>صيدليتي</Text>
-          <Text style={styles.heroTagline}>دواؤك لباب منزلك</Text>
+          <Text style={styles.heroBrand}>متجرك</Text>
+          <Text style={styles.heroTagline}>احتياجاتك لباب منزلك</Text>
         </View>
       </Pressable>
 
@@ -344,7 +344,7 @@ export default function HomeScreen() {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="ابحث عن دواء أو منتج"
+          placeholder="ابحث عن منتج"
           placeholderTextColor={theme.colors.muted}
           style={styles.searchInput}
           textAlign="right"

@@ -221,7 +221,7 @@ const categoryVisuals: Record<
     },
     gradient: ["#FAF9FF", "#EAE5FA"],
     fallbackImage: "https://placehold.co/800x600/F7F6FF/6F5AA8?text=Skin+Hair",
-    subtitle: "روتين البشرة والشعر من الصيدلية",
+    subtitle: "روتين البشرة والشعر والعناية اليومية",
   },
   "mother-baby": {
     icon: "heart-outline",
@@ -263,7 +263,7 @@ function getVisualForSlug(slug?: string | null) {
       theme: defaultCategoryTheme,
       gradient: ["#F8FCF9", "#E4F4EA"] as const,
       fallbackImage: "https://placehold.co/800x600/F8FCF9/127244?text=MediFast",
-      subtitle: "منتجات صيدلية منظمة حسب احتياجك",
+      subtitle: "منتجات منظمة حسب احتياجك",
     }
   );
 }

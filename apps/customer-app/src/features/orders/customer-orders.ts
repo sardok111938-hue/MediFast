@@ -42,7 +42,7 @@ const statusLabelMap: Record<string, string> = {
   preparing: "قيد التحضير",
   ready_for_pickup: "جاهز للاستلام",
   assigned: "تم التعيين",
-  picked_up: "تم الاستلام من الصيدلية",
+  picked_up: "تم الاستلام من المتجر",
   on_the_way: "في الطريق",
   delivered: "تم التوصيل",
   cancelled: "ملغي",
@@ -316,21 +316,21 @@ export function getDeliveryHeadline(order: CustomerOrder) {
   if (order.orderStatus === "placed" || order.orderStatus === "pending") {
     return {
       tone: "muted" as const,
-      message: "تم استلام طلبك، وفي انتظار قبول الصيدلية.",
+      message: "تم استلام طلبك، وفي انتظار قبول المتجر.",
     };
   }
 
   if (order.orderStatus === "accepted") {
     return {
       tone: "info" as const,
-      message: "قبلت الصيدلية الطلب وسيبدأ التحضير قريبًا.",
+      message: "قبل المتجر الطلب وسيبدأ التحضير قريبًا.",
     };
   }
 
   if (order.orderStatus === "preparing") {
     return {
       tone: "info" as const,
-      message: "الصيدلية تقوم بتحضير طلبك الآن.",
+      message: "المتجر يقوم بتحضير طلبك الآن.",
     };
   }
 
@@ -354,8 +354,8 @@ export function getDeliveryHeadline(order: CustomerOrder) {
     return {
       tone: "info" as const,
       message: order.driverName
-        ? `استلم ${order.driverName} طلبك من الصيدلية وهو يستعد للتوصيل.`
-        : "تم استلام طلبك من الصيدلية وهو في مرحلة التوصيل.",
+        ? `استلم ${order.driverName} طلبك من المتجر وهو يستعد للتوصيل.`
+        : "تم استلام طلبك من المتجر وهو في مرحلة التوصيل.",
     };
   }
 

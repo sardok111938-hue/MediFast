@@ -208,7 +208,7 @@ export default function ProductDetailScreen() {
               <Text style={styles.metaValue}>{product.barcode ?? "-"}</Text>
             </View>
             <View style={styles.metaTile}>
-              <Text style={styles.metaTitle}>عنوان الصيدلية</Text>
+              <Text style={styles.metaTitle}>عنوان المتجر</Text>
               <Text style={styles.metaValue}>{vendor?.address ?? "-"}</Text>
             </View>
           </View>
