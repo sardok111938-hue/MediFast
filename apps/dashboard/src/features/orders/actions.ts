@@ -1,25 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assignDriver, updateAdminOrderStatus, updateDriverOrderStatus, updateVendorOrderStatus } from "./api";
+import { assignDriver, updateDriverOrderStatus, updateVendorOrderStatus } from "./api";
 
 type OrderActionResult = {
   success: boolean;
   error: string | null;
 };
 
-const adminOrderStatuses = new Set([
-  "placed",
-  "accepted",
-  "preparing",
-  "rejected",
-  "ready_for_pickup",
-  "assigned",
-  "picked_up",
-  "on_the_way",
-  "delivered",
-  "cancelled",
-]);
 const vendorOrderStatuses = new Set(["accepted", "preparing", "ready_for_pickup", "rejected"]);
 const driverOrderStatuses = new Set(["picked_up", "on_the_way", "delivered"]);
 
@@ -50,35 +38,6 @@ export async function updateVendorOrderStatusAction(input: {
   revalidatePath("/vendor/orders");
   revalidatePath("/admin/orders");
   revalidatePath("/admin/assignments");
-
-  return {
-    success: true,
-    error: null,
-  };
-}
-
-export async function updateAdminOrderStatusAction(input: {
-  orderId: string;
-  nextStatus: string;
-}): Promise<OrderActionResult> {
-  if (!adminOrderStatuses.has(input.nextStatus)) {
-    return invalidStatusResult();
-  }
-
-  const result = await updateAdminOrderStatus(input.orderId, input.nextStatus);
-
-  if (result.error) {
-    return {
-      success: false,
-      error: result.error.message,
-    };
-  }
-
-  revalidatePath("/admin/orders");
-  revalidatePath("/admin/assignments");
-  revalidatePath("/driver");
-  revalidatePath("/driver/orders");
-  revalidatePath("/vendor/orders");
 
   return {
     success: true,

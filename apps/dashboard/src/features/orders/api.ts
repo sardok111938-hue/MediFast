@@ -16,26 +16,6 @@ type DriverAssignmentMutationResult = {
   order_status: string;
 };
 
-export async function updateAdminOrderStatus(orderId: string, nextStatus: string) {
-  const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase
-    .rpc("admin_update_order_status", {
-      p_order_id: orderId,
-      p_next_status: nextStatus,
-    })
-    .single();
-
-  return {
-    data: data
-      ? {
-          id: String((data as { order_id: string }).order_id),
-          order_status: String((data as { order_status: string }).order_status),
-        }
-      : null,
-    error: error ?? (!data ? new Error("Order status could not be updated.") : null),
-  };
-}
-
 export async function updateVendorOrderStatus(orderId: string, nextStatus: string) {
   const supabase = await getSupabaseServerClient();
   const { data, error } = await supabase

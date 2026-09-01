@@ -14,23 +14,10 @@ import { buildPaginatedResult, DEFAULT_PAGE_SIZE, getPaginationRange, type Pagin
 import { getSupabaseBrowserClient } from "../../../../lib/supabase/browser";
 import { formatCurrency } from "../../../../lib/utils/format-currency";
 import { formatDate } from "../../../../lib/utils/format-date";
-import { assignDriverAction, updateAdminOrderStatusAction } from "../../../orders/actions";
+import { assignDriverAction } from "../../../orders/actions";
 import { OrderStatusBadge } from "../../../orders/components/order-status-badge";
 import type { AdminOrderControlProps, AdminOrderManagerRow, AsyncState, DriverOption } from "../shared/admin-types";
 import { normalizeError, readCategoryName, readName, readSingle } from "../shared/admin-utils";
-
-const adminOverrideStatuses = [
-  "placed",
-  "accepted",
-  "preparing",
-  "rejected",
-  "ready_for_pickup",
-  "assigned",
-  "picked_up",
-  "on_the_way",
-  "delivered",
-  "cancelled",
-];
 
 type AdminOrdersData = PaginatedResult<AdminOrderManagerRow>;
 
@@ -155,77 +142,6 @@ function AdminOrdersManager() {
   useEffect(() => {
     void load();
   }, [page]);
-
-  async function handleStatusChange(orderId: string, nextStatus: string) {
-    const previousOrders = state.data?.rows ?? [];
-    const previousOrder = previousOrders.find((order) => order.id === orderId);
-
-    if (!previousOrder || previousOrder.orderStatus === nextStatus) {
-      return;
-    }
-
-    setUpdatingOrderId(orderId);
-    setFeedback(null);
-    setState((current) => ({
-      data:
-        current.data
-          ? {
-              ...current.data,
-              rows: current.data.rows.map((order) =>
-          order.id === orderId
-            ? {
-                ...order,
-                orderStatus: nextStatus,
-              }
-            : order
-              ),
-            }
-          : null,
-      error: current.error,
-      loading: current.loading,
-    }));
-
-    try {
-      const result = await updateAdminOrderStatusAction({
-        orderId,
-        nextStatus,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error ?? "تعذر تحديث حالة الطلب.");
-      }
-
-      setFeedback({
-        type: "success",
-        message: `تم تحديث الطلب ${formatOrderNumber(orderId)} إلى ${t(nextStatus.replaceAll("_", " "))}.`,
-      });
-    } catch (error) {
-      setState((current) => ({
-        data:
-          current.data
-            ? {
-                ...current.data,
-                rows: current.data.rows.map((order) =>
-            order.id === orderId
-              ? {
-                  ...order,
-                  orderStatus: previousOrder.orderStatus,
-                }
-              : order
-                ),
-              }
-            : null,
-        error: current.error,
-        loading: current.loading,
-      }));
-      setFeedback({
-        type: "error",
-        message: normalizeError(error),
-      });
-    } finally {
-      setUpdatingOrderId(null);
-    }
-  }
 
   async function handleDriverAssign(orderId: string, selectedDriverId: string) {
     const previousOrders = state.data?.rows ?? [];
@@ -366,7 +282,7 @@ function AdminOrdersManager() {
       />
       <Table
         title="مراقبة الطلبات"
-        headers={["معرّف الطلب", "الزبون", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء", "تصحيح يدوي"]}
+        headers={["معرّف الطلب", "الزبون", "المتجر", "الإجمالي", "حالة الدفع", "حالة الطلب", "السائق", "تاريخ الإنشاء"]}
         rows={orders.map((order) => [
           formatOrderNumber(order.id),
           order.customerName,
@@ -383,14 +299,6 @@ function AdminOrdersManager() {
             onAssign={handleDriverAssign}
           />,
           order.createdAt ? formatDate(order.createdAt) : "-",
-          <AdminOrderOverrideControl
-            key={`${order.id}-override`}
-            order={order}
-            statuses={adminOverrideStatuses}
-            disabled={updatingOrderId === order.id}
-            t={t}
-            onStatusChange={handleStatusChange}
-          />,
         ])}
         emptyMessage="لا توجد طلبات متاحة بعد."
       />
@@ -457,41 +365,6 @@ function AdminDriverAssignControl({
           ))}
         </select>
       </div>
-    </div>
-  );
-}
-
-function AdminOrderOverrideControl({
-  order,
-  statuses,
-  disabled,
-  t,
-  onStatusChange,
-}: AdminOrderControlProps & {
-  statuses: string[];
-  t: (key: string) => string;
-  onStatusChange: (orderId: string, nextStatus: string) => void;
-}) {
-  return (
-    <div className="table-actions">
-      <details>
-        <summary className="secondary-button admin-summary-button">تجاوز</summary>
-        <div className="field">
-          <select
-            className="input"
-            value={order.orderStatus}
-            disabled={disabled}
-            aria-label="تصحيح حالة الطلب يدويًا"
-            onChange={(event) => onStatusChange(order.id, event.target.value)}
-          >
-            {statuses.map((status) => (
-              <option key={status} value={status}>
-                {t(status.replaceAll("_", " "))}
-              </option>
-            ))}
-          </select>
-        </div>
-      </details>
     </div>
   );
 }
