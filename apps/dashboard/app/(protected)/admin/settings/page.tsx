@@ -68,10 +68,12 @@ async function applyLowStockThresholdToAllProducts(formData: FormData) {
     throw new Error("Invalid low stock threshold.");
   }
 
-const { error } = await supabase
-  .from("products")
-  .update({ low_stock_threshold: threshold })
-  .not("id", "is", null);
+const { error } = await supabase.rpc(
+  "admin_apply_low_stock_threshold",
+  {
+    p_threshold: threshold,
+  },
+);
   
   if (error) {
     throw new Error(error.message);

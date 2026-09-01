@@ -130,6 +130,7 @@ async function bulkImportProductsForVendor(input: {
   vendorId: string;
   rows: ProductImportParsedRow[];
   revalidatePaths: string[];
+  mutationMode: "vendor" | "admin";
 }): Promise<VendorBulkCreateProductsResult> {
   const supabase = await getSupabaseServerClient();
   const rows = input.rows ?? [];
@@ -190,7 +191,7 @@ async function bulkImportProductsForVendor(input: {
   const { data: existingProducts, error: existingProductsError } =
     await supabase
       .from("products")
-      .select("barcode")
+      .select("id, barcode")
       .eq("vendor_id", input.vendorId)
       .in(
         "barcode",
@@ -203,10 +204,16 @@ async function bulkImportProductsForVendor(input: {
     );
   }
 
-  const existingBarcodes = new Set<string>(
+  const existingProductIdByBarcode = new Map<string, string>(
     (existingProducts ?? [])
-      .map((product) => (product.barcode ? String(product.barcode).trim() : ""))
-      .filter((barcode) => barcode.length > 0),
+      .filter((product) => product.id && product.barcode)
+      .map(
+        (product) =>
+          [
+            String(product.barcode).trim(),
+            String(product.id),
+          ] as const,
+      ),
   );
 
   const validation = validateProductImportRows(rows, {
@@ -237,40 +244,97 @@ async function bulkImportProductsForVendor(input: {
       is_active: true,
     };
 
-    if (row.barcode && existingBarcodes.has(row.barcode)) {
-      const { error } = await supabase
-        .from("products")
-        .update({
-          price: payload.price,
-          stock_quantity: payload.stock_quantity,
-          is_active: true,
-        })
-        .eq("vendor_id", input.vendorId)
-        .eq("barcode", row.barcode);
+    const existingProductId = row.barcode
+      ? existingProductIdByBarcode.get(row.barcode) ?? null
+      : null;
 
-      if (error) {
+    if (existingProductId) {
+      const updateResult =
+        input.mutationMode === "admin"
+          ? await callProductRpc("admin_update_product", {
+              p_product_id: existingProductId,
+              p_name: payload.name,
+              p_description: payload.description ?? "",
+              p_price: payload.price,
+              p_category_id: payload.category_id,
+              p_set_category: true,
+              p_image_url: payload.image_url ?? "",
+              p_set_image: true,
+              p_stock_quantity: payload.stock_quantity,
+              p_is_active: true,
+            })
+          : await callProductRpc("vendor_update_product", {
+              p_product_id: existingProductId,
+              p_price: payload.price,
+              p_stock_quantity: payload.stock_quantity,
+            });
+
+      if (!updateResult.success) {
         insertionErrors.push({
           rowNumber: row.rowNumber,
           field: "row",
-          message: error.message ?? "تعذر تحديث هذا المنتج.",
+          message:
+            updateResult.error ??
+            "تعذر تحديث هذا المنتج.",
         });
-
         continue;
+      }
+
+      if (input.mutationMode === "vendor") {
+        const activateResult = await callProductRpc(
+          "vendor_activate_product",
+          {
+            p_product_id: existingProductId,
+          },
+        );
+
+        if (!activateResult.success) {
+          insertionErrors.push({
+            rowNumber: row.rowNumber,
+            field: "row",
+            message:
+              activateResult.error ??
+              "تعذر تفعيل هذا المنتج.",
+          });
+          continue;
+        }
       }
 
       updatedCount += 1;
       continue;
     }
 
-    const { error } = await supabase.from("products").insert(payload);
+    const createResult =
+      input.mutationMode === "admin"
+        ? await callProductRpc("admin_create_product", {
+            p_vendor_id: input.vendorId,
+            p_name: payload.name,
+            p_barcode: payload.barcode,
+            p_description: payload.description,
+            p_price: payload.price,
+            p_category_id: payload.category_id,
+            p_image_url: payload.image_url,
+            p_stock_quantity: payload.stock_quantity,
+            p_is_active: true,
+          })
+        : await callProductRpc("vendor_create_product", {
+            p_category_id: payload.category_id,
+            p_description: payload.description,
+            p_image_url: payload.image_url,
+            p_name: payload.name,
+            p_price: payload.price,
+            p_stock_quantity: payload.stock_quantity,
+            p_barcode: payload.barcode,
+          });
 
-    if (error) {
+    if (!createResult.success) {
       insertionErrors.push({
         rowNumber: row.rowNumber,
         field: "row",
-        message: error.message ?? "تعذر إدراج هذا الصف.",
+        message:
+          createResult.error ??
+          "تعذر إدراج هذا الصف.",
       });
-
       continue;
     }
 
@@ -417,6 +481,7 @@ export async function vendorBulkCreateProductsAction(
     vendorId: vendorAccess.vendorId,
     rows: input.rows,
     revalidatePaths: ["/vendor/products", "/vendor/inventory"],
+    mutationMode: "vendor",
   });
 }
 
@@ -469,5 +534,6 @@ export async function adminBulkImportProductsForVendorAction(input: {
       "/vendor/products",
       "/vendor/inventory",
     ],
+    mutationMode: "admin",
   });
 }

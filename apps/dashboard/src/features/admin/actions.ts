@@ -551,25 +551,29 @@ export async function adminSeedProductsToVendorAction(input: {
       const existingProductId = existingProductIdByBarcode.get(row.barcode) ?? null;
 
       if (existingProductId) {
-        const { error } = await supabase
-          .from("products")
-          .update({
-            category_id: payload.category_id,
-            name: payload.name,
-            description: payload.description,
-            price: payload.price,
-            stock_quantity: payload.stock_quantity,
-            image_url: payload.image_url,
-            is_active: true,
-          })
-          .eq("id", existingProductId)
-          .eq("vendor_id", vendorId);
+        const result = await callAdminRpc(
+          "admin_update_product",
+          {
+            p_product_id: existingProductId,
+            p_name: payload.name,
+            p_description: payload.description ?? "",
+            p_price: payload.price,
+            p_category_id: payload.category_id,
+            p_set_category: true,
+            p_image_url: payload.image_url ?? "",
+            p_set_image: true,
+            p_stock_quantity: payload.stock_quantity,
+            p_is_active: true,
+          },
+        );
 
-        if (error) {
+        if (!result.success) {
           insertionErrors.push({
             rowNumber: row.rowNumber,
             field: "row",
-            message: error.message ?? "تعذر تحديث هذا المنتج.",
+            message:
+              result.error ??
+              "تعذر تحديث هذا المنتج.",
           });
           continue;
         }
@@ -579,13 +583,28 @@ export async function adminSeedProductsToVendorAction(input: {
       }
     }
 
-    const { error } = await supabase.from("products").insert(payload);
+    const result = await callAdminRpc(
+      "admin_create_product",
+      {
+        p_vendor_id: payload.vendor_id,
+        p_name: payload.name,
+        p_barcode: payload.barcode,
+        p_description: payload.description,
+        p_price: payload.price,
+        p_category_id: payload.category_id,
+        p_image_url: payload.image_url,
+        p_stock_quantity: payload.stock_quantity,
+        p_is_active: true,
+      },
+    );
 
-    if (error) {
+    if (!result.success) {
       insertionErrors.push({
         rowNumber: row.rowNumber,
         field: "row",
-        message: error.message ?? "تعذر إدراج هذا الصف.",
+        message:
+          result.error ??
+          "تعذر إدراج هذا الصف.",
       });
       continue;
     }
