@@ -1,1 +1,1 @@
-export { default } from "../src/features/favorites/FavoritesScreen";
+export { default } from "../src/modules/favorites/FavoritesScreen";

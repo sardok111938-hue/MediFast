@@ -1,1 +1,1 @@
-export { default } from "../src/features/checkout/CashConfirmationScreen";
+export { default } from "../src/modules/checkout/CashConfirmationScreen";

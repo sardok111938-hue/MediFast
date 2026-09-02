@@ -1,1 +1,1 @@
-export { default } from "../src/features/addresses/AddressSelectionScreen";
+export { default } from "../src/modules/addresses/AddressSelectionScreen";

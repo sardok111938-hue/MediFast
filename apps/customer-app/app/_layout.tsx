@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { CustomerI18nProvider } from "../src/lib/i18n";
+import { CustomerI18nProvider } from "../src/infrastructure/i18n/CustomerI18nProvider";
 
 export default function RootLayout() {
   return (

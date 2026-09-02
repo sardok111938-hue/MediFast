@@ -1,1 +1,1 @@
-export { default } from "../../src/features/addresses/AddressSetupScreen";
+export { default } from "../../src/modules/addresses/AddressSetupScreen";

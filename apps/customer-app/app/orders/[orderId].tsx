@@ -1,1 +1,1 @@
-export { default } from "../../src/features/orders/CustomerOrderDetailScreen";
+export { default } from "../../src/modules/orders/CustomerOrderDetailScreen";

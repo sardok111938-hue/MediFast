@@ -1,19 +1,19 @@
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
-import { getVendorById, useCustomerVendors } from "../../src/lib/customer-catalog";
+import { getVendorById, useCustomerVendors } from "../../src/modules/marketplace/catalog/customer-catalog";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@medifast/ui";
-import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../../src/components/CustomerUI";
+import { Card, EmptyCard, ErrorCard, HelperText, LoadingCard, PrimaryButton, QuantityStepper, Screen, SectionTitle } from "../../src/ui";
 import {
   getCartItemCount,
   getCartSubtotal,
   removeProductFromCart,
   setCartItemQuantity,
   useCustomerCart,
-} from "../../src/lib/cart-store";
-import { useCartFreshness } from "../../src/lib/cart-freshness";
-import { formatCustomerCurrency } from "../../src/features/orders/customer-orders";
-import { CatalogImage } from "../../src/components/CatalogImage";
+} from "../../src/modules/cart/cart-store";
+import { useCartFreshness } from "../../src/modules/cart/cart-freshness";
+import { formatCustomerCurrency } from "../../src/modules/orders/customer-orders";
+import { CatalogImage } from "../../src/ui/media/CatalogImage";
 
 export default function CartScreen() {
   const router = useRouter();

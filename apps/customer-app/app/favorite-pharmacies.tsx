@@ -1,1 +1,1 @@
-export { default } from "../src/features/favorites/FavoritePharmaciesScreen";
+export { default } from "../src/modules/favorites/FavoritePharmaciesScreen";
